@@ -81,52 +81,13 @@ Stratum group code:
 ```{r only offshore and inshore north of hatteras}
 neus_full.ID.0103 <- neus_full.ID[STRATUM < 4000]
 ```
-I have trawls beginning with 1, 3, 5, 7, 8
 
-MAB : 
-  Offshore: 50:57, 61:66, 69:76 --> 1500:1570, 1610:1660, 1690:1760
-  Inshore: 15:44, 50:58 --> 3150:3440, 3500:3580
-  
-```{r MAB}
-MAB_dt <- data.table("STRATUM" = c(1500:1570, 1610:1660, 1690:1760, 3150:3440, 3500:3580), "reg" = "MAB")
-```
-  
-SNE : 
-  Offshore: 1:12 --> 1010:1200 
-  Inshore: 1:14, 91 & 49 = LIS, 45:48, 50:55 --> 3010:3140, 3910, 3490, 3450:3480, 3500:3550
-  
-```{r SNE}
-SNE_dt <- data.table("STRATUM" = c(1010:1200,3010:3140, 3910, 3490, 3450:3480, 3500:3550), "reg" = "SNE")
-```
-  
-GB : 
-  Offshore: 13:22 --> 1130:1220 
-  Inshore: NA
-```{r GB}
-GB_dt <- data.table("STRATUM" = c(1130:1220), "reg" = "GB")
-```
-  
-GOM : 
-  Offshore: 23:34, 36:40 --> 1230:1340, 1360:1400
-  Inshore: 56:90 --> 3560:3900
-  
-```{r GOM}
-GOM_dt <- data.table("STRATUM" = c(1230:1340, 1360:1400,3560:3900), "reg" = "GOM")
-
-```
 Region Stratum Key
 ```{r region stratum key}
-region_strata_key <- rbind(GOM_dt, GB_dt, SNE_dt, MAB_dt)
+region_strata_key <- read.csv("key_reg_strata.csv")
+region_strata_key.r <- na.omit(region_strata_key, STRATUM_NAME)
 ```
 
 ```{r link key to neus trawls}
-neus_full.ID.0103[,"STRATUM_reg" := substr(STRATUM_NAME, 1, 3)]#extract first three letters from string of stratum name
-
-setkey(neus_full.ID.0103, STRATUM)
-setkey(region_strata_key, STRATUM)
-neus_full.ID.regions <- neus_full.ID.0103[region_strata_key]
-
-
-names <- data.frame(levels(neus_full.ID$STRATUM_NAME))
-summary(neus_full.ID.0103$STRATUM_NAME)
+neus_full.ID.regions <- neus_full.ID.0103[region_strata_key.r, on = "STRATUM_NAME"]
 ```
