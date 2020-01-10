@@ -1,0 +1,15 @@
+---
+title: "Spatial Turnover Exploratory Analysis"
+output: html_notebook
+---
+
+Instructions from Malin:
+
+Is anyone up for an exploratory analysis with the trawl data? It would be very cool to look at changes in spatial turnover, similar to http://www.nature.com/ncomms/2015/150924/ncomms9405/full/ncomms9405.html but across a much wider set of regions. An idea from conversations at HIFMB yesterday. 
+Steps would be:
+1. Calculate Jacard similarity between each haul in a single year in a single region. The vegdist() function in the vegan package would do this, and the dat.exploded file from OceanAdapt should have the data you’d need (https://github.com/pinskylab/OceanAdapt/blob/master/data_clean/dat_exploded.rds). 
+1. Calculate geographic distance between each haul in km (e.g., geosphere package in R could work).
+1. Plot similarity vs. geographic distance and fit a regression line.
+1. Repeat for each year.
+
+A good place to start would just be the Northeast US. We could take a look and then think about expanding out to the other regions and to European data.
