@@ -227,11 +227,47 @@ summary {
 
 <!-- rnb-text-begin -->
 <p>Instructions from Malin:</p>
-<p>Is anyone up for an exploratory analysis with the trawl data? It would be very cool to look at changes in spatial turnover, similar to <a href="http://www.nature.com/ncomms/2015/150924/ncomms9405/full/ncomms9405.html" class="uri">http://www.nature.com/ncomms/2015/150924/ncomms9405/full/ncomms9405.html</a> but across a much wider set of regions. An idea from conversations at HIFMB yesterday. Steps would be: 1. Calculate Jacard similarity between each haul in a single year in a single region. The vegdist() function in the vegan package would do this, and the dat.exploded file from OceanAdapt should have the data you’d need (<a href="https://github.com/pinskylab/OceanAdapt/blob/master/data_clean/dat_exploded.rds" class="uri">https://github.com/pinskylab/OceanAdapt/blob/master/data_clean/dat_exploded.rds</a>). 1. Calculate geographic distance between each haul in km (e.g., geosphere package in R could work). 1. Plot similarity vs. geographic distance and fit a regression line. 1. Repeat for each year.</p>
+<p>Is anyone up for an exploratory analysis with the trawl data? It would be very cool to look at changes in spatial turnover, similar to <a href="http://www.nature.com/ncomms/2015/150924/ncomms9405/full/ncomms9405.html">Magurran, Dornelas, Moyes, Gotelli, McGill et al. 2015</a> but across a much wider set of regions. An idea from conversations at <a href="https://hifmb.de/en/">HIFMB</a> yesterday.</p>
+<p>From Magurran et al. <em>“Here, we analyse an exceptionally comprehensive 29-year time series of North Atlantic groundfish assemblages monitored over 5° latitude to the west of Scotland. These fish assemblages show no systematic change in species richness through time, but steady change in species composition, leading to an increase in spatial homogenization: the species identity of colder northern localities increasingly resembles that of warmer southern localities.”</em></p>
+<p>Steps would be:</p>
+<ol style="list-style-type: decimal">
+<li>Calculate Jacard similarity between each haul in a single year in a single region. The vegdist() function in the vegan package would do this, and the dat.exploded file from OceanAdapt should have the data you’d need (<a href="https://github.com/pinskylab/OceanAdapt/blob/master/data_clean/dat_exploded.rds" class="uri">https://github.com/pinskylab/OceanAdapt/blob/master/data_clean/dat_exploded.rds</a>).</li>
+<li>Calculate geographic distance between each haul in km (e.g., geosphere package in R could work).</li>
+<li>Plot similarity vs. geographic distance and fit a regression line.</li>
+<li>Repeat for each year.</li>
+</ol>
 <p>A good place to start would just be the Northeast US. We could take a look and then think about expanding out to the other regions and to European data.</p>
+<p>Methods from Magurran et al.</p>
+<p>First assign the rectangles to nine 30’ latitudinal bands Compile community time series for each latitudinal band Sample rarefaction ensures equal sampling effort across bands and is used in the calculation of temporal <span class="math inline">\(\alpha\)</span> diversity and temporal <span class="math inline">\(\beta\)</span> diversity. First calculate similarity in relation to the start of the survey Next, for each year, we compute pairwise compositional similarity of these latitudinal bands We also construct distance-decay plots for each year</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaW5zdGFsbC5wYWNrYWdlcyhcInZlZ2FuXCIpXG5cbmBgYCJ9 -->
+<pre class="r"><code>install.packages(&quot;vegan&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiYWxzbyBpbnN0YWxsaW5nIHRoZSBkZXBlbmRlbmN5IOKAmHBlcm11dGXigJlcblxudHJ5aW5nIFVSTCAnaHR0cHM6Ly9jcmFuLnJzdHVkaW8uY29tL2Jpbi9tYWNvc3gvZWwtY2FwaXRhbi9jb250cmliLzMuNS9wZXJtdXRlXzAuOS01LnRneidcbkNvbnRlbnQgdHlwZSAnYXBwbGljYXRpb24veC1nemlwJyBsZW5ndGggNTAyODYxIGJ5dGVzICg0OTEgS0IpXG49PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PVxuZG93bmxvYWRlZCA0OTEgS0JcblxudHJ5aW5nIFVSTCAnaHR0cHM6Ly9jcmFuLnJzdHVkaW8uY29tL2Jpbi9tYWNvc3gvZWwtY2FwaXRhbi9jb250cmliLzMuNS92ZWdhbl8yLjUtNi50Z3onXG5Db250ZW50IHR5cGUgJ2FwcGxpY2F0aW9uL3gtZ3ppcCcgbGVuZ3RoIDM1OTAyMjAgYnl0ZXMgKDMuNCBNQilcbj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09XG5kb3dubG9hZGVkIDMuNCBNQlxuIn0= -->
+<pre><code>also installing the dependency ‘permute’
+
+trying URL 'https://cran.rstudio.com/bin/macosx/el-capitan/contrib/3.5/permute_0.9-5.tgz'
+Content type 'application/x-gzip' length 502861 bytes (491 KB)
+==================================================
+downloaded 491 KB
+
+trying URL 'https://cran.rstudio.com/bin/macosx/el-capitan/contrib/3.5/vegan_2.5-6.tgz'
+Content type 'application/x-gzip' length 3590220 bytes (3.4 MB)
+==================================================
+downloaded 3.4 MB</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5UaGUgZG93bmxvYWRlZCBiaW5hcnkgcGFja2FnZXMgYXJlIGluXG5cdC92YXIvZm9sZGVycy8wbS96dzRoeXdrOTE3N2RzbnpodjR3MGI1cG0wMDAwZ24vVC8vUnRtcDVTN1BmYS9kb3dubG9hZGVkX3BhY2thZ2VzXG4ifQ== -->
+<pre><code>
+The downloaded binary packages are in
+    /var/folders/0m/zw4hywk9177dsnzhv4w0b5pm0000gn/T//Rtmp5S7Pfa/downloaded_packages</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiU3BhdGlhbCBUdXJub3ZlciBFeHBsb3JhdG9yeSBBbmFseXNpcyIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKSW5zdHJ1Y3Rpb25zIGZyb20gTWFsaW46CgpJcyBhbnlvbmUgdXAgZm9yIGFuIGV4cGxvcmF0b3J5IGFuYWx5c2lzIHdpdGggdGhlIHRyYXdsIGRhdGE/IEl0IHdvdWxkIGJlIHZlcnkgY29vbCB0byBsb29rIGF0IGNoYW5nZXMgaW4gc3BhdGlhbCB0dXJub3Zlciwgc2ltaWxhciB0byBodHRwOi8vd3d3Lm5hdHVyZS5jb20vbmNvbW1zLzIwMTUvMTUwOTI0L25jb21tczk0MDUvZnVsbC9uY29tbXM5NDA1Lmh0bWwgYnV0IGFjcm9zcyBhIG11Y2ggd2lkZXIgc2V0IG9mIHJlZ2lvbnMuIEFuIGlkZWEgZnJvbSBjb252ZXJzYXRpb25zIGF0IEhJRk1CIHllc3RlcmRheS4gClN0ZXBzIHdvdWxkIGJlOgoxLiBDYWxjdWxhdGUgSmFjYXJkIHNpbWlsYXJpdHkgYmV0d2VlbiBlYWNoIGhhdWwgaW4gYSBzaW5nbGUgeWVhciBpbiBhIHNpbmdsZSByZWdpb24uIFRoZSB2ZWdkaXN0KCkgZnVuY3Rpb24gaW4gdGhlIHZlZ2FuIHBhY2thZ2Ugd291bGQgZG8gdGhpcywgYW5kIHRoZSBkYXQuZXhwbG9kZWQgZmlsZSBmcm9tIE9jZWFuQWRhcHQgc2hvdWxkIGhhdmUgdGhlIGRhdGEgeW914oCZZCBuZWVkIChodHRwczovL2dpdGh1Yi5jb20vcGluc2t5bGFiL09jZWFuQWRhcHQvYmxvYi9tYXN0ZXIvZGF0YV9jbGVhbi9kYXRfZXhwbG9kZWQucmRzKS4gCjEuIENhbGN1bGF0ZSBnZW9ncmFwaGljIGRpc3RhbmNlIGJldHdlZW4gZWFjaCBoYXVsIGluIGttIChlLmcuLCBnZW9zcGhlcmUgcGFja2FnZSBpbiBSIGNvdWxkIHdvcmspLgoxLiBQbG90IHNpbWlsYXJpdHkgdnMuIGdlb2dyYXBoaWMgZGlzdGFuY2UgYW5kIGZpdCBhIHJlZ3Jlc3Npb24gbGluZS4KMS4gUmVwZWF0IGZvciBlYWNoIHllYXIuCgpBIGdvb2QgcGxhY2UgdG8gc3RhcnQgd291bGQganVzdCBiZSB0aGUgTm9ydGhlYXN0IFVTLiBXZSBjb3VsZCB0YWtlIGEgbG9vayBhbmQgdGhlbiB0aGluayBhYm91dCBleHBhbmRpbmcgb3V0IHRvIHRoZSBvdGhlciByZWdpb25zIGFuZCB0byBFdXJvcGVhbiBkYXRhLg==</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiU3BhdGlhbCBUdXJub3ZlciBFeHBsb3JhdG9yeSBBbmFseXNpcyIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKSW5zdHJ1Y3Rpb25zIGZyb20gTWFsaW46CgpJcyBhbnlvbmUgdXAgZm9yIGFuIGV4cGxvcmF0b3J5IGFuYWx5c2lzIHdpdGggdGhlIHRyYXdsIGRhdGE/IEl0IHdvdWxkIGJlIHZlcnkgY29vbCB0byBsb29rIGF0IGNoYW5nZXMgaW4gc3BhdGlhbCB0dXJub3Zlciwgc2ltaWxhciB0byBbTWFndXJyYW4sIERvcm5lbGFzLCBNb3llcywgR290ZWxsaSwgTWNHaWxsIGV0IGFsLiAyMDE1XShodHRwOi8vd3d3Lm5hdHVyZS5jb20vbmNvbW1zLzIwMTUvMTUwOTI0L25jb21tczk0MDUvZnVsbC9uY29tbXM5NDA1Lmh0bWwpIGJ1dCBhY3Jvc3MgYSBtdWNoIHdpZGVyIHNldCBvZiByZWdpb25zLiBBbiBpZGVhIGZyb20gY29udmVyc2F0aW9ucyBhdCBbSElGTUJdKGh0dHBzOi8vaGlmbWIuZGUvZW4vKSB5ZXN0ZXJkYXkuIAoKRnJvbSBNYWd1cnJhbiBldCBhbC4gKiJIZXJlLCB3ZSBhbmFseXNlIGFuIGV4Y2VwdGlvbmFsbHkgY29tcHJlaGVuc2l2ZSAyOS15ZWFyIHRpbWUgc2VyaWVzIG9mIE5vcnRoIEF0bGFudGljIGdyb3VuZGZpc2ggYXNzZW1ibGFnZXMgbW9uaXRvcmVkIG92ZXIgNcKwIGxhdGl0dWRlIHRvIHRoZSB3ZXN0IG9mIFNjb3RsYW5kLiBUaGVzZSBmaXNoIGFzc2VtYmxhZ2VzIHNob3cgbm8gc3lzdGVtYXRpYyBjaGFuZ2UgaW4gc3BlY2llcyByaWNobmVzcyB0aHJvdWdoIHRpbWUsIGJ1dCBzdGVhZHkgY2hhbmdlIGluIHNwZWNpZXMgY29tcG9zaXRpb24sIGxlYWRpbmcgdG8gYW4gaW5jcmVhc2UgaW4gc3BhdGlhbCBob21vZ2VuaXphdGlvbjogdGhlIHNwZWNpZXMgaWRlbnRpdHkgb2YgY29sZGVyIG5vcnRoZXJuIGxvY2FsaXRpZXMgaW5jcmVhc2luZ2x5IHJlc2VtYmxlcyB0aGF0IG9mIHdhcm1lciBzb3V0aGVybiBsb2NhbGl0aWVzLiIqCgpTdGVwcyB3b3VsZCBiZToKCjEuIENhbGN1bGF0ZSBKYWNhcmQgc2ltaWxhcml0eSBiZXR3ZWVuIGVhY2ggaGF1bCBpbiBhIHNpbmdsZSB5ZWFyIGluIGEgc2luZ2xlIHJlZ2lvbi4gVGhlIHZlZ2Rpc3QoKSBmdW5jdGlvbiBpbiB0aGUgdmVnYW4gcGFja2FnZSB3b3VsZCBkbyB0aGlzLCBhbmQgdGhlIGRhdC5leHBsb2RlZCBmaWxlIGZyb20gT2NlYW5BZGFwdCBzaG91bGQgaGF2ZSB0aGUgZGF0YSB5b3XigJlkIG5lZWQgKGh0dHBzOi8vZ2l0aHViLmNvbS9waW5za3lsYWIvT2NlYW5BZGFwdC9ibG9iL21hc3Rlci9kYXRhX2NsZWFuL2RhdF9leHBsb2RlZC5yZHMpLiAKMS4gQ2FsY3VsYXRlIGdlb2dyYXBoaWMgZGlzdGFuY2UgYmV0d2VlbiBlYWNoIGhhdWwgaW4ga20gKGUuZy4sIGdlb3NwaGVyZSBwYWNrYWdlIGluIFIgY291bGQgd29yaykuCjEuIFBsb3Qgc2ltaWxhcml0eSB2cy4gZ2VvZ3JhcGhpYyBkaXN0YW5jZSBhbmQgZml0IGEgcmVncmVzc2lvbiBsaW5lLgoxLiBSZXBlYXQgZm9yIGVhY2ggeWVhci4KCkEgZ29vZCBwbGFjZSB0byBzdGFydCB3b3VsZCBqdXN0IGJlIHRoZSBOb3J0aGVhc3QgVVMuIFdlIGNvdWxkIHRha2UgYSBsb29rIGFuZCB0aGVuIHRoaW5rIGFib3V0IGV4cGFuZGluZyBvdXQgdG8gdGhlIG90aGVyIHJlZ2lvbnMgYW5kIHRvIEV1cm9wZWFuIGRhdGEuCgpNZXRob2RzIGZyb20gTWFndXJyYW4gZXQgYWwuIAoKRmlyc3QgYXNzaWduIHRoZSByZWN0YW5nbGVzIHRvIG5pbmUgMzAnIGxhdGl0dWRpbmFsIGJhbmRzCkNvbXBpbGUgY29tbXVuaXR5IHRpbWUgc2VyaWVzIGZvciBlYWNoIGxhdGl0dWRpbmFsIGJhbmQKU2FtcGxlIHJhcmVmYWN0aW9uIGVuc3VyZXMgZXF1YWwgc2FtcGxpbmcgZWZmb3J0IGFjcm9zcyBiYW5kcyBhbmQgaXMgdXNlZCBpbiB0aGUgY2FsY3VsYXRpb24gb2YgdGVtcG9yYWwgJFxhbHBoYSQgZGl2ZXJzaXR5IGFuZCB0ZW1wb3JhbCAkXGJldGEkIGRpdmVyc2l0eS4gCkZpcnN0IGNhbGN1bGF0ZSBzaW1pbGFyaXR5IGluIHJlbGF0aW9uIHRvIHRoZSBzdGFydCBvZiB0aGUgc3VydmV5Ck5leHQsIGZvciBlYWNoIHllYXIsIHdlIGNvbXB1dGUgcGFpcndpc2UgY29tcG9zaXRpb25hbCBzaW1pbGFyaXR5IG9mIHRoZXNlIGxhdGl0dWRpbmFsIGJhbmRzCldlIGFsc28gY29uc3RydWN0IGRpc3RhbmNlLWRlY2F5IHBsb3RzIGZvciBlYWNoIHllYXIKCmBgYHtyIHNldHVwfQpsaWJyYXJ5KGRhdGEudGFibGUpCmxpYnJhcnkodmVnYW4pCgpgYGAKCg==</div>
 
 
 

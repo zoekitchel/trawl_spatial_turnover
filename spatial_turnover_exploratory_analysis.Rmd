@@ -5,11 +5,31 @@ output: html_notebook
 
 Instructions from Malin:
 
-Is anyone up for an exploratory analysis with the trawl data? It would be very cool to look at changes in spatial turnover, similar to http://www.nature.com/ncomms/2015/150924/ncomms9405/full/ncomms9405.html but across a much wider set of regions. An idea from conversations at HIFMB yesterday. 
+Is anyone up for an exploratory analysis with the trawl data? It would be very cool to look at changes in spatial turnover, similar to [Magurran, Dornelas, Moyes, Gotelli, McGill et al. 2015](http://www.nature.com/ncomms/2015/150924/ncomms9405/full/ncomms9405.html) but across a much wider set of regions. An idea from conversations at [HIFMB](https://hifmb.de/en/) yesterday. 
+
+From Magurran et al. *"Here, we analyse an exceptionally comprehensive 29-year time series of North Atlantic groundfish assemblages monitored over 5° latitude to the west of Scotland. These fish assemblages show no systematic change in species richness through time, but steady change in species composition, leading to an increase in spatial homogenization: the species identity of colder northern localities increasingly resembles that of warmer southern localities."*
+
 Steps would be:
+
 1. Calculate Jacard similarity between each haul in a single year in a single region. The vegdist() function in the vegan package would do this, and the dat.exploded file from OceanAdapt should have the data you’d need (https://github.com/pinskylab/OceanAdapt/blob/master/data_clean/dat_exploded.rds). 
 1. Calculate geographic distance between each haul in km (e.g., geosphere package in R could work).
 1. Plot similarity vs. geographic distance and fit a regression line.
 1. Repeat for each year.
 
 A good place to start would just be the Northeast US. We could take a look and then think about expanding out to the other regions and to European data.
+
+Methods from Magurran et al. 
+
+First assign the rectangles to nine 30' latitudinal bands
+Compile community time series for each latitudinal band
+Sample rarefaction ensures equal sampling effort across bands and is used in the calculation of temporal $\alpha$ diversity and temporal $\beta$ diversity. 
+First calculate similarity in relation to the start of the survey
+Next, for each year, we compute pairwise compositional similarity of these latitudinal bands
+We also construct distance-decay plots for each year
+
+```{r setup}
+library(data.table)
+library(vegan)
+
+```
+
