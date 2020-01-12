@@ -79,17 +79,19 @@ Stratum group code:
 #we only want 01 and 03's 
 
 ```{r only offshore and inshore north of hatteras}
-neus_full.ID.0103 <- neus_full.ID[STRATUM < 4000]
+#neus_full.ID.0103 <- neus_full.ID[STRATUM < 4000] not doing this any more, instead will reduce using below 
 ```
 
 Region Stratum Key
 ```{r region stratum key}
 region_strata_key <- read.csv("key_reg_strata.csv")
-region_strata_key.r <- na.omit(region_strata_key, STRATUM_NAME)
+
 ```
 
 ```{r link key to neus trawls}
-neus_full.ID.regions <- neus_full.ID.0103[region_strata_key.r, on = "STRATUM_NAME"]
+neus_full.ID.regions <- neus_full.ID[region_strata_key.r, on = "STRATUM_NAME"] #this got rid of all rows without a reg
+summary(neus_full.ID.regions$reg)
+
 ```
 Find center point of trawls in each region to find distance between regions
 ```{r center points of trawls }
@@ -111,10 +113,12 @@ latlon_reg[, c("Cent_lon", "Cent_lat") := as.list(findCentroid(LON, LAT)), by = 
 
 reg_centroids <- unique(latlon_reg, by = c("Cent_lon", "Cent_lat"))
 
-#reorder so in same order as community matrix below
-reg_centroids[, reg := factor(reg, levels = c("GEO", "MAB", "SNE", "GME"))]
+#reorder so in order from N to S
+reg_centroids[, reg := factor(reg, levels = c("GME", "GEO", "SNE", "MAB"))]
 
 setorder(reg_centroids, reg)
+
+#the location of MAB still doesn't make sense, but I'm moving forward anyway, much better than before
 ```
 
 
@@ -131,8 +135,9 @@ neus_full.ID.regions.unique.r <- data.table(na.omit(neus_full.ID.regions.unique[
 neus_full.ID.regions.unique.r[,"present" := 1]
 
 #now I need to populate a comparison with every year, region, and species combination to add 0s
-reg <- c("GEO", "MAB", "SNE", "GME")
+reg <- c("GME", "GEO", "SNE", "MAB")
 full_set <- data.table(expand.grid("SVSPP" = unique(spp$SVSPP), "YEAR" = unique(neus_full.ID.regions.unique.r$YEAR), "reg" = reg))
+
 
 
 ```
@@ -193,14 +198,38 @@ rownames(reg_distances) <- reg_centroid_key$plot
 colnames(reg_distances) <- reg_centroid_key$plot
 
 ?distm
+
 ```
+
+
+
+
 ```{r matrices wide to long form}
 library(reshape2)
 
-reg_distance.l <- melt(as.matrix(reg_distances), varnames = c("reg1", "reg2")) #matrix to data frame
+reg_distance.l <- melt(as.matrix(reg_distances), varnames = c("reg1", "reg2")) #matrix to data frame, 
+reg_distance.l <- data.table(reg_distance.l) #and then to data table
+reg_distance.l <- reg_distance.l[reg1 >= reg2,] # to get rid of repetitions
+colnames(reg_distance.l)[colnames(reg_distance.l)=="value"] <- "distance(m)" #change column name to distance
 
-  
-  
+similarities_1963.l <- melt(as.matrix(similarities_1963), varnames = c("reg1", "reg2"))
+similarities_1963.l <- data.table(similarities_1963.l) #and then to data table
+similarities_1963.l <- similarities_1963.l[reg1 >= reg2,] # to get rid of repetitions
+colnames(similarities_1963.l)[colnames(similarities_1963.l)=="value"] <- "jaccard_similarity" #change column name to distance
+
+
+similarities_1963.l[reg1 == reg2, jaccard_similarity := 1] #if they are the same value, assign jaccard_similarity of one
+
+#add year for these values
+similarities_1963.l[, "YEAR" := 1963]
+
+#merge distance with jaccard_similarity for this year
+dissimilarity_1963 <- reg_distance.l[similarities_1963.l, on = c("reg1", "reg2")]
+
+#make plot
+plot(x=dissimilarity_1963$`distance(m)`, y=dissimilarity_1963$jaccard_similarity) #this doesn't make sense, going back
+
+ 
 ```
 
 ```{r jaccard dissimilarities between regions in multiple years}
