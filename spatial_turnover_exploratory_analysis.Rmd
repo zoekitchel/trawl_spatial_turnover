@@ -36,8 +36,8 @@ library(vegan)
 
 
 ```{r import all data from Ocean Adapt}
-neus_strata <- read.csv("neus_strata.csv")
-save(neus_strata, file = "neus_strata.RData")
+#neus_strata <- read.csv("neus_strata.csv")
+#save(neus_strata, file = "neus_strata.RData")
 
 load("neus_strata.Rdata")
 load("neus_Survdat.RData")
@@ -49,12 +49,14 @@ load("neus_SVSPP.RData")
 neus_strata.r <- data.table(neus_strata[,c(2:3,5:6)])
 neus_survdat.r <- data.table(survdat[,c(3,5,6,8,9, 10, 11)])
 neus_spp.r <- data.table(spp[,c(1,2,4)])
+
 ```
 
 ```{r link data tables together}
 stratamerge <- neus_survdat.r[neus_strata.r, on = "STRATUM"]
 neus_full <- stratamerge[neus_spp.r, on = "SVSPP"]
 neus_full
+
 ```
 
 Make sure every observation is of an identifiable fish, aka SVSPP != 0
@@ -84,13 +86,14 @@ Stratum group code:
 
 Region Stratum Key
 ```{r region stratum key}
-region_strata_key <- read.csv("key_reg_strata.csv")
+region_strata_key <- data.table(read.csv("key_reg_strata.csv"))
 
 ```
 
 ```{r link key to neus trawls}
-neus_full.ID.regions <- neus_full.ID[region_strata_key.r, on = "STRATUM_NAME"] #this got rid of all rows without a reg
-summary(neus_full.ID.regions$reg)
+neus_full.ID.regions <- neus_full.ID[region_strata_key, on = "STRATUM_NAME"] 
+neus_full.ID.regions.r <- na.omit(neus_full.ID.regions, cols = "reg") #get rid of all rows without a reg
+summary(neus_full.ID.regions.r$reg)
 
 ```
 Find center point of trawls in each region to find distance between regions
@@ -98,9 +101,9 @@ Find center point of trawls in each region to find distance between regions
 library(geosphere)
 library(rgeos)
 
-latlon_reg <- na.omit(neus_full.ID.regions[,c("LAT", "LON", "reg")])
 
-latlon_reg <- unique(latlon_reg, by = c("LAT", "LON")) # single lat lon for each, to reduce bias
+latlon_reg <- na.omit(unique(neus_full.ID.regions.r, by = c("LAT", "LON")), c("LAT", "LON")) # single lat lon for each, to reduce bias, also, get rid of single NA row for Lat and Lon
+
 
 # Define centroid function - Lon is first argument and Lat is second
 # Geosphere takes a matrix with two columns: Lon|Lat, so we use cbind to coerce the data to this form
@@ -109,16 +112,18 @@ findCentroid <- function(LON, LAT, ...){
 }
 
 # Find centroid Lon and Lat by ID, as required
-latlon_reg[, c("Cent_lon", "Cent_lat") := as.list(findCentroid(LON, LAT)), by = reg]
+latlon_reg[, c("Cent_lon", "Cent_lat") := as.list(findCentroid(LON, LAT)), by = reg] #I will get an error on this when there are NA's in the LAT LON columns
 
 reg_centroids <- unique(latlon_reg, by = c("Cent_lon", "Cent_lat"))
+
+reg_centroids <- reg_centroids[, 13:15] #columns I need
 
 #reorder so in order from N to S
 reg_centroids[, reg := factor(reg, levels = c("GME", "GEO", "SNE", "MAB"))]
 
-setorder(reg_centroids, reg)
+setorder(reg_centroids, reg) #set to this new factor level order 
 
-#the location of MAB still doesn't make sense, but I'm moving forward anyway, much better than before
+#the location of MAB still doesn't make sense (too far south), but I'm moving forward anyway, much better than before
 ```
 
 
@@ -134,9 +139,13 @@ neus_full.ID.regions.unique.r <- data.table(na.omit(neus_full.ID.regions.unique[
 #add presence column 
 neus_full.ID.regions.unique.r[,"present" := 1]
 
-#now I need to populate a comparison with every year, region, and species combination to add 0s
+#now I need to populate a comparison data table with every possible year, region, and species combination to add 0s
 reg <- c("GME", "GEO", "SNE", "MAB")
-full_set <- data.table(expand.grid("SVSPP" = unique(spp$SVSPP), "YEAR" = unique(neus_full.ID.regions.unique.r$YEAR), "reg" = reg))
+spp.list <- unique(spp[SVSPP != 0,]$SVSPP) #0=no ID species
+years <- unique(survdat[YEAR >1966,]$YEAR) #MAB no data pre 1967
+
+full_set <- data.table(expand.grid("SVSPP" = spp.list, "YEAR" = years, "reg" = reg))
+
 
 
 
@@ -144,10 +153,10 @@ full_set <- data.table(expand.grid("SVSPP" = unique(spp$SVSPP), "YEAR" = unique(
 
 ```{r bring in actual presences to expansion}
 merge <- neus_full.ID.regions.unique.r[full_set, on = c("YEAR", "reg", "SVSPP")]
-merge[,"present" := ifelse(is.na(SCINAME), 0,1)][,"SCINAME" := NULL][,"COMNAME" := NULL]
+merge[,"present" := ifelse(is.na(SCINAME), 0,1)][,"SCINAME" := NULL][,"COMNAME" := NULL] #if scientific name and common name are empty, that is an absence, if populated, presence, also, we don't need these columns, as we'll bring them in below
 
 #simplify spp key
-spp_key <- spp[,c("SCINAME", "SVSPP", "COMNAME")]
+spp_key <- neus_spp.r[SVSPP >= 1,]
 
 neus_pres_abs <- merge[spp_key, on = c("SVSPP")] #also don't actually need all columns
 
@@ -157,23 +166,13 @@ sum(neus_pres_abs$present) #check to make sure we have the right number of prese
 ```
 "To use the package the data have to be in the form of a community matrix.  The basic form is to have the species as columns and the plots as rows."
 
-That is, we’d like to collect all child observations corresponding to each family_id, age_mother together under the same row. We can accomplish it using dcast as follows:
-
-dcast(DT.m1, family_id + age_mother ~ child, value.var = "dob")
-#    family_id age_mother dob_child1 dob_child2 dob_child3
-# 1:         1         30 1998-11-26 2000-01-29       <NA>
-# 2:         2         27 1996-06-22       <NA>       <NA>
-# 3:         3         26 2002-07-11 2004-04-05 2007-09-02
-# 4:         4         32 2004-10-10 2009-08-27 2012-07-21
-# 5:         5         29 2000-12-05 2005-02-28       <NA>
-
 All presence observations corresponding to each species, reg, year under the same row
 ```{r long to wide}
-#1963 is the first year, so we will start there
-neus_pres_abs_1year <- neus_pres_abs[YEAR == 1963,]
+#1967 is the first year there is data for MAB, so we will have to start there
+neus_pres_abs_1year <- neus_pres_abs[YEAR == 1967,]
 
 
-neus_pres_abs_1year_wide <- dcast(neus_pres_abs_1year, YEAR + reg ~ SVSPP, value.var = "present")
+neus_pres_abs_1year_wide <- dcast(neus_pres_abs_1year, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
 ```
 
 
@@ -183,56 +182,208 @@ neus_pres_abs_1year_wide <- dcast(neus_pres_abs_1year, YEAR + reg ~ SVSPP, value
 #I'll do this super simply here
 plot <- data.table("plot" = c(1:4))
 
-neus_pres_abs_1year_wide.communitymatrix <- cbind(plot, neus_pres_abs_1year_wide[,c(3:820)], neus_pres_abs_1year_wide[,c(1:2)])
+neus_pres_abs_1year_wide.communitymatrix <- cbind(neus_pres_abs_1year_wide[,c(3:819)], neus_pres_abs_1year_wide[,c(1:2)])
 
-similarities_1963 <- vegdist(neus_pres_abs_1year_wide.communitymatrix[,c(1:819)], method = "jaccard") #similarity matrix for 1963
+
+similarities_1967 <- vegdist(neus_pres_abs_1year_wide.communitymatrix[,c(1:817)], method = "jaccard") #similarity matrix for 1967
 
 reg_centroids_plots <- cbind(plot, reg_centroids)
 
-reg_centroid_key <- reg_centroids_plots[, c(1, 4, 5, 6)]
-
-reg_distances <- dist(reg_centroid_key[,c(1, 3, 4)], diag = T, upper = T)
-
-reg_distances <- distm(reg_centroid_key[,c(3, 4)]) #distance matrix, consistent across years
-rownames(reg_distances) <- reg_centroid_key$plot
-colnames(reg_distances) <- reg_centroid_key$plot
-
-?distm
+reg_distances <- distm(reg_centroids_plots[,c(3, 4)]) #distance matrix, consistent across years
+rownames(reg_distances) <- reg_centroids_plots$plot
+colnames(reg_distances) <- reg_centroids_plots$plot
 
 ```
 
 
 
-
+Turning distance and similarity matrices from long to wide form in order to do analyses
 ```{r matrices wide to long form}
 library(reshape2)
 
+#reshape distances
 reg_distance.l <- melt(as.matrix(reg_distances), varnames = c("reg1", "reg2")) #matrix to data frame, 
 reg_distance.l <- data.table(reg_distance.l) #and then to data table
 reg_distance.l <- reg_distance.l[reg1 >= reg2,] # to get rid of repetitions
 colnames(reg_distance.l)[colnames(reg_distance.l)=="value"] <- "distance(m)" #change column name to distance
 
-similarities_1963.l <- melt(as.matrix(similarities_1963), varnames = c("reg1", "reg2"))
-similarities_1963.l <- data.table(similarities_1963.l) #and then to data table
-similarities_1963.l <- similarities_1963.l[reg1 >= reg2,] # to get rid of repetitions
-colnames(similarities_1963.l)[colnames(similarities_1963.l)=="value"] <- "jaccard_similarity" #change column name to distance
+#reshape similarities
+similarities_1967.l <- melt(as.matrix(similarities_1967), varnames = c("reg1", "reg2"))
+similarities_1967.l <- data.table(similarities_1967.l) #and then to data table
+similarities_1967.l <- similarities_1967.l[reg1 >= reg2,] # to get rid of repetitions
+colnames(similarities_1967.l)[colnames(similarities_1967.l)=="value"] <- "jaccard_similarity" #change column name to distance
 
 
-similarities_1963.l[reg1 == reg2, jaccard_similarity := 1] #if they are the same value, assign jaccard_similarity of one
+similarities_1967.l[reg1 == reg2, jaccard_similarity := 1] #if they are the same value, assign jaccard_similarity of one
 
 #add year for these values
-similarities_1963.l[, "YEAR" := 1963]
+similarities_1967.l[, "YEAR" := 1967]
 
 #merge distance with jaccard_similarity for this year
-dissimilarity_1963 <- reg_distance.l[similarities_1963.l, on = c("reg1", "reg2")]
+similarities_1967.l.full <- reg_distance.l[similarities_1967.l, on = c("reg1", "reg2")]
 
 #make plot
-plot(x=dissimilarity_1963$`distance(m)`, y=dissimilarity_1963$jaccard_similarity) #this doesn't make sense, going back
+plot(x=similarities_1967.l.full$`distance(m)`, y=similarities_1967.l.full$jaccard_similarity, xlab = "Distance(m)", ylab="Jaccard Similarity", pch = 19) #this doesn't make sense, going back
 
  
 ```
 
+PCA for visual
+```{r PCA}
+vare.pca <- rda(neus_pres_abs_1year_wide.communitymatrix[,c(1:817)])
+plot(vare.pca, display = "sites")
+
+```
+
 ```{r jaccard dissimilarities between regions in multiple years}
+distances_similarities_allyears <- data.table("reg1" = integer(), "reg2" = integer(), "distance(m)" = numeric(),"jaccard_similarity" = numeric(), YEAR = integer())
+
+#Now loop through all years starting in 1967
+for (i in 1:length(years)) {
+  reduced_year <- neus_pres_abs[YEAR == years[i],]
+  reduced_year_wide <- dcast(reduced_year, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix <- cbind(reduced_year_wide[,c(3:819)], reduced_year_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities <- vegdist(communitymatrix[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l <- melt(as.matrix(similarities), varnames = c("reg1", "reg2"))
+  similarities.l <- data.table(similarities.l) #and then to data table
+  similarities.l <- similarities.l[reg1 >= reg2,] # to get rid of repetitions
+  colnames(similarities.l)[colnames(similarities.l)=="value"] <- "jaccard_similarity" #change column name to distance
+
+
+  similarities.l[reg1 == reg2, jaccard_similarity := 1] #if they are the same value, assign jaccard_similarity of one
+
+#add year for these values
+  similarities.l[, "YEAR" := years[i]]
+
+#merge distance with jaccard_similarity for this year
+  similarities.l.full <- reg_distance.l[similarities.l, on = c("reg1", "reg2")]
+
+distances_similarities_allyears <- rbind(distances_similarities_allyears, similarities.l.full) #add to data table
+
+jpeg(file=paste0("jaccardplot_", years[i], ".jpg"))
+    plot(x=similarities.l.full$`distance(m)`, y=similarities.l.full$jaccard_similarity, xlab = "Distance(m)", ylab="Jaccard Similarity", ylim = c(0:1), pch = 19)
+ dev.off()
+ 
+ #PCA
+vare.pca <- rda(communitymatrix[,c(1:817)])
+jpeg(file=paste0("jaccardpca_", years[i], ".jpg"))
+plot(vare.pca, display = "sites", xlim = c(-4,4), ylim = c(-4,4))
+dev.off()
+  
+}
+
+```
+
+Plot jaccard for 1 and 2 through time
+```{r 1 and 2 through time}
+reduced_1_2 <- distances_similarities_allyears[reg1 == 2 & reg2 ==1,]
+plot(x=reduced_1_2$YEAR, y = reduced_1_2$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_2$jaccard_similarity~reduced_1_2$YEAR))
+
+reg_1_2.lm <- lm(reduced_1_2$jaccard_similarity~reduced_1_2$YEAR)
+
+summary(reg_1_2.lm)
+
+jpeg(file = "GEO & GME Jaccard Through Time.jpg")
+plot(x=reduced_1_2$YEAR, y = reduced_1_2$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_2$jaccard_similarity~reduced_1_2$YEAR))
+dev.off()
+```
+
+
+Plot jaccard for 1 and 3 through time
+```{r 1 and 3 through time}
+reduced_1_3 <- distances_similarities_allyears[reg1 == 3 & reg2 ==1,]
+plot(x=reduced_1_3$YEAR, y = reduced_1_3$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_3$jaccard_similarity~reduced_1_3$YEAR))
+
+reg_1_3.lm <- lm(reduced_1_2$jaccard_similarity~reduced_1_3$YEAR)
+
+summary(reg_1_3.lm)
+
+jpeg(file = "GME & SNE Jaccard Through Time.jpg")
+plot(x=reduced_1_3$YEAR, y = reduced_1_3$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_3$jaccard_similarity~reduced_1_3$YEAR))
+dev.off()
+```
+
+
+Plot jaccard for 1 and 4 through time
+```{r 1 and 4 through time}
+reduced_1_4 <- distances_similarities_allyears[reg1 == 4 & reg2 ==1,]
+plot(x=reduced_1_4$YEAR, y = reduced_1_4$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_4$jaccard_similarity~reduced_1_4$YEAR))
+
+reg_1_4.lm <- lm(reduced_1_4$jaccard_similarity~reduced_1_4$YEAR)
+
+summary(reg_1_4.lm)
+
+jpeg(file = "MAB & GME Jaccard Through Time.jpg")
+plot(x=reduced_1_4$YEAR, y = reduced_1_4$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_4$jaccard_similarity~reduced_1_4$YEAR))
+dev.off()
+```
+
+
+Plot jaccard for 2 and 3 through time
+```{r 2 and 3 through time}
+reduced_3_2 <- distances_similarities_allyears[reg1 == 3 & reg2 ==1,]
+plot(x=reduced_1_3$YEAR, y = reduced_1_3$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_3$jaccard_similarity~reduced_1_3$YEAR))
+
+reg_1_3.lm <- lm(reduced_1_3$jaccard_similarity~reduced_1_3$YEAR)
+
+summary(reg_1_3.lm)
+
+jpeg(file = "GEO & SNE Jaccard Through Time.jpg")
+plot(x=reduced_1_3$YEAR, y = reduced_1_3$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_1_3$jaccard_similarity~reduced_1_3$YEAR))
+dev.off()
+```
+
+
+Plot jaccard for 2 and 4 through time
+```{r 2 and 4 through time}
+reduced_4_2 <- distances_similarities_allyears[reg1 == 4 & reg2 ==2,]
+plot(x=reduced_4_2$YEAR, y = reduced_4_2$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_4_2$jaccard_similarity~reduced_4_2$YEAR))
+
+reg_4_2.lm <- lm(reduced_4_2$jaccard_similarity~reduced_4_2$YEAR)
+
+summary(reg_4_2.lm)
+
+jpeg(file = "GEO & MAB Jaccard Through Time.jpg")
+plot(x=reduced_4_2$YEAR, y = reduced_4_2$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_4_2$jaccard_similarity~reduced_4_2$YEAR))
+dev.off()
+
+```
+
+
+Plot jaccard for 3 and 4 through time
+```{r 3 and 4 through time}
+reduced_3_4 <- distances_similarities_allyears[reg1 == 4 & reg2 ==3,]
+plot(x=reduced_3_4$YEAR, y = reduced_3_4$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_3_4$jaccard_similarity~reduced_3_4$YEAR))
+
+reg_3_4.lm <- lm(reduced_3_4$jaccard_similarity~reduced_3_4$YEAR)
+
+summary(reg_3_4.lm)
+
+jpeg(file = "SNE & MAB Jaccard Through Time.jpg")
+plot(x=reduced_3_4$YEAR, y = reduced_3_4$jaccard_similarity, pch = 19, xlab = "Year", ylab = "Jaccard Similarity", ylim= c(0.2,0.9))
+abline(lm(reduced_3_4$jaccard_similarity~reduced_3_4$YEAR))
+dev.off()
+```
+
+Looking at changes in jaccard similarity across time for each region individually
+
+```{r GME jaccard across time}
 
 ```
 
