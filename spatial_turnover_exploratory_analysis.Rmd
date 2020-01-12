@@ -678,3 +678,30 @@ jpeg(file="jaccard_overtime_MAB_year1comparison.jpg")
 
 
 ```
+
+Simplified species richness through time
+```{r spp richness through time}
+library(ggplot2)
+
+GME_spp_richness <- rowSums(communitymatrix_GME[,1:817])
+GEO_spp_richness <- rowSums(communitymatrix_GEO[,1:817])
+SNE_spp_richness <- rowSums(communitymatrix_SNE[,1:817])
+MAB_spp_richness <- rowSums(communitymatrix_MAB[,1:817])
+
+spp_richness <- data.table("year" = years, "GME" = GME_spp_richness, "GEO" = GEO_spp_richness, "SNE" = SNE_spp_richness, "MAB" = MAB_spp_richness)
+
+spp_richness.l <- melt(spp_richness, id.vars = c("year"),
+                measure.vars = c("GME", "GEO", "SNE", "MAB"),
+                value.name = "richness")
+
+species_richness_reg <- ggplot(data = spp_richness.l, aes(x = year, y=richness)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  facet_wrap(~variable) +
+  theme_classic()
+
+ggsave(species_richness_reg, file = "species_richness_reg.eps")
+  
+```
+
+?melt
