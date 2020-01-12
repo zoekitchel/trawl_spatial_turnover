@@ -383,7 +383,298 @@ dev.off()
 
 Looking at changes in jaccard similarity across time for each region individually
 
-```{r GME jaccard across time}
+```{r GME jaccard across time (between each year)}
+  reduced_region <- neus_pres_abs[reg == "GME",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_GME <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_GME <- vegdist(communitymatrix_GME[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_GME <- melt(as.matrix(similarities_GME), varnames = c("year1", "year2"))
+  similarities.l_GME <- data.table(similarities.l_GME) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with similarities.l_GME
+similarities_final_GME <- year_turnover_key.final[similarities.l_GME, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_GME)[colnames(similarities_final_GME)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_GME[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_GME.jpg")
+    plot(x=similarities_final_GME$YEAR, y=similarities_final_GME$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
 
 ```
 
+```{r GME jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "GME",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_GME <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_GME <- vegdist(communitymatrix_GME[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_GME <- melt(as.matrix(similarities_GME), varnames = c("year1", "year2"))
+  similarities.l_GME <- data.table(similarities.l_GME) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with similarities.l_GME
+similarities_final_GME_year1 <- year_turnover_key.firstyear[similarities.l_GME, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_GME_year1)[colnames(similarities_final_GME_year1)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_GME_year1[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_GME_year1comparison.jpg")
+    plot(x=similarities_final_GME_year1$YEAR, y=similarities_final_GME_year1$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity (to year 1)", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+Looking at changes in jaccard similarity across time for each region individually
+
+```{r GEO jaccard across time}
+  reduced_region <- neus_pres_abs[reg == "GEO",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_GEO <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_GEO <- vegdist(communitymatrix_GEO[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_GEO <- melt(as.matrix(similarities_GEO), varnames = c("year1", "year2"))
+  similarities.l_GEO <- data.table(similarities.l_GEO) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with similarities.l_GEO
+similarities_final_GEO <- year_turnover_key.final[similarities.l_GEO, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_GEO)[colnames(similarities_final_GEO)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_GEO[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_GEO.jpg")
+    plot(x=similarities_final_GEO$YEAR, y=similarities_final_GEO$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+```{r GEO jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "GEO",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_GEO <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_GEO <- vegdist(communitymatrix_GEO[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_GEO <- melt(as.matrix(similarities_GEO), varnames = c("year1", "year2"))
+  similarities.l_GEO <- data.table(similarities.l_GEO) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with similarities.l_GEO
+similarities_final_GEO_year1 <- year_turnover_key.firstyear[similarities.l_GEO, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_GEO_year1)[colnames(similarities_final_GEO_year1)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_GEO_year1[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_GEO_year1comparison.jpg")
+    plot(x=similarities_final_GEO_year1$YEAR, y=similarities_final_GEO_year1$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity (to year 1)", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+
+Looking at changes in jaccard similarity across time for each region individually
+
+```{r SNE jaccard across time}
+  reduced_region <- neus_pres_abs[reg == "SNE",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_SNE <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_SNE <- vegdist(communitymatrix_SNE[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_SNE <- melt(as.matrix(similarities_SNE), varnames = c("year1", "year2"))
+  similarities.l_SNE <- data.table(similarities.l_SNE) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with similarities.l_SNE
+similarities_final_SNE <- year_turnover_key.final[similarities.l_SNE, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_SNE)[colnames(similarities_final_SNE)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_SNE[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_SNE.jpg")
+    plot(x=similarities_final_SNE$YEAR, y=similarities_final_SNE$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+
+```{r SNE jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "SNE",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_SNE <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_SNE <- vegdist(communitymatrix_SNE[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_SNE <- melt(as.matrix(similarities_SNE), varnames = c("year1", "year2"))
+  similarities.l_SNE <- data.table(similarities.l_SNE) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with similarities.l_SNE
+similarities_final_SNE_year1 <- year_turnover_key.firstyear[similarities.l_SNE, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_SNE_year1)[colnames(similarities_final_SNE_year1)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_SNE_year1[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_SNE_year1comparison.jpg")
+    plot(x=similarities_final_SNE_year1$YEAR, y=similarities_final_SNE_year1$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity (to year 1)", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+Looking at changes in jaccard similarity across time for each region individually
+
+```{r MAB jaccard across time}
+  reduced_region <- neus_pres_abs[reg == "MAB",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_MAB <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_MAB <- vegdist(communitymatrix_MAB[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_MAB <- melt(as.matrix(similarities_MAB), varnames = c("year1", "year2"))
+  similarities.l_MAB <- data.table(similarities.l_MAB) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with similarities.l_MAB
+similarities_final_MAB <- year_turnover_key.final[similarities.l_MAB, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_MAB)[colnames(similarities_final_MAB)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_MAB[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_MAB.jpg")
+    plot(x=similarities_final_MAB$YEAR, y=similarities_final_MAB$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+```{r MAB jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "MAB",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_MAB <- cbind(reduced_region_wide[,c(3:819)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  similarities_MAB <- vegdist(communitymatrix_MAB[,c(1:817)], method = "jaccard") #similarity matrix
+
+  #reshape similarities
+  similarities.l_MAB <- melt(as.matrix(similarities_MAB), varnames = c("year1", "year2"))
+  similarities.l_MAB <- data.table(similarities.l_MAB) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with similarities.l_MAB
+similarities_final_MAB_year1 <- year_turnover_key.firstyear[similarities.l_MAB, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(similarities_final_MAB_year1)[colnames(similarities_final_MAB_year1)=="value"] <- "jaccard_similarity"
+#change column name to distance
+
+similarities_final_MAB_year1[,"YEAR" := years[1:51]]
+
+
+jpeg(file="jaccard_overtime_MAB_year1comparison.jpg")
+    plot(x=similarities_final_MAB_year1$YEAR, y=similarities_final_MAB_year1$jaccard_similarity, xlab = "Year", ylab="Jaccard Similarity (to year 1)", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
