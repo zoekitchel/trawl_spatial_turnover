@@ -231,7 +231,7 @@ vare.pca <- rda(neus_pres_abs_1year_wide.communitymatrix[,c(1:817)])
 plot(vare.pca, display = "sites")
 
 ```
-
+Loop for all 
 ```{r jaccard disdissimilarities between regions in multiple years}
 distances_dissimilarities_allyears <- data.table("reg1" = integer(), "reg2" = integer(), "distance(m)" = numeric(),"jaccard_dissimilarity" = numeric(), YEAR = integer())
 
@@ -251,8 +251,6 @@ for (i in 1:length(years)) {
   dissimilarities.l <- dissimilarities.l[reg1 >= reg2,] # to get rid of repetitions
   colnames(dissimilarities.l)[colnames(dissimilarities.l)=="value"] <- "jaccard_dissimilarity" #change column name to distance
 
-
-  dissimilarities.l[reg1 == reg2, jaccard_dissimilarity := 1] #if they are the same value, assign jaccard_dissimilarity of one
 
 #add year for these values
   dissimilarities.l[, "YEAR" := years[i]]
@@ -274,6 +272,14 @@ dev.off()
   
 }
 
+```
+Jaccard Dissimilarities Distance Decay all in one plot
+This plot will be much more interesting with more strata, TO DO tomorrow
+```{r Distance Decay one plot}
+library(ggplot2)
+distances_dissimilarities_allyears[,YEAR_fac := as.factor(YEAR)]
+ggplot(data = distances_dissimilarities_allyears, aes(x = `distance(m)`, y = jaccard_dissimilarity, color = YEAR_fac)) +
+  geom_line()
 ```
 
 Plot jaccard for 1 and 2 through time
@@ -748,5 +754,151 @@ species_richness_reg <- ggplot(data = spp_richness.l, aes(x = year, y=richness))
 
 ggsave(species_richness_reg, file = "species_richness_reg.eps")
   
+```
+
+#Distance Decay with Stratum instead of region
+Jaccard Dissimilarities Distance Decay all in one plot by STRATA
+```{r stratum distance matrix}
+neus_full.ID.uniquestrata <- unique(neus_full.ID, by = "STRATUM") #unique strata
+
+neus_full.ID.uniquestrata.latlon <- neus_full.ID.uniquestrata[,c(1,6,7)] #only lat lon and stratum
+
+stratum_distances <- distm(neus_full.ID.uniquestrata.latlon[,c(3, 2)]) #distance matrix, consistent across years
+rownames(stratum_distances) <- neus_full.ID.uniquestrata.latlon$STRATUM
+colnames(stratum_distances) <- neus_full.ID.uniquestrata.latlon$STRATUM
+
+#reorient to long form 
+stratum_distance.l <- melt(as.matrix(stratum_distances), varnames = c("strat1", "strat2")) #matrix to data frame, 
+stratum_distance.l <- data.table(stratum_distance.l) #and then to data table
+stratum_distance.l <- stratum_distance.l[strat1 >= strat2,] # to get rid of repetitions
+colnames(stratum_distance.l)[colnames(stratum_distance.l)=="value"] <- "distance(m)" #change column name to distance
+
+```
+Above is distance info, now I need to build community matrix
+```{r distance decay by strata}
+neus_full.ID
+
+#one PRESENT value for each YEAR, SEASON, STRATUM and SVSPP combination
+neus_full.ID.stratum.unique <- na.omit(unique(neus_full.ID, by = c("YEAR", "STRATUM", "SVSPP")), cols = c("YEAR", "STRATUM", "SVSPP")) #unique STRATUM, year, species combinations, and get rid of any rows where any are NA
+
+#reduce data table to just be svspp, year, sciname, comname, STRATUM
+
+neus_full.ID.stratum.unique.r <- data.table((neus_full.ID.stratum.unique[, c("SVSPP", "SCINAME", "COMNAME", "YEAR", "STRATUM")]))
+
+#add presence column 
+neus_full.ID.stratum.unique.r[,"present" := 1]
+
+#now I need to populate a comparison data table with every possible year, region, and species combination to add 0s
+stratum <- as.integer(unique(neus_full.ID.stratum.unique.r$STRATUM)) 
+
+table(neus_full.ID.stratum.unique.r$STRATUM, neus_full.ID.regions.unique.r$present)
+
+
+full_set_stratum<- data.table(expand.grid("SVSPP" = spp.list, "YEAR" = years, "STRATUM" = stratum))
+
+```
+Bring in presences to expansion for presence by STRATUM
+```{r bring in actual presences by STRATUM to expansion}
+merge <- neus_full.ID.stratum.unique.r[full_set_stratum, on = c("YEAR", "STRATUM", "SVSPP")]
+merge[,"present" := ifelse(is.na(SCINAME), 0,1)][,"SCINAME" := NULL][,"COMNAME" := NULL] #if scientific name and common name are empty, that is an absence, if populated, presence, also, we don't need these columns, as we'll bring them in below
+
+#simplify spp key
+#bring in spp key
+spp_key
+
+neus_pres_abs_STRATUM <- merge[spp_key, on = c("SVSPP")] #also don't actually need all columns
+
+```
+Loop for all STRATUM, YEAR, SVSPP combos
+```{r jaccard disdissimilarities between STRATUM in multiple years}
+distances_dissimilarities_allyears_STRATUM <- data.table("strat1" = integer(), "strat2" = integer(), "distance(m)" = numeric(),"jaccard_dissimilarity" = numeric(), YEAR = integer())
+
+#Now loop through all years starting in 1967
+for (i in 1:length(years)) {
+  reduced_year <- neus_pres_abs_STRATUM[YEAR == years[i],]
+  reduced_year_wide <- dcast(reduced_year, YEAR + STRATUM ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix <- cbind(reduced_year_wide[,c(3:819)], reduced_year_wide[,c(1:2)]) #community matrix
+  
+#there are some STRATA with no presences or observations
+#rowSums(communitymatrix.r[,c(1:817)]) #I guess I will get rid of those
+
+communitymatrix.r <- communitymatrix[as.logical(rowSums(communitymatrix[,c(1:817)] != 0)), ] #reduce to only rows with atleast one species present
+stratum.r <- communitymatrix.r$STRATUM
+
+  
+  dissimilarities <- vegdist(communitymatrix.r[,c(1:817)], method = "jaccard", binary = T) #dissimilarity 
+  
+
+#make into matrix
+dissimilarities.m <- as.matrix(dissimilarities, labels=TRUE)
+colnames(dissimilarities.m) <- rownames(dissimilarities.m) <- stratum.r
+
+  #reshape dissimilarities
+  dissimilarities.l <- melt(dissimilarities.m, varnames = c("strat1", "strat2"))
+  dissimilarities.l <- data.table(dissimilarities.l) #and then to data table
+  dissimilarities.l <- dissimilarities.l[strat1 >= strat2,] # to get rid of repetitions
+  colnames(dissimilarities.l)[colnames(dissimilarities.l)=="value"] <- "jaccard_dissimilarity" #change column name to distance
+
+
+#add year for these values
+  dissimilarities.l[, "YEAR" := years[i]]
+
+#merge distance with jaccard_dissimilarity for this year
+  dissimilarities.l.full <- stratum_distance.l[dissimilarities.l, on = c("strat1", "strat2")]
+
+distances_dissimilarities_allyears_STRATUM <- rbind(distances_dissimilarities_allyears_STRATUM, dissimilarities.l.full) #add to data table
+
+#extract info for distance decay exponential model for each year
+#reduce stratum_distances to stratum.r
+stratum_distances.r <- stratum_distances[as.character(stratum.r), as.character(stratum.r)]
+
+modname <- paste0(years[i], "_decay_mod_exponential")
+
+assign(modname, decay.model(dissimilarities.m, stratum_distances.r, model.type = "exponential", y.type = "dissimilarities", perm = 1000))
+
+#jpeg(file=paste0("jaccardplot_", years[i], ".jpg"))
+    #plot(x=dissimilarities.l.full$`distance(m)`, y=dissimilarities.l.full$jaccard_dissimilarity, xlab = "Distance(m)", #ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+ #dev.off()
+ 
+ #PCA
+#vare.pca <- rda(communitymatrix[,c(1:817)])
+#jpeg(file=paste0("jaccardpca_", years[i], ".jpg"))
+#plot(vare.pca, display = "sites", xlim = c(-4,4), ylim = c(-4,4))
+#dev.off()
+  
+}
+
+summary(distances_dissimilarities_allyears_STRATUM) #here we have jaccard, distance, and 
+
+save(distances_dissimilarities_allyears, file = "jaccard_similarities_distances_4reg.Rdata")
+save(distances_dissimilarities_allyears_STRATUM, file = "jaccard_similarities_distances_stratum.Rdata")
+```
+
+Now, let's see what plots look like for distance decay over time
+
+```{r distance decay all years}
+distance_decay_stratum <- ggplot(data = distances_dissimilarities_allyears_STRATUM, aes(x = `distance(m)`, y = jaccard_dissimilarity, color = YEAR)) +
+  geom_point() +
+  theme_classic() +
+  theme(text=element_text(size = 20))
+distance_decay_stratum
+
+
+
+ggsave(distance_decay_stratum, file = "distance_decay_stratum.eps")
+```
+Fitting distance decay models to pair-wise assemblage similarity: fits a negative exponential or power law function(GLM) describing decay of assemblage similarity or increase of dissimilarity with distance.
+
+
+```{r distance decay model}
+library(betapart)
+
+#reduce stratum_distances to stratum.r
+stratum_distances.r <- stratum_distances[as.character(stratum.r), as.character(stratum.r)]
+
+mod_1968 <- decay.model(dissimilarities.m, stratum_distances.r, model.type = "exponential", y.type = "dissimilarities", perm = 1000)
+
+
 ```
 
