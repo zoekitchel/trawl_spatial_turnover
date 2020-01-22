@@ -32,6 +32,8 @@ We also construct distance-decay plots for each year
 ```{r setup}
 library(data.table)
 library(vegan)
+library(ggpubr)
+library(betapart)
 ```
 
 
@@ -791,7 +793,6 @@ neus_full.ID.stratum.unique.r[,"present" := 1]
 #now I need to populate a comparison data table with every possible year, region, and species combination to add 0s
 stratum <- as.integer(unique(neus_full.ID.stratum.unique.r$STRATUM)) 
 
-table(neus_full.ID.stratum.unique.r$STRATUM, neus_full.ID.regions.unique.r$present)
 
 
 full_set_stratum<- data.table(expand.grid("SVSPP" = spp.list, "YEAR" = years, "STRATUM" = stratum))
@@ -855,7 +856,7 @@ stratum_distances.r <- stratum_distances[as.character(stratum.r), as.character(s
 
 modname <- paste0(years[i], "_decay_mod_exponential")
 
-assign(modname, decay.model(dissimilarities.m, stratum_distances.r, model.type = "exponential", y.type = "dissimilarities", perm = 1000))
+assign(modname, decay.model(dissimilarities.m, stratum_distances.r, model.type = "exponential", y.type = "dissimilarities", perm = 100))
 
 #jpeg(file=paste0("jaccardplot_", years[i], ".jpg"))
     #plot(x=dissimilarities.l.full$`distance(m)`, y=dissimilarities.l.full$jaccard_dissimilarity, xlab = "Distance(m)", #ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
@@ -873,6 +874,7 @@ summary(distances_dissimilarities_allyears_STRATUM) #here we have jaccard, dista
 
 save(distances_dissimilarities_allyears, file = "jaccard_similarities_distances_4reg.Rdata")
 save(distances_dissimilarities_allyears_STRATUM, file = "jaccard_similarities_distances_stratum.Rdata")
+
 ```
 
 Now, let's see what plots look like for distance decay over time
@@ -881,18 +883,50 @@ Now, let's see what plots look like for distance decay over time
 distance_decay_stratum <- ggplot(data = distances_dissimilarities_allyears_STRATUM, aes(x = `distance(m)`, y = jaccard_dissimilarity, color = YEAR)) +
   geom_point() +
   theme_classic() +
+  labs(x = "Distance (m)", y = "Jaccard Dissimilarity") +
   theme(text=element_text(size = 20))
 distance_decay_stratum
 
 
-
 ggsave(distance_decay_stratum, file = "distance_decay_stratum.eps")
 ```
+
+Extract coefficient (slope) for each year, how does it change through time? 
+```{r each year build linear model}
+#I'm interested in the rate of decrease
+#make new column for 1-jaccard dissimilarity
+distances_dissimilarities_allyears_STRATUM[,jaccard_similarity := 1-jaccard_dissimilarity]
+
+#reduce to one year
+expmod_coefs <- data.table("year" = years, "beta.0" = 0)
+for (i in 1:length(years)) {
+  reduced <- distances_dissimilarities_allyears_STRATUM[YEAR == years[i],]
+  
+  # Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 <- min(reduced[jaccard_similarity != 0,]$jaccard_similarity) * 0.5
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(jaccard_similarity - theta.0) ~ `distance(m)`, data=reduced)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[[2]]
+
+expmod_coefs[i,2] <- -(beta.0)
+
+}
+
+plot(expmod_coefs$year, expmod_coefs$beta.0)
+
+```
+
+
+
+
 Fitting distance decay models to pair-wise assemblage similarity: fits a negative exponential or power law function(GLM) describing decay of assemblage similarity or increase of dissimilarity with distance.
 
 
 ```{r distance decay model}
-library(betapart)
+
+#haven't figured out error here
 
 #reduce stratum_distances to stratum.r
 stratum_distances.r <- stratum_distances[as.character(stratum.r), as.character(stratum.r)]
