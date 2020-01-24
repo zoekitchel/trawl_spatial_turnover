@@ -9,25 +9,14 @@ Is anyone up for an exploratory analysis with the trawl data? It would be very c
 
 From Magurran et al. *"Here, we analyse an exceptionally comprehensive 29-year time series of North Atlantic groundfish assemblages monitored over 5° latitude to the west of Scotland. These fish assemblages show no systematic change in species richness through time, but steady change in species composition, leading to an increase in spatial homogenization: the species identity of colder northern localities increasingly resembles that of warmer southern localities."*
 
-Steps would be:
+Methods from Magurran et al. 2015
 
-1. Calculate Jacard dissimilarity between each haul in a single year in a single region. The vegdist() function in the vegan package would do this,OceanAdapt should have the data you’d need 
-https://github.com/pinskylab/OceanAdapt/tree/master/data_raw for NEUS files
-
-1. Calculate geographic distance between each haul in km (e.g., geosphere package in R could work).
-1. Plot dissimilarity vs. geographic distance and fit a regression line.
-1. Repeat for each year.
-
-A good place to start would just be the Northeast US. We could take a look and then think about expanding out to the other regions and to European data.
-
-Methods from Magurran et al. 
-
-First assign the rectangles to nine 30' latitudinal bands
-Compile community time series for each latitudinal band
-Sample rarefaction ensures equal sampling effort across bands and is used in the calculation of temporal $\alpha$ diversity and temporal $\beta$ diversity. 
-First calculate dissimilarity in relation to the start of the survey
-Next, for each year, we compute pairwise compositional dissimilarity of these latitudinal bands
-We also construct distance-decay plots for each year
+* First assign the rectangles to nine 30' latitudinal bands
+* Compile community time series for each latitudinal band
+* Sample rarefaction ensures equal sampling effort across bands and is used in the calculation of temporal $\alpha$ diversity and temporal $\beta$ diversity. 
+* First calculate dissimilarity in relation to the start of the survey
+* Next, for each year, we compute pairwise compositional dissimilarity of these latitudinal bands
+* We also construct distance-decay plots for each year
 
 ```{r setup}
 library(data.table)
@@ -36,10 +25,16 @@ library(ggpubr)
 library(betapart)
 ```
 
+Download data from Ocean Adapt. Accessed January 1 2020.
+[NEUS Strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_strata.csv)
+[NEUS SVPP](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_SVSPP.RData)
+[NEUS Survey Data](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_Survdat.RData)
 
-```{r import all data from Ocean Adapt}
-#neus_strata <- read.csv("neus_strata.csv")
-#save(neus_strata, file = "neus_strata.RData")
+```{r import data for NEUS from Ocean Adapt on GitHub}
+
+#hash 2 lines below after you convert csv for strata into Rdata
+  #neus_strata <- read.csv("neus_strata.csv")
+  #save(neus_strata, file = "neus_strata.RData")
 
 load("neus_strata.Rdata")
 load("neus_Survdat.RData")
@@ -47,16 +42,20 @@ load("neus_SVSPP.RData")
 
 ```
 
+Extract columns we actually need
 ```{r extract columns we need from each}
-neus_strata.r <- data.table(neus_strata[,c(2:3,5:6)])
-neus_survdat.r <- data.table(survdat[,c(3,5,6,8,9, 10, 11)])
-neus_spp.r <- data.table(spp[,c(1,2,4)])
+neus_strata.r <- data.table(neus_strata[,c(2:3)]) #STRATUM, STRATUM NAME
+neus_survdat.r <- data.table(survdat[,c(3,5,8:11)]) #STRATUM, SVSPP, YEAR, SEASON, LAT, LON
+neus_spp.r <- data.table(spp[,c(1,2,4)]) #SCINAME, SVSPP, COMNAME
+
+neus_spp.r
 
 ```
 
 ```{r link data tables together}
-stratamerge <- neus_survdat.r[neus_strata.r, on = "STRATUM"]
-neus_full <- stratamerge[neus_spp.r, on = "SVSPP"]
+stratamerge <- neus_survdat.r[neus_strata.r, on = "STRATUM"] #merge strata with survey data
+neus_full <- stratamerge[neus_spp.r, on = "SVSPP"] #merge species with strata and survey data
+
 neus_full
 
 ```
@@ -915,6 +914,9 @@ expmod_coefs[i,2] <- -(beta.0)
 }
 
 plot(expmod_coefs$year, expmod_coefs$beta.0)
+abline(lm(expmod_coefs$beta.0~expmod_coefs$year))
+
+#decreasing in rate of decay through time
 
 ```
 

@@ -1,0 +1,69 @@
+---
+title: "1. Setup NE Trawl Data"
+output: html_notebook
+---
+
+Instructions from Malin:
+
+Is anyone up for an exploratory analysis with the trawl data? It would be very cool to look at changes in spatial turnover, similar to [Magurran, Dornelas, Moyes, Gotelli, McGill et al. 2015](http://www.nature.com/ncomms/2015/150924/ncomms9405/full/ncomms9405.html) but across a much wider set of regions. An idea from conversations at [HIFMB](https://hifmb.de/en/) yesterday. 
+
+From Magurran et al. *"Here, we analyse an exceptionally comprehensive 29-year time series of North Atlantic groundfish assemblages monitored over 5° latitude to the west of Scotland. These fish assemblages show no systematic change in species richness through time, but steady change in species composition, leading to an increase in spatial homogenization: the species identity of colder northern localities increasingly resembles that of warmer southern localities."*
+
+Methods from Magurran et al. 2015
+
+* First assign the rectangles to nine 30' latitudinal bands
+* Compile community time series for each latitudinal band
+* Sample rarefaction ensures equal sampling effort across bands and is used in the calculation of temporal $\alpha$ diversity and temporal $\beta$ diversity. 
+* First calculate dissimilarity in relation to the start of the survey
+* Next, for each year, we compute pairwise compositional dissimilarity of these latitudinal bands
+* We also construct distance-decay plots for each year
+
+```{r setup}
+library(data.table)
+library(vegan)
+library(ggpubr)
+library(betapart)
+```
+
+Download data from Ocean Adapt. Accessed January 1 2020.
+[NEUS Strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_strata.csv)
+[NEUS SVPP](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_SVSPP.RData)
+[NEUS Survey Data](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_Survdat.RData)
+
+```{r import data for NEUS from Ocean Adapt on GitHub}
+
+#hash 2 lines below after you convert csv for strata into Rdata
+  #neus_strata <- read.csv("neus_strata.csv")
+  #save(neus_strata, file = "neus_strata.RData")
+
+load("neus_strata.Rdata")
+load("neus_Survdat.RData")
+load("neus_SVSPP.RData")
+
+```
+
+Extract columns we actually need
+```{r extract columns we need from each}
+neus_strata.r <- data.table(neus_strata[,c(2:3)]) #STRATUM, STRATUM NAME
+neus_survdat.r <- data.table(survdat[,c(3,5,8:11)]) #STRATUM, SVSPP, YEAR, SEASON, LAT, LON
+neus_spp.r <- data.table(spp[,c(1,2,4)]) #SCINAME, SVSPP, COMNAME
+
+neus_spp.r
+
+```
+
+```{r link data tables together}
+stratamerge <- neus_survdat.r[neus_strata.r, on = "STRATUM"] #merge strata with survey data
+neus_full <- stratamerge[neus_spp.r, on = "SVSPP"] #merge species with strata and survey data
+
+neus_full
+
+```
+
+Make sure every observation is of an identifiable fish, aka SVSPP != 0
+
+```{r ID fish}
+neus_full.ID <- neus_full[SVSPP != 0,]
+
+save(neus_full.ID, file = "NE_trawl_data_full.Rdata")
+```
