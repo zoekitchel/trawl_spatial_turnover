@@ -1,8 +1,6 @@
 ---
 title: "Spatial Temporal Diversity By Tow"
-output:
-  html_document:
-    df_print: paged
+output: html_notebook # make this github_document to make a .md file instead that will show up on github
 ---
 ```{r setup}
 library(data.table)
@@ -67,9 +65,11 @@ distdec_byyr <- ggplot(data = dist, aes(x = distgeo, y = 1-jaccard_dissimilarity
         strip.text.x = element_text(size = 5)) +
   geom_smooth() + 
   facet_wrap( ~ year, ncol = 8)
+
+# display plot: the slow part
 distdec_byyr
 
-
+# save plot: also slow
 ggsave(distdec_byyr, path = "plots/", file = "distance_decay_tow_year.png", dpi = 300, width = 8, height = 8, units = 'in')
 
 
