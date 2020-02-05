@@ -55,13 +55,13 @@ Make sure every observation is of an identifiable fish, aka SVSPP != 0
 Sum across multiple rows of the same species (e.g., different length classes or sexes in NEFSC surveys)
 ```{r clean up}
 neus_full.ID <- neus_full[SVSPP != 0,] # TO DO: need to trim out other categories, like TRASH here
-neus_full.ID2 <- neus_full.ID[ , .(BIOMASS = sum(BIOMASS)), by = .(CRUISE6, STATION, STRATUM, TOW, SVSPP, YEAR, SEASON, LAT, LON)]
+neus_full.ID <- neus_full.ID[ , .(BIOMASS = sum(BIOMASS)), by = .(CRUISE6, STATION, STRATUM, TOW, SVSPP, YEAR, SEASON, LAT, LON)]
 
-neus_full.ID2
+neus_full.ID
 ```
 
 ### Save out
 ```{r save}
-save(neus_full.ID2, file = "data/NE_trawl_data_full.Rdata")
+save(neus_full.ID, file = "data/NE_trawl_data_full.Rdata")
 ```
 
