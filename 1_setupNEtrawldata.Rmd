@@ -25,45 +25,43 @@ library(ggpubr)
 library(betapart)
 ```
 
-Download data from Ocean Adapt. Accessed January 1 2020.
-[NEUS Strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_strata.csv)
-[NEUS SVPP](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_SVSPP.RData)
-[NEUS Survey Data](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_Survdat.RData)
+## Download data from Ocean Adapt
+* [NEUS Strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_strata.csv)
+* [NEUS SVPP](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_SVSPP.RData)
+* [NEUS Survey Data](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_Survdat.RData)
 
 ```{r import data for NEUS from Ocean Adapt on GitHub}
 
-#hash 2 lines below after you convert csv for strata into Rdata
-  #neus_strata <- read.csv("neus_strata.csv")
-  #save(neus_strata, file = "neus_strata.RData")
-
-load("neus_strata.Rdata")
-load("neus_Survdat.RData")
-load("neus_SVSPP.RData")
+neus_strata <- fread('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_strata.csv')
+setnames(neus_strata, c('stratum', 'stratum_name'), c('STRATUM', 'STRATUM_NAME'))
+load(url('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_Survdat.RData')) # loads survdat
+load(url('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_SVSPP.RData')) # load spp
 
 ```
 
-Extract columns we actually need
-```{r extract columns we need from each}
-neus_strata.r <- data.table(neus_strata[,c(2:3)]) #STRATUM, STRATUM NAME
-neus_survdat.r <- data.table(survdat[,c(3,5,8:11)]) #STRATUM, SVSPP, YEAR, SEASON, LAT, LON
-neus_spp.r <- data.table(spp[,c(1,2,4)]) #SCINAME, SVSPP, COMNAME
-
-neus_spp.r
-
-```
-
+### Link data tables together
 ```{r link data tables together}
-stratamerge <- neus_survdat.r[neus_strata.r, on = "STRATUM"] #merge strata with survey data
-neus_full <- stratamerge[neus_spp.r, on = "SVSPP"] #merge species with strata and survey data
+# merge
+stratamerge <- merge(survdat[, .(CRUISE6, STATION, STRATUM, TOW, SVSPP, YEAR, SEASON, LAT, LON, BIOMASS)], 
+                     neus_strata[, .(STRATUM, STRATUM_NAME)], by = 'STRATUM') #merge strata with survey data
+neus_full <- merge(stratamerge, spp[, .(SVSPP, SCINAME, COMNAME)], by = "SVSPP") #merge species with strata and survey data
 
 neus_full
 
 ```
 
+### Summarize and clean up data
 Make sure every observation is of an identifiable fish, aka SVSPP != 0
+Sum across multiple rows of the same species (e.g., different length classes or sexes in NEFSC surveys)
+```{r clean up}
+neus_full.ID <- neus_full[SVSPP != 0,] # TO DO: need to trim out other categories, like TRASH here
+neus_full.ID <- neus_full.ID[ , .(BIOMASS = sum(BIOMASS)), by = .(CRUISE6, STATION, STRATUM, TOW, SVSPP, YEAR, SEASON, LAT, LON)]
 
-```{r ID fish}
-neus_full.ID <- neus_full[SVSPP != 0,]
-
-save(neus_full.ID, file = "NE_trawl_data_full.Rdata")
+neus_full.ID
 ```
+
+### Save out
+```{r save}
+save(neus_full.ID, file = "data/NE_trawl_data_full.Rdata")
+```
+
