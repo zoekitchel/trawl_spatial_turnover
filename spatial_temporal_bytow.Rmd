@@ -1,6 +1,8 @@
 ---
 title: "Spatial Temporal Diversity By Tow"
-output: html_notebook # make this github_document to make a .md file instead that will show up on github
+output: 
+html_notebook: default
+# make this github_document to make a .md file instead that will show up on github
 ---
 ```{r setup}
 library(data.table)
@@ -11,44 +13,56 @@ library(vegan)
 
 ### Load and set up data
 ```{r data}
-# only Northeast US spring: test case for now
-load("data/NE_trawl_data_full.Rdata")
-neus_full.ID <- neus_full.ID[SEASON == 'SPRING', ]
+# North American data
+trawl <- readRDS("data/NorthAmerican_trawl_data_full.rds")
 
-# add tow ID for each lat/lon/year/stratum/season (latter just to be safe)
-neus_full.ID[ , haulid := .GRP, by = .(LON, LAT, YEAR, STRATUM, SEASON)]
+# make a tow number so that we can easily eliminate duplicate comparisons (1->2 and 2->1)
+# as opposed to haulid that is a factor
+trawl[, townum := .GRP, by = haulid]
 ```
 
-### Calculate distance between tows for each year
+### Calculate distance between tows for each year in each region
 ```{r community and geographic distance calculations by year}
-yrs <- neus_full.ID[, sort(unique(YEAR))]
+# fix lons < -180
+trawl[lon < -180 , lon := lon + 360]
 
-for(yr in yrs){
-  # geographic distance between tows
-  distgeo <- distm(neus_full.ID[YEAR == yr, .(haulid, LON, LAT)][!duplicated(haulid), .(LON, LAT)]) # geographic distance matrix
-  rownames(distgeo) <- colnames(distgeo) <- neus_full.ID[YEAR == yr, .(haulid)][!duplicated(haulid), haulid]
-  distgeo.l <- data.table(melt(as.matrix(distgeo), varnames = c("tow1", "tow2"), value.name = "distgeo")) #matrix to long data.table
-  distgeo.l <- distgeo.l[tow1 > tow2,] # get rid of repetitions and self-comparisons
+# loop through each region and year
+# adds all results to long table "dist"
+regs <- trawl[, sort(unique(region))]
+for(reg in regs){
+  yrs <- trawl[region == reg, sort(unique(year))]
   
-  # create community matrix
-  commat <- dcast(neus_full.ID[YEAR == yr, .(pres = 1, haulid, SVSPP)], haulid ~ SVSPP, value.var = "pres", fun.aggregate = length) #long to wide data for community matrix, column names are haulid then each SVSPP. This adds zeros automatically through length()
-
-  # community dissimilarity distances between tows
-  distcom <- as.matrix(vegdist(commat[,2:ncol(commat)], method = "jaccard", binary = TRUE)) #dissimilarity 
-  colnames(distcom) <- rownames(distcom) <- commat$haulid
-  distcom.l <- data.table(melt(distcom, varnames = c("tow1", "tow2"), value.name = "jaccard_dissimilarity")) # matrix to long data.table
-  distcom.l <- distcom.l[tow1 > tow2,] # to get rid of repetitions and self-comparisons
-
-  #add year for these values
-  distcom.l[, year := yr]
-
-  #merge distance with jaccard_dissimilarity for this year
-  thisdist <- merge(distgeo.l , distcom.l, by = c('tow1', 'tow2'))
-
-  # add to output table if it already exists
-  # create output table if this is the first loop through
-  if(yr == yrs[1]) dist <- thisdist
-  if(yr != yrs[1]) dist <- rbind(dist, thisdist)
+  for(yr in yrs){
+    # geographic distance between tows
+    distgeo <- distm(trawl[region == reg & year == yr, .(townum, lon, lat)][!duplicated(townum), .(lon, lat)]) # geographic distance matrix
+    rownames(distgeo) <- colnames(distgeo) <- trawl[region == reg & year == yr, .(townum)][!duplicated(townum), townum]
+    distgeo.l <- data.table(melt(as.matrix(distgeo), varnames = c("tow1", "tow2"), value.name = "distgeo")) #matrix to long data.table
+    distgeo.l <- distgeo.l[tow1 > tow2,] # get rid of repetitions and self-comparisons
+    
+    # create community matrix
+    commat <- dcast(trawl[region == reg & year == yr, .(pres = 1, townum, spp)], townum ~ spp, value.var = "pres", fun.aggregate = length) #long to wide data for community matrix, column names are townum then each spp This adds zeros automatically through length()
+    
+    # community dissimilarity distances between tows
+    distcom <- as.matrix(vegdist(commat[,2:ncol(commat)], method = "jaccard", binary = TRUE)) #dissimilarity 
+    colnames(distcom) <- rownames(distcom) <- commat$townum
+    distcom.l <- data.table(melt(distcom, varnames = c("tow1", "tow2"), value.name = "jaccard_dissimilarity")) # matrix to long data.table
+    distcom.l <- distcom.l[tow1 > tow2,] # to get rid of repetitions and self-comparisons
+    
+    #add year and region for these values
+    distcom.l[, year := yr]
+    distcom.l[, region := reg]
+    
+    #merge distance with jaccard_dissimilarity for this year
+    thisdist <- merge(distgeo.l , distcom.l, by = c('tow1', 'tow2'))
+    
+    # add to output table if it already exists
+    # create output table if this is the first loop through
+    if(reg == regs[1] & yr == yrs[1]){
+      dist <- thisdist
+    } else {
+      dist <- rbind(dist, thisdist)
+    }
+  }
 }
 
 dist #here we have jaccard and geographic distance
@@ -56,21 +70,26 @@ dist #here we have jaccard and geographic distance
 
 ### Plot distance decay for each year
 ```{r plot distance decay all years}
-distdec_byyr <- ggplot(data = dist, aes(x = distgeo, y = 1-jaccard_dissimilarity)) +
-  geom_point(shape = 1, size = 0.5, alpha = 0.005) +
-  theme_classic() +
-  labs(x = "Distance (m)", y = "Jaccard Similarity") +
-  theme(text=element_text(size = 8), 
-        axis.text.x = element_text(angle = 90),
-        strip.text.x = element_text(size = 5)) +
-  geom_smooth() + 
-  facet_wrap( ~ year, ncol = 8)
-
-# display plot: the slow part
-distdec_byyr
+for(reg in regs){
+  print(reg)
+  distdec_byyr <- ggplot(data = dist[region == reg,], aes(x = distgeo, y = 1-jaccard_dissimilarity)) +
+    geom_point(shape = 1, size = 0.5, alpha = 0.005) +
+    theme_classic() +
+    labs(x = "Distance (m)", y = "Jaccard Similarity") +
+    theme(text=element_text(size = 8), 
+          axis.text.x = element_text(angle = 90),
+          strip.text.x = element_text(size = 5)) +
+    geom_smooth() + 
+    facet_wrap( ~ year, ncol = 8) + 
+    ggtitle(reg)
+  
+  # display plot: the slow part
+  print(distdec_byyr)
+  
+}
 
 # save plot: also slow
-ggsave(distdec_byyr, path = "plots/", file = "distance_decay_tow_year.png", dpi = 300, width = 8, height = 8, units = 'in')
+# ggsave(distdec_byyr, path = "plots/", file = "distance_decay_tow_year.png", dpi = 300, width = 8, height = 8, units = 'in')
 
 
 ```
@@ -78,15 +97,32 @@ ggsave(distdec_byyr, path = "plots/", file = "distance_decay_tow_year.png", dpi 
 ### Extract coefficient (slope) for each year: how does it change through time?
 ```{r each year build linear model}
 # get slopes
-# could do this as quantile regression to get median (from Magurran et al.)
-mod_coefs <- data.table("year" = yrs, "beta" = 0)
-for (i in 1:length(yrs)) {
-  # Estimate the parameters using a linear model for this year
-  mod <- lm(jaccard_dissimilarity ~ distgeo, data = dist[year == yrs[i],])  
-  mod_coefs[i, beta :=  coef(mod)[2]]
+# could do this as quantile regression to get median (as in Magurran et al.)
+for(reg in regs){
+  yrs <- dist[region == reg, sort(unique(year))]
+  for (yr in yrs) {
+    # Estimate the parameters using a linear model for this year
+    mod <- lm(jaccard_dissimilarity ~ distgeo, data = dist[region == reg & year == yr,])
+    if(reg == regs[1] & yr == yrs[1]){
+      mod_coefs <- data.table(region = reg, year = yr, beta = coef(mod)[2])
+    } else {
+      thesecoefs <- data.table(region = reg, year = yr, beta = coef(mod)[2])
+      mod_coefs <- rbind(mod_coefs, thesecoefs)
+    }
+  }
+  
 }
+mod_coefs
+```
 
-# plot
-invisible(mod_coefs[ , plot(year, beta)]); invisible(mod_coefs[, abline(lm(beta ~ year))])
-
+### plot the distance decays by year
+```{r plot distanc decays, fig.width = 6, fig.height = 6}
+ggplot(mod_coefs, aes(year, beta, group = region)) +
+  geom_point() +
+  facet_wrap(~region, scales = 'free', ncol = 3) +
+  geom_smooth() +
+  theme(text=element_text(size = 8), 
+        axis.text.x = element_text(angle = 90),
+        strip.text.x = element_text(size = 8))
+ggsave('plots/distance_decay_tow_slope_byregion.png', width = 8, height = 8, units = 'in')
 ```
