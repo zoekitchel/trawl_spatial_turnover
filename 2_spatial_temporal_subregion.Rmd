@@ -11,7 +11,7 @@ library(geosphere)
 
 Data
 ```{r data}
-load("NE_trawl_data_full.Rdata")
+load("data/NE_trawl_data_full.Rdata")
 ```
 
 Group Stratums
@@ -21,7 +21,6 @@ For now, I will split into MAB, SNE, GB, and GOM
 Region Stratum Key: Made by Zoe 
 ```{r region stratum key}
 region_strata_key <- data.table(read.csv("key_reg_strata.csv"))
-
 ```
 
 Set region for each tow
@@ -225,7 +224,7 @@ gme_mab_overtime <- ggplot(data = reduced_1_4, aes(x = YEAR, y = jaccard_dissimi
   labs(x= "Year", y = "Jaccard Dissimilarity") +
   ggtitle("GME vs. MAB") +
   theme_classic() +
-  theme(text = element_text(size = 20))
+  theme(text = element_text(size = 40))
   
   
 ggsave(gme_mab_overtime, file ="plots/GME & MAB Jaccard Through Time.eps")
