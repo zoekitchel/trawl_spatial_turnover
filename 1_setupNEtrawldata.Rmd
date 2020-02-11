@@ -46,8 +46,6 @@ stratamerge <- merge(survdat[, .(CRUISE6, STATION, STRATUM, TOW, SVSPP, YEAR, SE
                      neus_strata[, .(STRATUM, STRATUM_NAME)], by = 'STRATUM') #merge strata with survey data
 neus_full <- merge(stratamerge, spp[, .(SVSPP, SCINAME, COMNAME)], by = "SVSPP") #merge species with strata and survey data
 
-neus_full
-
 ```
 
 ### Summarize and clean up data
@@ -62,7 +60,7 @@ neus_full.r <- neus_full[grep(" ", SCINAME),]
 #get rid of any rows with TRASH SPECIES IN CATCH or UNIDENTIFIED FISH as SCINAME
 neus_full.ID <- neus_full.r[SCINAME != "UNIDENTIFIED FISH" & SCINAME != "TRASH SPECIES IN CATCH",]
 #sum biomass across cruise, station, stratum, tow, species, year, season, and location
-neus_full.ID <- neus_full.ID[ , .(BIOMASS = sum(BIOMASS)), by = .(CRUISE6, STATION, STRATUM, TOW, SVSPP, YEAR, SEASON, LAT, LON)]
+neus_full.ID <- neus_full.ID[ , .(BIOMASS = sum(BIOMASS)), by = .(CRUISE6, STATION, STRATUM, STRATUM_NAME,TOW, SVSPP, YEAR, SEASON, LAT, LON)]
 
 ```
 
