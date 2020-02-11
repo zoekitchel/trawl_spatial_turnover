@@ -15,7 +15,7 @@ library(vegan)
 
 Data
 ```{r data}
-load("NE_trawl_data_full.Rdata")
+load("data/NE_trawl_data_full.Rdata")
 ```
 
 #Distance Decay with Stratum instead of region
@@ -35,6 +35,7 @@ stratum_distance.l <- data.table(stratum_distance.l) #and then to data table
 stratum_distance.l <- stratum_distance.l[strat1 > strat2,] # get rid of repetitions and self-comparisons
 
 ```
+
 Above is distance info, now I need to build community matrix
 ```{r list of all strata}
 
@@ -43,7 +44,7 @@ neus_full.ID.stratum.unique <- na.omit(unique(neus_full.ID, by = c("YEAR", "STRA
 
 #reduce data table to just be svspp, year, sciname, comname, STRATUM
 
-neus_full.ID.stratum.unique.r <- data.table((neus_full.ID.stratum.unique[, c("SVSPP", "SCINAME", "COMNAME", "YEAR", "STRATUM")]))
+neus_full.ID.stratum.unique.r <- data.table((neus_full.ID.stratum.unique[, c("SVSPP", "SCINAME", "YEAR", "STRATUM")]))
 
 #add presence column 
 neus_full.ID.stratum.unique.r[,"present" := 1]
@@ -62,13 +63,12 @@ full_set_stratum <- data.table(expand.grid("SVSPP" = spp.list, "YEAR" = years, "
 Bring in presences to expansion for presence by STRATUM
 ```{r bring in actual presences by STRATUM to expansion}
 merge <- neus_full.ID.stratum.unique.r[full_set_stratum, on = c("YEAR", "STRATUM", "SVSPP")]
-merge[,"present" := ifelse(is.na(SCINAME), 0,1)][,"SCINAME" := NULL][,"COMNAME" := NULL] #if scientific name and common name are empty, that is an absence, if populated, presence, also, we don't need these columns, as we'll bring them in below
+merge[,"present" := ifelse(is.na(SCINAME), 0,1)][, SCINAME := NULL] #if scientific name and common name are empty, that is an absence, if populated, presence, also, we don't need these columns, as we'll bring them in below
 
-#simplify spp key
 #bring in spp key
-spp_key <- unique(neus_full.ID[,c("SVSPP", "SCINAME", "COMNAME")], col = c("SVSPP", "SCINAME", "COMNAME"))
+spp_key <- unique(neus_full.ID[,c("SVSPP", "SCINAME")], col = c("SVSPP", "SCINAME"))
 
-neus_pres_abs_STRATUM <- merge[spp_key, on = c("SVSPP")] #also don't actually need all columns
+neus_pres_abs_STRATUM <- merge[spp_key, on = c("SVSPP")] 
 
 ```
 
@@ -143,7 +143,7 @@ save(distances_dissimilarities_allyears_STRATUM, file = "output/jaccard_similari
 
 ```
 
-Instead, I will look at distance decay through time visually
+Because I can't get code to run for distance decay, I will look at distance decay through time visually
 
 ```{r distance decay all years}
 # read in dissimilarities for all years, all strata
@@ -161,6 +161,7 @@ distance_decay_stratum
 
 
 ggsave(distance_decay_stratum, path = "plots/", file = "distance_decay_stratum.eps")
+ggsave(distance_decay_stratum, path = "plots/", file = "distance_decay_stratum.jpg")
 
 
 ```
@@ -180,7 +181,7 @@ for (i in 1:length(years)) {
 invisible(mod_coefs[ , plot(year, beta)])
 invisible(mod_coefs[, abline(lm(beta ~ year))])
 
-#decreasing in rate of decay through time
+#decreasing in rate of decay through time (strata become more similar through time)
 
 ```
 
