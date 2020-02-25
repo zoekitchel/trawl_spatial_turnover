@@ -119,6 +119,7 @@ sum(neus_pres_abs$present) #check to make sure we have the right number of prese
 
 Calculate jaccard dissimiliarties between regions over all years
 ```{r jaccard dissimilarities between regions in multiple years}
+library(vegan)
 #set up empty data.table to populate in loop
 distances_dissimilarities_allyears <- data.table("reg1" = integer(), "reg2" = integer(), "distance(m)" = numeric(),"jaccard_dissimilarity" = numeric(), YEAR = integer())
 
@@ -176,8 +177,8 @@ Plot jaccard for 1 and 2 through time
 reduced_1_2 <- distances_dissimilarities_allyears[reg1 == 2 & reg2 ==1,]
 gme_geo_overtime <- ggplot(data = reduced_1_2, aes(x = YEAR, y = jaccard_dissimilarity)) +
   geom_point() +
-  geom_smooth(method = "lm") +
-  ylim(0:1) +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.25,0.6) +
   stat_cor(label.y = 0.1, label.x = 1990, size = 8) +
   stat_regline_equation(label.y = 0.2, label.x = 1990, size = 8) +
   labs(x= "Year", y = "Jaccard Dissimilarity") +
@@ -197,8 +198,8 @@ Plot jaccard for 1 and 3 through time
 reduced_1_3 <- distances_dissimilarities_allyears[reg1 == 3 & reg2 ==1,]
 gme_sne_overtime <- ggplot(data = reduced_1_3, aes(x = YEAR, y = jaccard_dissimilarity)) +
   geom_point() +
-  geom_smooth(method = "lm") +
-  ylim(0:1) +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.45,0.85) +
   stat_cor(label.y = 0.1, label.x = 1990, size = 8) +
   stat_regline_equation(label.y = 0.2, label.x = 1990, size = 8) +
   labs(x= "Year", y = "Jaccard Dissimilarity") +
@@ -216,8 +217,8 @@ Plot jaccard for 1 and 4 through time
 reduced_1_4 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==1,]
 gme_mab_overtime <- ggplot(data = reduced_1_4, aes(x = YEAR, y = jaccard_dissimilarity)) +
   geom_point() +
-  geom_smooth(method = "lm") +
-  ylim(0:1) +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.45,0.85) +
   stat_cor(label.y = 0.1, label.x = 1990, size = 8) +
   stat_regline_equation(label.y = 0.2, label.x = 1990, size = 8) +
   labs(x= "Year", y = "Jaccard Dissimilarity") +
@@ -235,8 +236,8 @@ Plot jaccard for 2 and 3 through time
 reduced_3_2 <- distances_dissimilarities_allyears[reg1 == 3 & reg2 ==2,]
 geo_sne_overtime <- ggplot(data = reduced_3_2, aes(x = YEAR, y = jaccard_dissimilarity)) +
   geom_point() +
-  geom_smooth(method = "lm") +
-  ylim(0:1) +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.25,0.6) +
   stat_cor(label.y = 0.1, label.x = 1990, size = 8) +
   stat_regline_equation(label.y = 0.2, label.x = 1990, size = 8) +
   labs(x= "Year", y = "Jaccard Dissimilarity") +
@@ -254,8 +255,8 @@ Plot jaccard for 2 and 4 through time
 reduced_4_2 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==2,]
 geo_mab_overtime <- ggplot(data = reduced_4_2, aes(x = YEAR, y = jaccard_dissimilarity)) +
   geom_point() +
-  geom_smooth(method = "lm") +
-  ylim(0:1) +
+  geom_smooth(method = "lm", se = F, se = F) +
+  ylim(0.4,0.8) +
   stat_cor(label.y = 0.1, label.x = 1990, size = 8) +
   stat_regline_equation(label.y = 0.2, label.x = 1990, size = 8) +
   labs(x= "Year", y = "Jaccard Dissimilarity") +
@@ -274,8 +275,8 @@ Plot jaccard for 3 and 4 through time
 reduced_3_4 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==3,]
 sne_mab_overtime <- ggplot(data = reduced_3_4, aes(x = YEAR, y = jaccard_dissimilarity)) +
   geom_point() +
-  geom_smooth(method = "lm") +
-  ylim(0:1) +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.4,0.8) +
   stat_cor(label.y = 0.1, label.x = 1990, size = 8) +
   stat_regline_equation(label.y = 0.2, label.x = 1990, size = 8) +
   labs(x= "Year", y = "Jaccard Dissimilarity") +
@@ -632,14 +633,14 @@ spp_richness.l <- melt(spp_richness, id.vars = c("year"),
 
 species_richness_reg <- ggplot(data = spp_richness.l, aes(x = year, y=richness)) +
   geom_line() +
-  ylim(0,350) +
+  ylim(50,250) +
   geom_smooth(method = lm) +
   facet_wrap(~variable) +
   stat_cor(label.y = 0, label.x = 1990) +
   stat_regline_equation(label.y = 50, label.x = 1990) +
   theme_classic()
 
-
+max(spp_richness.l$richness)
 
 
 ggsave(species_richness_reg, file ="plots/species_richness_reg.jpg")
