@@ -95,7 +95,7 @@ for (i in 1:length(years)) {
   stratum.r <- communitymatrix.r$STRATUM
 
   dissimilarities <- vegdist(communitymatrix.r[,1:(ncols-2)], method = "jaccard", binary = T) #dissimilarity 
-  
+  ?vegdist
 
   #make into matrix
   dissimilarities.m <- as.matrix(dissimilarities, labels=TRUE)
@@ -173,13 +173,20 @@ Extract coefficient (slope) for each year: how does it change through time? I di
 mod_coefs <- data.table("year" = years, "beta" = 0)
 for (i in 1:length(years)) {
   # Estimate the parameters using a linear model for this year
-  mod <- lm(I(1 - jaccard_dissimilarity) ~ `distance(m)`, data = distances_dissimilarities_allyears_STRATUM[YEAR == years[i],])  
-  mod_coefs[i, beta :=  -coef(mod)[2]]
+  mod <- lm(I(1 - jaccard_dissimilarity) ~ `distance(m)`, data = distances_dissimilarities_allyears_STRATUM[YEAR == years[i],])  # I() allows - to be used arithmetically, here we get similarity versus distance models
+  mod_coefs[i, beta :=  -coef(mod)[2]] #change in similarity for change in distance
 
 }
 
-invisible(mod_coefs[ , plot(year, beta)])
-invisible(mod_coefs[, abline(lm(beta ~ year))])
+ggplot(aes(x = year, y = beta), data = mod_coefs) +
+  geom_point() +
+  labs(x = "Year", y = "Slope of Distance Decay Plot\n(ΔSimilarity/ΔDistance)") +
+  geom_smooth() +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = "plots", file = "slope_distance_decay.jpg", width = 6, height = 4, unit = "in")
+
 
 #decreasing in rate of decay through time (strata become more similar through time)
 
