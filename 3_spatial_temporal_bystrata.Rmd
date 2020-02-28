@@ -178,7 +178,7 @@ for (i in 1:length(years)) {
 
 }
 
-ggplot(aes(x = year, y = beta), data = mod_coefs) +
+ggplot(aes(x = year, y = (beta)), data = mod_coefs) +
   geom_point() +
   labs(x = "Year", y = "Slope of Distance Decay Plot\n(ΔSimilarity/ΔDistance)") +
   geom_smooth() +
@@ -188,7 +188,7 @@ ggplot(aes(x = year, y = beta), data = mod_coefs) +
 ggsave(path = "plots", file = "slope_distance_decay.jpg", width = 6, height = 4, unit = "in")
 
 
-#decreasing in rate of decay through time (strata become more similar through time)
+#incecreasing rate of decay through time (strata become less similar through time)
 
 ```
 

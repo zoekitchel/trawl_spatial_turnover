@@ -176,13 +176,13 @@ Plot jaccard for 1 and 2 through time
 ```{r 1 and 2 through time}
 library(ggpubr)
 reduced_1_2 <- distances_dissimilarities_allyears[reg1 == 2 & reg2 ==1,]
-gme_geo_overtime <- ggplot(data = reduced_1_2, aes(x = YEAR, y = jaccard_dissimilarity)) +
+gme_geo_overtime <- ggplot(data = reduced_1_2, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm", se = F) +
-  ylim(0.25,0.6) +
+  ylim(0.4,0.75) +
   stat_cor(label.y = 0.5, label.x = 1970, size = 8) +
   stat_regline_equation(label.y = 0.55, label.x = 1970, size = 8) +
-  labs(x= "Year", y = "Jaccard Dissimilarity") +
+  labs(x= "Year", y = "Jaccard Similarity") +
   ggtitle("GME vs. GEO") +
   theme_classic() +
   theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
@@ -197,13 +197,13 @@ ggsave(gme_geo_overtime, file ="plots/GME & GEO Jaccard Through Time.jpg")
 Plot jaccard for 1 and 3 through time
 ```{r 1 and 3 through time}
 reduced_1_3 <- distances_dissimilarities_allyears[reg1 == 3 & reg2 ==1,]
-gme_sne_overtime <- ggplot(data = reduced_1_3, aes(x = YEAR, y = jaccard_dissimilarity)) +
+gme_sne_overtime <- ggplot(data = reduced_1_3, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm", se = F) +
-  ylim(0.45,0.85) +
-  stat_cor(label.y = 0.7, label.x = 1970, size = 8) +
-  stat_regline_equation(label.y = 0.75, label.x = 1970, size = 8) +
-  labs(x= "Year", y = "Jaccard Dissimilarity") +
+  ylim(0.15,0.65) +
+  stat_cor(label.y = 0.56, label.x = 1970, size = 8) +
+  stat_regline_equation(label.y = 0.6, label.x = 1970, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
   ggtitle("GME vs. SNE") +
   theme_classic() +
   theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
@@ -216,13 +216,13 @@ ggsave(gme_sne_overtime, file ="plots/GME & SNE Jaccard Through Time.jpg")
 Plot jaccard for 1 and 4 through time
 ```{r 1 and 4 through time}
 reduced_1_4 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==1,]
-gme_mab_overtime <- ggplot(data = reduced_1_4, aes(x = YEAR, y = jaccard_dissimilarity)) +
+gme_mab_overtime <- ggplot(data = reduced_1_4, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm", se = F) +
-  ylim(0.45,0.85) +
+  ylim(0.15,0.65) +
   stat_cor(label.y = 0.55, label.x = 1980, size = 8) +
   stat_regline_equation(label.y = 0.6, label.x = 1980, size = 8) +
-  labs(x= "Year", y = "Jaccard Dissimilarity") +
+  labs(x= "Year", y = "Jaccard Similarity") +
   ggtitle("GME vs. MAB") +
   theme_classic() +
   theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
@@ -235,13 +235,13 @@ ggsave(gme_mab_overtime, file ="plots/GME & MAB Jaccard Through Time.jpg")
 Plot jaccard for 2 and 3 through time
 ```{r 2 and 3 through time}
 reduced_3_2 <- distances_dissimilarities_allyears[reg1 == 3 & reg2 ==2,]
-geo_sne_overtime <- ggplot(data = reduced_3_2, aes(x = YEAR, y = jaccard_dissimilarity)) +
+geo_sne_overtime <- ggplot(data = reduced_3_2, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm", se = F) +
-  ylim(0.25,0.6) +
-  stat_cor(label.y = 0.3, label.x = 1980, size = 8) +
-  stat_regline_equation(label.y = 0.35, label.x = 1980, size = 8) +
-  labs(x= "Year", y = "Jaccard Dissimilarity") +
+  ylim(0.4,0.75) +
+  stat_cor(label.y = 0.6, label.x = 1990, size = 8) +
+  stat_regline_equation(label.y = 0.62, label.x = 1990, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
   ggtitle("GEO vs. SNE") +
   theme_classic() +
   theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
@@ -254,13 +254,13 @@ ggsave(geo_sne_overtime, file ="plots/GEO & SNE Jaccard Through Time.jpg")
 Plot jaccard for 2 and 4 through time
 ```{r 2 and 4 through time}
 reduced_4_2 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==2,]
-geo_mab_overtime <- ggplot(data = reduced_4_2, aes(x = YEAR, y = jaccard_dissimilarity)) +
+geo_mab_overtime <- ggplot(data = reduced_4_2, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm", se = F) +
-  ylim(0.4,0.8) +
+  ylim(0.2,0.6) +
   stat_cor(label.y = 0.5, label.x = 1980, size = 8) +
   stat_regline_equation(label.y = 0.55, label.x = 1980, size = 8) +
-  labs(x= "Year", y = "Jaccard Dissimilarity") +
+  labs(x= "Year", y = "Jaccard Similarity") +
   ggtitle("GEO vs. MAB") +
   theme_classic() +
   theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
@@ -274,19 +274,19 @@ ggsave(geo_mab_overtime, file ="plots/GEO & MAB Jaccard Through Time.jpg")
 Plot jaccard for 3 and 4 through time
 ```{r 3 and 4 through time}
 reduced_3_4 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==3,]
-sne_mab_overtime <- ggplot(data = reduced_3_4, aes(x = YEAR, y = jaccard_dissimilarity)) +
+sne_mab_overtime <- ggplot(data = reduced_3_4, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm", se = F) +
-  ylim(0.4,0.8) +
-  stat_cor(label.y = 0.7, label.x = 1990, size = 8) +
-  stat_regline_equation(label.y = 0.75, label.x = 1990, size = 8) +
-  labs(x= "Year", y = "Jaccard Dissimilarity") +
+  ylim(0.2,0.6) +
+  stat_cor(label.y = 0.25, label.x = 1970, size = 8) +
+  stat_regline_equation(label.y = 0.3, label.x = 1970, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
   ggtitle("SNE vs. MAB") +
   theme_classic() +
   theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
   
   
-ggsave(sne_mab_overtime, file ="plots/SNE & MAB Jaccard Through Time.eps")
+ggsave(sne_mab_overtime, file ="plots/SNE & MAB Jaccard Through Time.jpg")
 ```
 
 Looking at changes in jaccard dissimilarity across time for each region individually
@@ -354,13 +354,13 @@ colnames(dissimilarities_final_GME_year1)[colnames(dissimilarities_final_GME_yea
 
 dissimilarities_final_GME_year1[,"YEAR" := years[1:51]]
 
-jaccard_overtime_GME_year1comparison <- ggplot(data = dissimilarities_final_GME_year1, aes(x=YEAR, y = jaccard_dissimilarity)) +
+jaccard_overtime_GME_year1comparison <- ggplot(data = dissimilarities_final_GME_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm") +
   stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
   stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
   ggtitle("a. GME") +
-  labs(x = "Year", y = "Jaccard dissimilarity") +
+  labs(x = "Year", y = "Jaccard Similarity") +
   theme_classic() +
   theme(text = element_text(size = 20))
 
@@ -437,13 +437,13 @@ colnames(dissimilarities_final_GEO_year1)[colnames(dissimilarities_final_GEO_yea
 dissimilarities_final_GEO_year1[,"YEAR" := years[1:51]]
 
 
-jaccard_overtime_GEO_year1comparison <- ggplot(data = dissimilarities_final_GEO_year1, aes(x=YEAR, y = jaccard_dissimilarity)) +
+jaccard_overtime_GEO_year1comparison <- ggplot(data = dissimilarities_final_GEO_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm") +
   stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
   stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
   ggtitle("b. GEO") +
-  labs(x = "Year", y = "Jaccard dissimilarity") +
+  labs(x = "Year", y = "Jaccard Similarity") +
   theme_classic() +
   theme(text = element_text(size = 20))
 
@@ -521,13 +521,13 @@ colnames(dissimilarities_final_SNE_year1)[colnames(dissimilarities_final_SNE_yea
 dissimilarities_final_SNE_year1[,"YEAR" := years[1:51]]
 
 
-jaccard_overtime_SNE_year1comparison <- ggplot(data = dissimilarities_final_SNE_year1, aes(x=YEAR, y = jaccard_dissimilarity)) +
+jaccard_overtime_SNE_year1comparison <- ggplot(data = dissimilarities_final_SNE_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm") +
   stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
   stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
   ggtitle("c. SNE") +
-  labs(x = "Year", y = "Jaccard dissimilarity") +
+  labs(x = "Year", y = "Jaccard Similarity") +
   theme_classic() +
   theme(text = element_text(size = 20))
 
@@ -602,13 +602,13 @@ colnames(dissimilarities_final_MAB_year1)[colnames(dissimilarities_final_MAB_yea
 
 dissimilarities_final_MAB_year1[,"YEAR" := years[1:51]]
 
-jaccard_overtime_MAB_year1comparison <- ggplot(data = dissimilarities_final_MAB_year1, aes(x=YEAR, y = jaccard_dissimilarity)) +
+jaccard_overtime_MAB_year1comparison <- ggplot(data = dissimilarities_final_MAB_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
   geom_point() +
   geom_smooth(method = "lm") +
   stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
   stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
   ggtitle("d. MAB") +
-  labs(x = "Year", y = "Jaccard dissimilarity") +
+  labs(x = "Year", y = "Jaccard Similarity") +
   theme_classic() +
   theme(text = element_text(size = 20))
 
