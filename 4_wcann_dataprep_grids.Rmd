@@ -1,0 +1,205 @@
+---
+title: "Prepping WCANN Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+```
+
+
+Very confused of how to pull in data right now. To keep it easy, I'll use cleaned Ocean Adapt data
+
+https://github.com/pinskylab/OceanAdapt/tree/update_2019/data_clean/by_species.RData
+
+December 1, 2020
+```{r pull in data all regions}
+dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
+```
+
+```{r WCANN}
+dat_WCANN <- dat_exploded[region == "West Coast Annual",]
+
+saveRDS(dat_WCANN, "WCANN.RData")
+dat_WCANN <- readRDS("WCANN.RData")
+```
+
+```{r pull in WCANN}
+
+# Get Unique lines in the data table
+unique_wcann_latlon<- unique(dat_WCANN[,.(lat, lon)])
+unique_wcann_latlon.sf <- unique_wcann_latlon
+  
+#make lat lon coordinates into polygon
+coordinates(unique_wcann_latlon.sf) <- ~lat + lon
+unique_wcann_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_wcann_latlon, "unique_wcann_latlon.RData")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-180, -51.5,23, 67)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_wcann_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_wcann_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
+
+#centersof cells
+wcann_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_wcann_latlon[,cell])
+
+#linking cell centers to unique_wcann_latlon
+unique_wcann_latlon[,LON_CENTER := wcann_cellcenters$lon_deg][,LAT_CENTER := wcann_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+dat_WCANN <- merge(dat_WCANN, unique_wcann_latlon, by = c("lat", "lon"))
+
+#number of tows in each cell
+towcount <- unique_wcann_latlon[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_wcann <- dgcellstogrid(dggs, unique_wcann_latlon[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_wcann <- merge(grid, unique_wcann_latlon, by.x = "cell", by.y ="cell")
+
+ggplot(data = grid_wcann, aes(x = long, y = lat.x, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_wcann, "grid_wcann.RData")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying}
+
+na_outline + 
+   geom_polygon(grid, mapping = aes(x = long,y = lat.x, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "grid_WCANN_cells_spacing_111.pdf")
+  
+```
+Cleaning spp names (must be ID'd to species!)
+```{r clean WCANN names}
+#unique species names
+spp_wcann <- dat_WCANN[,unique(spp)]
+
+
+#Using taxize package, I'm going to check and standardize species scientific names
+result.long <- spp_wcann %>%
+gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
+            with_canonical_ranks=T)
+
+result.long <- data.table(result.long)
+
+#delete repeats, and get rid of crustacea shrimp (not ID'd to species)
+#Astropecten verilli -> Astropecten verrilli
+#Chrysaora fuscens->Chrysaora fuscescens
+
+
+dat_WCANN$spp <- gsub("Astropecten verilli", "Astropecten verrilli", dat_WCANN$spp) #won't come up for some reason, ignore for now
+dat_WCANN$spp <- gsub("Chrysaora fuscens", "Chrysaora fuscescens", dat_WCANN$spp)
+
+
+#run long again
+
+#unique species names
+spp_wcann <- dat_WCANN[,unique(spp)]
+
+
+#Using taxize package, I'm going to check and standardize species scientific names
+result.long <- spp_wcann %>%
+gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
+            with_canonical_ranks=T)
+
+result.long <- data.table(result.long)
+
+result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score >= 0.85,]
+
+#merge cleaned species names with neus full 
+dat_WCANN.clean <- dat_WCANN[result.short, on = "spp"]
+
+```
+
+
+Now, we'll overlay grid cells onto this list of tows (dat_wcann) using lat and lon and gridrr package
+```{r get rid of underused grid cells}
+
+year_grid <- data.table(table(dat_WCANN.clean$cell, dat_WCANN.clean$year))
+
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+
+#delete these grid cells from full data table
+dat_wcann.reduced <- dat_WCANN.clean[!cell %in% grid_cells_to_exclude]
+
+#732196 observations left, this should be great
+
+#how many tows (TOW) per cell in a given year
+colnames(dat_wcann.reduced)
+
+haul_cell_unique <- unique(dat_wcann.reduced[,.(haulid, cell, year)])
+
+wcann_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
+
+wcann_cells_lessthan3 <- wcann_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(wcann_cells_lessthan3[,cell])
+
+dat_wcann.reduced.again <- dat_wcann.reduced[!cell %in% cells_to_delete]
+
+#down to 673516 observations
+
+saveRDS(dat_wcann.reduced.again, "wcann_data_gridded.RData")
+
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells}
+#just need grid cell # and center lat lon for each grid cell 
+wcann_grid_cells <- unique(dat_wcann.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+
+wcann_grid_cells <- setorder(wcann_grid_cells, cell)
+
+wcann_reg_distances <- distm(wcann_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(wcann_reg_distances) <- wcann_grid_cells$cell
+rownames(wcann_reg_distances) <- wcann_grid_cells$cell
+
+#reorient to long form 
+wcann_reg_distances.l <- melt(as.matrix(wcann_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+wcann_reg_distances.l <- data.table(wcann_reg_distances.l) #and then to data table
+wcann_reg_distances.l <- wcann_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+saveRDS(wcann_reg_distances.l, "wcann_reg_distances.l.RData")
+```

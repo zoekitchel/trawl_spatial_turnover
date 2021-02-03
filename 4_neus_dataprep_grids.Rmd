@@ -1,0 +1,863 @@
+---
+title: "Look at multiple regions: first, grid using dggridR"
+output: html_notebook
+---
+
+First, I had to download dggridR. Note that the version that is installed using install.packages() was not updated to work with this version of R. Therefore, I downloaded directly from GitHub using:
+
+library(devtools) #Use `install.packages('devtools')` if need be
+install_github('r-barnes/dggridR', vignette=TRUE)
+
+on November 23, 2020. 
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+```
+
+## Download data from Ocean Adapt
+* [NEUS Strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_strata.csv)
+* [NEUS SVPP](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_SVSPP.RData)
+* [NEUS Survey Data](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_Survdat.RData)
+* [NEUS fall svcat](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_fall_svcat.csv)
+* [NEUS fall svsta](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_fall_svsta.csv)
+* [NEUS spring svsta](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_spring_svsta.csv)
+* [NEUS spring svsta](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_spring_svsta.csv)
+
+"In the Northeast U.S., we excluded data from years prior to 1982 (data begin in 1968). Years prior to 1979 were excluded because strata in the southern tip of the region (between approximately 34.5o N and 35o N) were not regularly sampled during this time. A site in the Gulf of Maine (­69.25o E 43.25o N) was not sampled consistently between 1979 and 1981, and including these years in the analysis would have prevented this site from being included in the analysis (which would have reduced total sites from 100 to 99)." Batt 2017 Supplement
+
+```{r pull in NEUS}
+      neus_strata <- fread('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_strata.csv')
+      setnames(neus_strata, c('stratum', 'stratum_name'), c('STRATUM', 'STRATUM_NAME'))
+      surv_dat_url <- url('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_Survdat.RData')
+      load(surv_dat_url) # loads survdat
+      svspp_survdat <- url('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_SVSPP.RData')
+      load(svspp_survdat) # load spp
+      
+      #link data together
+      # merge
+      stratamerge <- merge(survdat[, .(CRUISE6, STATION, STRATUM, TOW, SVSPP, YEAR, SEASON, EST_TOWDATE, DEPTH, LAT, LON, BIOMASS, ABUNDANCE)], 
+                           neus_strata[, .(STRATUM, STRATUM_NAME, stratum_area)], by = 'STRATUM') #merge strata with survey data
+      neus_full <- merge(stratamerge, spp[, .(SVSPP, SCINAME, COMNAME)], by = "SVSPP") #merge species with strata and survey data
+
+#alternatively, using cleaned ocean adapt data
+dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
+
+dat_NEUS <- dat_exploded[region %in% c("Northeast US Spring", "Northeast US Fall"),]
+
+saveRDS(dat_NEUS, "dat_NEUS.RData")
+dat_WCANN <- readRDS("dat_NEUS.RData")
+
+neus_full_1982onward <- dat_NEUS[year >= 1982,]
+
+setkey(neus_full_1982onward)
+
+# Get Unique lines in the data table
+unique_neus_latlon<- unique(neus_full_1982onward[,.(lat, lon)])
+unique_neus_latlon.sf <- unique_neus_latlon
+  
+#make lat lon coordinates into polygon
+coordinates(unique_neus_latlon.sf) <- ~lat + lon
+unique_neus_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_neus_latlon, "unique_neus_latlon.RData")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-180, -51.5,23, 67)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_neus_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_neus_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
+
+#centersof cells
+neus_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_neus_latlon[,cell])
+
+#linking cell centers to unique_neus_latlon
+unique_neus_latlon[,LON_CENTER := neus_cellcenters$lon_deg][,LAT_CENTER := neus_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+neus_full_1982onward <- merge(neus_full_1982onward, unique_neus_latlon, by = c("lat", "lon"))
+colnames(neus_full_1982onward) <- c("lat_obs","lon_obs","region","haulid","year","spp","wtcpue", "common","stratum","stratumarea","depth","cell","LON_CENTER","LAT_CENTER")
+
+
+#number of tows in each cell
+towcount <- unique_neus_latlon[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_neus <- dgcellstogrid(dggs, unique_neus_latlon[,cell], frame = T, wrapcells = F)
+colnames(grid_neus) <- c("lon_grid", "lat_grid", "order", "hole", "piece", "group", "cell")
+
+#update grid properties to include # of trawls in each cell
+grid_neus <- merge(grid_neus, unique_neus_latlon, by.x = "cell", by.y ="cell")
+
+ggplot(data = grid_neus, aes(x = lon_grid, y = lat_grid, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_neus, "grid_neus.RData")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying}
+
+na_outline + 
+   geom_polygon(grid_neus, mapping = aes(x = lon_grid,y = lat_grid, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "neus_grid_cells_spacing_111.pdf")
+  
+```
+
+
+Cleaning up NEUS data
+
+first, using Ryan's code for column names. Can't quite figure out what is going on there
+```{r using Ryans code}
+clean.names <- function(X, reg=c("ai", "ebs", "gmex", "goa", "neus", "newf", "ngulf", "sa", "sgulf", "shelf", "wcann", "wctri")){
+	
+	reg <- match.arg(reg)
+	
+	
+	get.clean.names <- function(x){
+		switch(x,
+			ai = clean.names.ai(X),
+			ebs = clean.names.ebs(X),
+			gmex = clean.names.gmex(X),
+			goa = clean.names.goa(X),
+			neus = clean.names.neus(X),
+			newf = clean.names.newf(X),
+			ngulf = clean.names.ngulf(X),
+			sa = clean.names.sa(X),
+			sgulf = clean.names.sgulf(X),
+			shelf = clean.names.shelf(X),
+			wcann = clean.names.wcann(X),
+			wctri = clean.names.wctri(X)
+		)
+	}
+	
+	# remove leading/ trailing whitespace in col names
+	setnames(X, names(X), gsub("^\\s* | \\s*$", "", names(X)))
+	
+	# make valid names
+	# note this is going to cause problems 
+	# because I rely on the (kinda) OS-specific conversion I'm used to
+	# however, only for WC regions, and probably same on most OS's
+	# probably no big deal, but look out!
+	# see ?make.names, read whole thing
+	setnames(X, names(X), make.names(names(X)))
+	
+	cn <- get.clean.names(reg) # get the key to convert column names
+	cn.found <- cn$old%in%names(X) # find out which column names the key has
+	setnames(X, old=cn$old[cn.found], new=cn$new[cn.found]) # make recognized corrections
+	
+}
+
+
+
+
+# ======
+# = AI =
+# ======
+clean.names.ai <- function(X){
+	
+	ai.cols <- c(
+		"STRATUM" = "stratum",
+		"LATITUDE" = "lat",
+		"LONGITUDE" = "lon",
+		"STATION" = "station",
+		"YEAR" = "year",
+		"DATETIME" = "datetime",
+		"WTCPUE" = "wtcpue",
+		"NUMCPUE" = "cntcpue",
+		"COMMON" = "common",
+		"SCIENTIFIC" = "spp",
+		"SID" = "SID",
+		"BOT_DEPTH" = "depth",
+		"BOT_TEMP" = "btemp",
+		"SURF_TEMP" = "stemp",
+		"VESSEL" = "vessel",
+		"CRUISE" = "cruise",
+		"HAUL" = "haul",
+		"Areakm2" = "stratumarea"
+	
+	)
+	
+	return(list(old=names(ai.cols), new=unname(ai.cols)))
+	
+
+}
+
+
+# =======
+# = EBS =
+# =======
+clean.names.ebs <- function(X){
+
+	ebs.cols <- c(
+		"STRATUM" = "stratum",
+		"LATITUDE" = "lat",
+		"LONGITUDE" = "lon",
+		"STATION" = "station",
+		"YEAR" = "year",
+		"DATETIME" = "datetime",
+		"WTCPUE" = "wtcpue",
+		"NUMCPUE" = "cntcpue",
+		"COMMON" = "common",
+		"SCIENTIFIC" = "spp",
+		"SID" = "SID",
+		"BOT_DEPTH" = "depth",
+		"BOT_TEMP" = "btemp",
+		"SURF_TEMP" = "stemp",
+		"VESSEL" = "vessel",
+		"CRUISE" = "cruise",
+		"HAUL" = "haul",
+		"Areakm2" = "stratumarea"
+	
+	)
+	
+	return(list(old=names(ebs.cols), new=unname(ebs.cols)))
+
+}
+
+
+# ========
+# = GMEX =
+# ========
+clean.names.gmex <- function(X){
+	gmex.cols <- c(
+		"CRUISEID" = "cruise",
+		"VESSEL" = "vessel",
+		"BIO_BGS" = "SID",
+		"STATIONID" = "station",
+		# "CRUISE_NO" = "cruise", # don't know how this is different from CRUISEID
+		# "P_STA_NO" = "station", # don't know how it's different from stationid
+		"BGSID" = "BGSID",
+		"CATEGORY" = "unknown",
+	
+		"GENUS_BGS" = "genus",
+		"SPEC_BGS" = "species",
+		"BGSCODE" = "BGSCODE",
+	
+		"CNTEXP" = "cnt",
+		"SELECT_BGS" = "weight",
+	
+		"INVRECID" = "towID",
+	
+		"GEAR_SIZE" = "gearsize",
+		"GEAR_TYPE" = "geartype",
+		"MESH_SIZE" = "meshsize",
+		# "OP" = "status of the tow; blank is good, so is a '.'; all else bad (see filedef.doc)",
+		"MIN_FISH" = "towduration",
+	
+		"TIME_ZN"="timezone",
+		"TIME_MIL"="time",
+	
+	
+		"S_LATD"= "lat.deg.start", #paste("start", "lat.deg",sep="."),
+		"S_LATM"= "lat.min.start", #paste("start", "lat.min",sep="."),
+		"S_LOND"= "lon.deg.start", # paste("start", "lon.deg",sep="."),
+		"S_LONM"= "lon.min.start", # paste("start", "lon.min",sep="."),
+	
+		"DEPTH_SSTA" = "depth", # paste("start", "depth2",sep="."),
+		"MO_DAY_YR" = "date",
+	
+		"E_LATD"= "lat.deg.end", # paste("end", "lat.deg",sep="."),
+		"E_LATM"= "lat.min.end", # paste("end", "lat.min",sep="."),
+		"E_LOND"= "lon.deg.end", # paste("end", "lon.deg",sep="."),
+		"E_LONM"= "lon.min.end", # paste("end", "lon.min",sep="."),
+	
+	
+		"TEMP_SSURF" = "stemp",
+		"TEMP_BOT" = "btemp",
+	
+		"VESSEL_SPD"="towspeed",
+		"COMSTAT"= "station.comment",
+		"TAXONOMIC" = "spp",
+		"TITLE" = "survey.name"
+	)
+	
+	return(list(old=names(gmex.cols), new=unname(gmex.cols)))
+	
+}
+
+
+# =======
+# = GOA =
+# =======
+clean.names.goa <- function(X){
+	
+	goa.cols <- c(
+		"STRATUM" = "stratum",
+		"LATITUDE" = "lat",
+		"LONGITUDE" = "lon",
+		"STATION" = "station",
+		"YEAR" = "year",
+		"DATETIME" = "datetime",
+		"WTCPUE" = "wtcpue",
+		"NUMCPUE" = "cntcpue",
+		"COMMON" = "common",
+		"SCIENTIFIC" = "spp",
+		"SID" = "SID",
+		"BOT_DEPTH" = "depth",
+		"BOT_TEMP" = "btemp",
+		"SURF_TEMP" = "stemp",
+		"VESSEL" = "vessel",
+		"CRUISE" = "cruise",
+		"HAUL" = "haul",
+		"Areakm2" = "stratumarea"
+	
+	)
+	
+	return(list(old=names(goa.cols), new=unname(goa.cols)))
+	
+}
+
+
+# ========
+# = NEUS =
+# ========
+clean.names.neus <- function(X){
+	
+	
+	neus.cols <- c(
+		"STRATUM" = "stratum",
+		"SVSPP" = "SID",
+		"CATCHSEX" = "sex",
+		"YEAR" = "year",
+		"EST_TOWDATE" = "datetime",
+		"SEASON" = "season",
+		"LAT" = "lat",
+		"LON" = "lon",
+		"DEPTH" = "depth",
+		"CRUISE6" = "cruise",
+		"STATION" = "station",
+		"BIOMASS" = "weight", # corrected for certain gear changes, but not necessarily for total area hauled
+		"ABUNDANCE" = "cnt", # same as biomass – linear correction factors applied to account for gear/ method changes, but not necessarily area trawled (effort only partially accounted for, perhaps)
+		"SCINAME" = "spp",
+		"Areanmi2" = "stratumarea",
+		
+		# below here not in ocean adapt
+		"SVVESSEL" = "vessel",
+		"SURFTEMP" = "stemp",
+		"SURFSALIN" = "ssalin",
+		"BOTTEMP" = "btemp",
+		"BOTSALIN" = "bsalin",
+		"LENGTH" = "length",
+		"COMNAME" = "common"
+	
+	)
+	
+	return(list(old=names(neus.cols), new=unname(neus.cols)))
+	
+	
+}
+
+
+# ========
+# = NEWF =
+# ========
+clean.names.newf <- function(X){
+	
+	
+	newf.cols <- c(
+		# "sppcode",
+# 		"recordtype",
+# 		"vessel",
+# 		"trip",
+# 		"set",
+		"yearl" = "year",
+		"monthl" = "month",
+		"dayl" = "day",
+# 		"settype",
+# 		"stratum",
+# 		"nafo",
+# 		"unitarea",
+# 		"light",
+# 		"winddir",
+		"windforce"="wind",
+# 		"sea",
+# 		"bottom",
+		"timel" = "time",
+		"duration" = "towduration", 
+		"distance" = "towdistance", 
+		# "operation",
+# 		"depth",
+		"depthmin" = "depth.min",
+		"depthmax" = "depth.max",
+# 		"depthbottom",
+		"surftemp" = "stemp", 
+		"bottemp" = "btemp", 
+		"latstart" = "lat.start", 
+		"lonstart" = "lon.start", 
+		# "posmethod",
+		"gear" = "geartype", 
+		"num" = "cnt", 
+		"wgt" = "weight", 
+		"latend" = "lat.end", 
+		"lonend" = "lon.end"#, 
+		# "bottempmeth",
+# 		"geardevice",
+# 		"common",
+# 		"spp",
+# 		"season"
+	)
+	
+	return(list(old=names(newf.cols), new=unname(newf.cols)))
+	
+}
+
+# =========
+# = NGULF =
+# =========
+clean.names.ngulf <- function(X){
+	message("Function not ready yet")
+	
+	return(list(old=NULL, new=NULL))
+}
+
+
+# ======
+# = SA =
+# ======
+clean.names.sa <- function(X){
+	
+	sa.cols <- c(
+		# "COLLECTIONNUMBER" = "haulid",
+		# "PROJECTNAME",
+		# "PROJECTAGENCY",
+		"DATE" = "date", 
+		"EVENTNAME" = "haulid",
+		"VESSELNAME" = "vessel", 
+		# "GEARNAME",
+# 		"GEARCODE",
+# 		"SPECIESCODE",
+# 		"MRRI_CODE",
+		"SPECIESSCIENTIFICNAME" = "spp", 
+		"SPECIESCOMMONNAME" = "common", 
+		"NUMBERTOTAL" = "cnt", 
+		"SPECIESTOTALWEIGHT" = "weight", 
+		# "SPECIESSUBWEIGHT", 
+		# "SPECIESWGTPROCESSED",
+		# "WEIGHTMETHODDESC", 
+		# "ORGWTUNITS", 
+		"EFFORT" = "effort", 
+		# "CATCHSUBSAMPLED", 
+		# "CATCHWEIGHT", 
+		# "CATCHSUBWEIGHT", 
+		"TIMESTART" = "time", 
+		"DURATION" = "towduration", 
+		# "TOWTYPETEXT",
+		# "LOCATION",
+		# "REGION",
+		# "DEPTHZONE",
+		# "ACCSPGRIDCODE",
+		"STATIONCODE" = "stratum",
+		# "EVENTTYPEDESCRIPTION",
+		"TEMPSURFACE" = "stemp", 
+		"TEMPBOTTOM" = "btemp", 
+		"SALINITYSURFACE" = "ssalin", 
+		"SALINITYBOTTOM" = "bsalin", 
+		"SDO" = "sdo", 
+		"BDO" = "bdo", 
+		"TEMPAIR" = "airtemp", 
+		"LATITUDESTART" = "lat.start", 
+		"LATITUDEEND" = "lat.end", 
+		"LONGITUDESTART" = "lon.start", 
+		"LONGITUDEEND" = "lon.end", 
+		# "SPECSTATUSDESCRIPTION",
+		# "LASTUPDATED",
+		# "LIGHTPHASE",
+		"TIMEZONE" = "timezone", 
+		"DEPTHSTART" = "depth.start", 
+		"DEPTHEND" = "depth.end", 
+		# "PRESSURE",
+		"WINDSPEED" = "wind",
+		# "WINDDIRECTION",
+		# "WAVEHEIGHT",
+		# "PRECIPITATION",
+		# "ESTIMATEDLOC",
+		# "SEDSIZEDESC",
+		# "BTMCOMPDESC",
+		# "WEATHERDESC",
+		# "WATERLVLDESC",
+		# "ALTERATIONDESC",
+		# "ACTIVITYDESC",
+		# "NBRREP",
+		"COMMENTS" = "comment"
+	)
+	
+	return(list(old=names(sa.cols), new=unname(sa.cols)))
+	
+}
+
+
+# =========
+# = SGULF =
+# =========
+clean.names.sgulf <- function(X){
+	
+	sgulf.cols <- c(
+		# "stratum",
+		# "vessel",
+		# "cruise",
+		# "set",
+		# "year",
+		"species" = "species.code", 
+		"catch" = "cntcpue", 
+		"biomass" = "wtcpue", 
+		# "month",
+	# 	"day",
+	# 	"expt",
+	# 	"time",
+	# 	"temperature",
+		"depthst" = "depth.start", 
+		"depthend" = "depth.end", 
+		# "dtow",
+		# "depth",
+		"latitude" = "lat", 
+		"longitude" = "lon", 
+		"latin_name" = "spp", 
+		"name" = "common", 
+		"N" = "cnt", 
+		"kg" = "weight", 
+		"t_surface" = "stemp", 
+		"salin_bottom" = "bsalin", 
+		"t_bottom" = "btemp", 
+		# "trawlableunits",
+		"stratarea" = "stratumarea"
+	)
+	
+	return(list(old=names(sgulf.cols), new=unname(sgulf.cols)))
+}
+
+# =========
+# = SHELF =
+# =========
+clean.names.shelf <- function(X){
+	
+	shelf.cols <- c(
+		# "CODE",
+		# "stratum",
+		# "MISSION",
+		# "SETNO",
+		# "MARKET",
+		# "SAMPWGT",
+		"ADJ_TOTWGT" = "wtcpue",
+		"ADJ_TOTNO" = "cntcpue",
+		# "CALWT",
+		"REMARKS" = "comment",
+		# "SIZE_CLASS",
+		"SDATE" = "date",
+		"TIME" = "time",
+		"SLAT" = "lat.start",
+		"SLONG" = "lon.start",
+		"ELAT" = "lat.end",
+		"ELONG" = "lon.end",
+		"AREA" = "towarea",
+		"DUR" = "towduration",
+		"DIST" = "towdistance",
+		# "HOWD",
+		"SPEED" = "towspeed",
+		# "HOWS",
+		"DMIN" = "depth.min",
+		"DMAX" = "depth.max",
+		"WIND" = "wind",
+# 		"FORCE",
+# 		"CURNT",
+# 		"TYPE",
+		# "GEAR" = "geartype",
+		# "AUX",
+		"DEPTH" = "depth",
+		"ETIME" = "date.end",
+		"START_DEPTH" = "depth.start",
+		"END_DEPTH" = "depth.end",
+		"SURFACE_TEMPERATURE" = "stemp",
+		"BOTTOM_TEMPERATURE" = "btemp",
+		"BOTTOM_SALINITY" = "bsalin",
+		# "depthzone_fathoms",
+		"stratarea_nmi2" = "stratumarea"
+		# "spp",
+		# "common"
+	)
+	
+	return(list(old=names(shelf.cols), new=unname(shelf.cols)))
+}
+
+# ==========
+# = WC ANN =
+# ==========
+clean.names.wcann <- function(X){
+	
+	
+	
+
+	wcann.cols <- c(
+		"Trawl.Id" = "haulid", 
+		"Species" = "spp", 
+		"Haul.Weight..kg." = "weight",
+		# "Individual.Average.Weight..kg." = "average individual weight (weight/count)",
+		# "Survey" = "Indicates the survey time series within which a trawl sample was conducted; either the West Coast Slope Bottom Trawl Survey or the West Coast Slope/Shelf Bottom Trawl Survey",
+		"Survey.Cycle" = "year", 
+		"Vessel" = "vessel", 
+		# "Cruise.Leg" = "The West Coast Groundfish Bottom Trawl Surveys have been conducted coastwide from the U.S. / Canada border to a southern boundary that has expanded southward from Point Conception to the U.S. - Mexico border over time (see accompanying data annotations document).  The full north to south extent is traversed in two passes each survey season.  Each pass is divided into four (Slope survey) to five (Slope/Shelf combined survey) continuous segments separated by rest periods in ports along the coast.  Cruise leg indicates the sequential segment (1-5) in which a trawl operation was conducted.",
+		# "Trawl.Performance" = "All trawl operations are reviewed and rated as to the quality of their execution and their applicability to formal fishery assessment analysis products.  Trawl Performance indicates these determinations.  See the accompanying data annotations document for a more detailed description.",
+		"Trawl.Date" ="date", 
+		"Trawl.Start.Time" = "datetime", 
+		"Best.Latitude..dd." = "lat", 
+		"Best.Longitude..dd." = "lon", 
+		# "Best.Position.Type" = "The best trawl position (Best Latitude, Best Longitude) available has been provided in decimal degrees North Latitude and annotated with its type (Best Position Type).  Preference is given to any recorded gear position, usually an estimate of the onbottom midpoint: [(start_lat+end_lat)/2,  (start_lon+end_lon)/2].  If no acceptable onbottom gear position can be determined, a vessel position is provided, usually a similarly determined trawl midpoint estimate for the vessel.  If no acceptable vessel position can be determined, position data recorded for the defined station is provided.",
+		"Best.Depth..m." = "depth", 
+		# "Best.Depth.Type" = "how depth was determined",
+		"Trawl.Duration..min." = "towduration", 
+		"Area.Swept.by.the.Net..hectares." = "towarea", 
+		"Temperature.At.the.Gear..degs.C." = "btemp"
+	)
+	
+	return(list(old=names(wcann.cols), new=unname(wcann.cols)))
+}
+
+# ==========
+# = WC TRI =
+# ==========
+clean.names.wctri <- function(X){
+	
+
+
+	wctri.cols <- c(
+		"SPECIES_CODE" = "SID", # no unit
+		# "CRUISEJOIN" = "cruise", # no unit
+		# "HAULJOIN" = "haul", # no unit
+		"VESSEL" = "vessel", # no unit
+		"CRUISE"= "cruise", # no unit
+		"HAUL" = "haul", # no unit; note that it's somewhat different from 'hauljoin', but it's just one is to join and the other is ...
+		# "CATCHJOIN" = "database id for the catch record",
+		"WEIGHT" = "weight",
+		"NUMBER_FISH" = "cnt",
+		# "HAUL_TYPE" = "type of haul",
+		# "PERFORMANCE" = "performance code of the haul",
+		"START_TIME" = "datetime",
+		"DURATION" = "towduration", # hours?
+		"DISTANCE_FISHED" = "towdistance", #"distance fished", # in km
+		"NET_WIDTH" = "gearsize", # m?
+		"STRATUM" = "stratum",
+		"START_LATITUDE" = "lat.start",
+		"END_LATITUDE" = "lat.end",
+		"START_LONGITUDE" = "lon.start",
+		"END_LONGITUDE" = "lon.end",
+		"STATIONID" = "station", # no unit
+		"BOTTOM_DEPTH" = "depth",
+		"SURFACE_TEMPERATURE" = "stemp",
+		"GEAR_TEMPERATURE" = "btemp",
+		"SPECIES_NAME" = "spp",
+		"COMMON_NAME" = "common",
+		"GEAR" = "geartype",
+		"time" = "datetime"
+	)
+	
+	return(list(old=names(wctri.cols), new=unname(wctri.cols)))
+	
+}
+
+neus_full_1982onward.clean <- clean.names(neus_full_1982onward)
+```
+
+Can't figure out how to make Ryan's function work, but it's a helpful reference.
+```{r clean up NEUS}
+#first remove any floating white space before or after words
+neus_full_1982onward <- neus_full_1982onward[,spp := trimws(spp)]
+#keep only rows with space in SCINAME column (signifying genus and species are identified)
+neus_full_1982onward.r <- neus_full_1982onward[grep(" ", spp),]
+#unique species names
+spp_neus <- neus_full_1982onward.r[,unique(spp)]
+
+
+#Using taxize package, I'm going to check and standardize species scientific names
+result.long <- spp_neus %>%
+gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
+            with_canonical_ranks=T)
+
+result.long <- data.table(result.long)
+
+#delete repeats, and get rid of crustacea shrimp (not ID'd to species)
+
+result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][user_supplied_name != "Crustacea shrimp",][,spp := user_supplied_name]
+
+#merge cleaned species names with neus full 
+neus_full_1982onward.clean <- neus_full_1982onward.r[result.short, on = "spp"]
+
+
+```
+
+Now, we'll overlay grid cells onto this list of tows (neus_full_1982 onward) using LAT and LON and gridrr package
+```{r get rid of underused grid cells}
+
+year_grid <- data.table(table(neus_full_1982onward.clean$cell, neus_full_1982onward.clean$year))
+
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+
+#delete these grid cells from full data table
+neus_full_1982onward.clean.reduced <- neus_full_1982onward.clean[!cell %in% grid_cells_to_exclude]
+
+#1576371 observations left, this should be great
+
+#how many tows (TOW) per cell in a given year
+colnames(neus_full_1982onward.clean.reduced)
+
+cell_tow_year <- unique(neus_full_1982onward.clean.reduced[,.(haulid, cell, year)])
+
+neus_samplingevents_byyear <- cell_tow_year[,.N, .(year, cell)]
+
+neus_cells_lessthan3 <- neus_samplingevents_byyear[N<3,] #need three to build rarefaction curve, so, will get rid of less than three observations
+
+cells_to_delete <- unique(neus_cells_lessthan3[,cell])
+
+neus_full_1982onward.clean.reduced.again <- neus_full_1982onward.clean.reduced[!cell %in% cells_to_delete]
+
+#1375482 observations
+
+saveRDS(neus_full_1982onward.clean.reduced.again, "neus_data_gridded.RData")
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells}
+#just need grid cell # and center lat lon for each grid cell 
+neus_grid_cells <- unique(neus_full_1982onward.clean.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+
+neus_grid_cells <- setorder(neus_grid_cells, cell)
+
+neus_reg_distances <- distm(neus_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(neus_reg_distances) <- neus_grid_cells$cell
+rownames(neus_reg_distances) <- neus_grid_cells$cell
+
+#reorient to long form 
+neus_reg_distances.l <- melt(as.matrix(neus_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+neus_reg_distances.l <- data.table(neus_reg_distances.l) #and then to data table
+neus_reg_distances.l <- neus_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+
+```
+
+Save
+```{r save}
+saveRDS(neus_full_1982onward.clean.reduced.again, "neus_full_1982onward.clean.reduced.again.RData")
+saveRDS(neus_reg_distances.l, "neus_reg_distances.l.RData")
+
+```
+
+*************
+
+* [bigelow fall calibration NEUS](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/bigelow-fall-calibration.csv)
+* [bigelow spring calibration NEUS](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/bigelow-spring-calibration.csv)
+
+* [AI strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai_strata.csv)
+* [AI 1983-2000](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai1983_2000.csv)
+* [AI 2002-2012](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2002_2012.csv)
+* [AI 2012-2018](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2012_2018.csv)
+
+* [WCTRI haul](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wctri_haul.csv)
+* [WCTRI catch](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wctri_catch.csv)
+* [WCTRI species](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wctri_species.csv)
+
+* [WCANN_haul](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wcann_haul.csv)
+* [WCANN_catch.csv.zip](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wcann_catch.csv.zip)
+
+* [SEUS catch](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/seus_catch.csv.zip)
+* [SEUS haul](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/seus_haul.csv)
+* [SEUS_strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/seus_strata.csv)
+
+* [scotian summer](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/scot_summer.csv.zip)
+* [scotian spring](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/scot_spring.csv)
+* [scotian fall](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/scot_fall.csv)
+
+* [GOA strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa_strata.csv)
+* [GOA 1984-1987](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 1990-1999](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 2001-2005](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 2007-2013](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 2015-2017](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+
+* [GMEX starrec](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_STAREC.csv)
+* [GMEX new bio codes big](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_NEWBIOCODESBIG.csv)
+* [GMEX invrec](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/INVREC.csv)
+* [GMEX cruises](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_CRUISES.csv)
+* [GMEX BGSREC](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_BGSREC.csv.zip)
+
+* [EBS strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs_strata.csv)
+* [EBS 1982-1984](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1982_1984.csv)
+* [EBS 1985-1989](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1985_1989.csv)
+* [EBS 1990-1994](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1990_1994.csv)
+* [EBS 1995-1999](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1995_1999.csv)
+* [EBS 2000-2004](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2000_2004.csv)
+* [EBS 2005-2008](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2005_2008.csv)
+* [EBS 2009-2012](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2009_2012.csv)
+* [EBS 2013-2016](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2013_2016.csv)
+* [EBS 2017-2018](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2017_2018.csv)
+
+* [AI strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai_strata.csv)
+* [AI 1983-2000](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai1983_2000.csv)
+* [AI 2002-2012](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2002_2012.csv)
+* [AI 2014-2018](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2014_2018.csv)
+
+* [SEUS cloud](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_CLOUD.csv)
+* [SEUS maturity codes](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_MATURITY_CODES.csv)
+* [SEUS sex codes](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_SEX_CODES.csv)
+* [SEUS SV gear](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_SVGEAR.csv)
+* [SEUS SV vessel](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_SVVESSEL.csv)
+* [SEUS weathre](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_WEATHER.csv)
+* [SEUS xbt](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_XBT.csv)
+
+
+
+
+```{r import data for NEUS from Ocean Adapt on GitHub}
+
+neus_strata <- fread('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_strata.csv')
+setnames(neus_strata, c('stratum', 'stratum_name'), c('STRATUM', 'STRATUM_NAME'))
+load(url('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_Survdat.RData')) # loads survdat
+load(url('https://raw.githubusercontent.com/pinskylab/OceanAdapt/master/data_raw/neus_SVSPP.RData')) # load spp
+
+```
+
+```{r }
+
+```
+
+
+
+
+Questions:
+ - should I merge abundance and presence absense from all trawl surveys? or pick trawl surveys during a particular time of year?
+ - abundance versus biomass in trawl data? which to use?
+ - what do negative abundance values mean for US?
+ - coverage versus sample based rarefaction?

@@ -1,0 +1,55 @@
+---
+title: "Plot of 3 regions for meeting"
+output: html_notebook
+---
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+
+#tow points
+unique_neus_latlon <- readRDS("unique_neus_latlon.RData")
+unique_wcann_latlon <- readRDS("unique_wcann_latlon.RData")
+unique_EBS_latlon <- readRDS("unique_EBS_latlon.RData")
+
+#cell grids
+grid_neus <- readRDS("grid_neus.RData")
+grid_wcann <- readRDS("grid_wcann.RData")
+grid_ebs <- readRDS("grid_ebs.RData")
+```
+
+```{r make plot}
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-180, -51.5,23, 67)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_wcann_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+    geom_point(unique_neus_latlon, mapping = aes(LON, LAT), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+    geom_point(unique_EBS_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+    geom_polygon(grid_ebs, mapping = aes(x = long,y = lat.x, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1) +
+    geom_polygon(grid_neus, mapping = aes(x = LON,y = LAT, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1) +
+    geom_polygon(grid_wcann, mapping = aes(x = long,y = lat.x, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1) +
+  coord_equal())
+```
+

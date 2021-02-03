@@ -1,0 +1,169 @@
+---
+title: "WCANN Distance Decay over Time"
+output: html_notebook
+---
+
+```{r setup}
+library(data.table)
+library(vegan)
+
+
+wcann_data <- readRDS("wcann_data_gridded.RData")
+
+#distance among grid cells
+
+wcann_distances.l <- readRDS("wcann_reg_distances.l.RData")
+
+#convert distances to km
+wcann_distances.l[,`distance(km)` := `distance(m)`/1000][,`distance(m)` := NULL]
+```
+
+I need it to be a data frame formatted species (rows) by sites/years (columns)
+
+```{r sum across grid cells and years}
+wcann_data_year_cell <- wcann_data[,wtcpue_sum := sum(wtcpue, na.rm = T), .(matched_name2, cell, year)]
+
+wcann_data_year_cell.r <- unique(wcann_data_year_cell[,.(matched_name2, cell, year, wtcpue_sum)])
+```
+
+I want to go year by year
+
+Let's start with one grid cell for species by cell data frame for each year
+
+```{r start with community matrix for one year}
+
+#list of years 
+wcann_years <- unique(wcann_data_year_cell.r[,year])
+
+sort(wcann_years)
+
+i = 1
+
+wcann_subset_year <- wcann_data_year_cell.r[year == wcann_years[i],]
+
+#long to wide
+wcann_subset_year_wide <- dcast(wcann_subset_year, cell ~ matched_name2, value.var = "wtcpue_sum", fill = 0)
+
+```
+
+
+```{r bray curtis dissimilarities between cells across multiple years}
+distances_dissimilarities_allyears_CELL <- data.table("cell1" = integer(), "cell2" = integer(), "distance(km)" = numeric(),"bray_curtis_dissimilarity" = numeric(), year = integer(), "jaccard_dissimilarity" = numeric())
+
+#Now loop through all years starting in 1982
+for (i in 1:length(wcann_years)) {
+  reduced_year <- wcann_data_year_cell.r[year == wcann_years[i],]
+  reduced_year_wide <- dcast(reduced_year, year + cell ~ matched_name2, value.var = "wtcpue_sum", fill = 0) #long to wide data for community matrix, column names are cell then species
+  
+  ncols <- ncol(reduced_year_wide)
+  communitymatrix <- cbind(reduced_year_wide[,3:ncols], reduced_year_wide[,1:2]) #community matrix with year and cell on far right
+
+  cells <- communitymatrix$cell
+
+  dissimilarities_abundance <- vegdist(communitymatrix[,1:(ncols-2)], method = "bray", binary = F) #dissimilarity 
+  dissimilarities_occurrence <- vegdist(communitymatrix[,1:(ncols-2)], method = "jaccard", binary = T)
+
+  #make into matrix
+  dissimilarities_abundance.m <- as.matrix(dissimilarities_abundance, labels=TRUE)
+  dissimilarities_occurrence.m <- as.matrix(dissimilarities_occurrence, labels=TRUE)
+  colnames(dissimilarities_abundance.m) <- rownames(dissimilarities_abundance.m) <- cells
+  colnames(dissimilarities_occurrence.m) <- rownames(dissimilarities_occurrence.m) <- cells
+
+  #reshape dissimilarities
+  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("cell1", "cell2"), value.name = "bray_curtis_dissimilarity")
+  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("cell1", "cell2"), value.name = "jaccard_dissimilarity")
+  dissimilarities_abundance.l <- data.table(dissimilarities_abundance.l) #and then to data table
+  dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
+  dissimilarities_abundance.l <- dissimilarities_abundance.l[cell1 > cell2,] # to get rid of repetitions and self-comparisons
+  dissimilarities_occurrence.l <- dissimilarities_occurrence.l[cell1 > cell2,]
+
+
+  #add year for these values
+  dissimilarities_abundance.l[, "year" := wcann_years[i]]
+  dissimilarities_occurrence.l[, "year" := wcann_years[i]]
+
+  #merge distance with dissimilarity for this year with both metrics of dissimilarity
+  dissimilarities_full <- wcann_distances.l[dissimilarities_abundance.l, on = c("cell1", "cell2")]
+  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("cell1", "cell2", "year")]
+
+
+  #add to data table
+  distances_dissimilarities_allyears_CELL <- rbind(distances_dissimilarities_allyears_CELL, dissimilarities_full)
+
+  #extract info for distance decay exponential model for each year
+  #reduce stratum_distances to stratum.r
+  #stratum_distances.r <- stratum_distances[as.character(stratum.r), as.character(stratum.r)]
+
+  #modname <- paste0(years[i], "_decay_mod_exponential")
+
+  #assign(modname, decay.model(dissimilarities.m, stratum_distances.r, model.type = "exponential", y.type = "dissimilarities", perm = 100))
+
+  #jpeg(file=paste0("jaccardplot_", years[i], ".jpg"))
+  #plot(x=dissimilarities.l.full$`distance(m)`, y=dissimilarities.l.full$jaccard_dissimilarity, xlab = "Distance(m)", #ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+  #dev.off()
+ 
+  #PCA
+  #vare.pca <- rda(communitymatrix[,c(1:817)])
+  #jpeg(file=paste0("jaccardpca_", years[i], ".jpg"))
+  #plot(vare.pca, display = "sites", xlim = c(-4,4), ylim = c(-4,4))
+  #dev.off()
+  
+}
+
+summary(distances_dissimilarities_allyears_CELL) #here we have bray, jaccard and geographic distance
+
+# save(distances_dissimilarities_allyears, file = "output/jaccard_similarities_distances_4reg.Rdata") # from an earlier file
+save(distances_dissimilarities_allyears_CELL, file = "wcann_bray_jaccard_similarities_distances_cell.Rdata")
+
+```
+
+Show example of a single distance decay plot with distance on x axis and bray curtis dissimilarity on y axis
+```{r distance decay}
+ggplot(aes(x=`distance(km)`), 
+       data = distances_dissimilarities_allyears_CELL[year == 2018]) + 
+  geom_point(aes(y = 1-bray_curtis_dissimilarity), shape = 4) +
+  geom_smooth(method = "lm", aes(y = 1-bray_curtis_dissimilarity), linetype = 2, color = "black") +
+  geom_point(aes(y = 1-jaccard_dissimilarity), shape = 15) +
+  labs(x = "Distance(km)", y = "Similarity") +
+  geom_smooth(method = "lm", aes(y = 1-jaccard_dissimilarity), linetype = 1, color = "black") +
+  theme_classic() +
+  lims(y = c(0,1)) +
+  theme(text = element_text(size = 13))
+ # + facet_wrap(~year)
+  
+```
+
+
+Extract coefficient (slope) for each year: how does it change through time? I did this because I couldn't get betapart decay.model to work.
+```{r each year build linear model}
+#I'm interested in the rate of decrease
+
+wcann_similarity_mod_coefs <- data.table("year" = wcann_years, "jaccard_beta" = 0, "bray_beta" = 0)
+
+for (i in 1:length(wcann_years)) {
+  # Estimate the parameters using a linear model for this year
+  mod1 <- lm(I(1 - bray_curtis_dissimilarity) ~ `distance(km)`, data = distances_dissimilarities_allyears_CELL[year == wcann_years[i],])  # I() allows - to be used arithmetically, here we get similarity versus distance models
+  
+  wcann_similarity_mod_coefs[i, bray_beta :=  -coef(mod1)[2]] #change in similarity for change in distance
+  
+  mod2 <- lm(I(1 - jaccard_dissimilarity) ~ `distance(km)`, data = distances_dissimilarities_allyears_CELL[year == wcann_years[i],])
+  
+  wcann_similarity_mod_coefs[i, jaccard_beta :=  -coef(mod2)[2]]
+
+}
+
+ggplot(aes(x = as.numeric(year)), data = wcann_similarity_mod_coefs) +
+  geom_point(aes(y = jaccard_beta), shape = 15) +
+  geom_smooth(aes(y = jaccard_beta), linetype = 1, color = "black") +
+  geom_point(aes(y = bray_beta), shape = 4) +
+  labs(x = "Year", y = "Slope of Distance Decay Plot\n(ΔSimilarity/ΔDistance (km))") +
+  geom_smooth(aes(y = bray_beta), linetype = 2, color = "black") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = "plots", file = "wcann_slopes_for_distance_decay.jpg", width = 6, height = 4, unit = "in")
+
+
+#increasing rate of decay through time (strata become less similar through time)
+
+```
