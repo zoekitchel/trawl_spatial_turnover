@@ -1,0 +1,14 @@
+---
+title: "Sample Based Rarefaction NEUS"
+output: html_notebook
+---
+
+
+
+```{r setup}
+library(data.table)
+
+load("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_data_gridded.RData")
+```
+
+First step is to apply grid
