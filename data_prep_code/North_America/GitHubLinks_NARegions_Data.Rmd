@@ -1,0 +1,73 @@
+---
+title: "Look at multiple regions: first, grid using dggridR"
+output: html_notebook
+---
+
+## Download data from Ocean Adapt
+* [NEUS Strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_strata.csv)
+* [NEUS SVPP](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_SVSPP.RData)
+* [NEUS Survey Data](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_Survdat.RData)
+* [NEUS fall svcat](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_fall_svcat.csv)
+* [NEUS fall svsta](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_fall_svsta.csv)
+* [NEUS spring svsta](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_spring_svsta.csv)
+* [NEUS spring svsta](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/neus_spring_svsta.csv)
+
+* [bigelow fall calibration NEUS](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/bigelow-fall-calibration.csv)
+* [bigelow spring calibration NEUS](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/bigelow-spring-calibration.csv)
+
+* [AI strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai_strata.csv)
+* [AI 1983-2000](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai1983_2000.csv)
+* [AI 2002-2012](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2002_2012.csv)
+* [AI 2012-2018](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2012_2018.csv)
+
+* [WCTRI haul](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wctri_haul.csv)
+* [WCTRI catch](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wctri_catch.csv)
+* [WCTRI species](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wctri_species.csv)
+
+* [WCANN_haul](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wcann_haul.csv)
+* [WCANN_catch.csv.zip](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/wcann_catch.csv.zip)
+
+* [SEUS catch](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/seus_catch.csv.zip)
+* [SEUS haul](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/seus_haul.csv)
+* [SEUS_strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/seus_strata.csv)
+
+* [scotian summer](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/scot_summer.csv.zip)
+* [scotian spring](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/scot_spring.csv)
+* [scotian fall](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/scot_fall.csv)
+
+* [GOA strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa_strata.csv)
+* [GOA 1984-1987](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 1990-1999](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 2001-2005](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 2007-2013](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+* [GOA 2015-2017](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/goa2015_2017.csv)
+
+* [GMEX starrec](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_STAREC.csv)
+* [GMEX new bio codes big](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_NEWBIOCODESBIG.csv)
+* [GMEX invrec](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/INVREC.csv)
+* [GMEX cruises](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_CRUISES.csv)
+* [GMEX BGSREC](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/gmex_BGSREC.csv.zip)
+
+* [EBS strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs_strata.csv)
+* [EBS 1982-1984](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1982_1984.csv)
+* [EBS 1985-1989](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1985_1989.csv)
+* [EBS 1990-1994](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1990_1994.csv)
+* [EBS 1995-1999](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs1995_1999.csv)
+* [EBS 2000-2004](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2000_2004.csv)
+* [EBS 2005-2008](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2005_2008.csv)
+* [EBS 2009-2012](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2009_2012.csv)
+* [EBS 2013-2016](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2013_2016.csv)
+* [EBS 2017-2018](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ebs2017_2018.csv)
+
+* [AI strata](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai_strata.csv)
+* [AI 1983-2000](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai1983_2000.csv)
+* [AI 2002-2012](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2002_2012.csv)
+* [AI 2014-2018](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/ai2014_2018.csv)
+
+* [SEUS cloud](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_CLOUD.csv)
+* [SEUS maturity codes](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_MATURITY_CODES.csv)
+* [SEUS sex codes](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_SEX_CODES.csv)
+* [SEUS SV gear](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_SVGEAR.csv)
+* [SEUS SV vessel](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_SVVESSEL.csv)
+* [SEUS weathre](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_WEATHER.csv)
+* [SEUS xbt](https://github.com/pinskylab/OceanAdapt/blob/master/data_raw/SVDBS_XBT.csv)

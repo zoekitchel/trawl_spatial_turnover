@@ -1,0 +1,211 @@
+---
+title: "3. Spatial Temporal Diversity By Strata"
+output:
+  html_document:
+    df_print: paged
+---
+Here, we will do a similar analysis but by strata instead of subregion
+```{r setup}
+library(data.table)
+library(ggplot2)
+library(geosphere)
+library(betapart)
+library(vegan)
+```
+
+Data
+```{r data}
+load("data/NE_trawl_data_full.Rdata")
+```
+
+#Distance Decay with Stratum instead of region
+Jaccard Dissimilarities Distance Decay all in one plot by STRATA
+```{r stratum distance matrix}
+neus_full.ID.uniquestrata <- unique(neus_full.ID, by = "STRATUM") #unique strata
+
+neus_full.ID.uniquestrata.latlon <- neus_full.ID.uniquestrata[,c("LAT", "LON", "STRATUM")] #only lat lon and stratum
+
+stratum_distances <- distm(neus_full.ID.uniquestrata.latlon[,c(2,1)]) #distance matrix, consistent across years
+rownames(stratum_distances) <- neus_full.ID.uniquestrata.latlon$STRATUM
+colnames(stratum_distances) <- neus_full.ID.uniquestrata.latlon$STRATUM
+
+#reorient to long form 
+stratum_distance.l <- melt(as.matrix(stratum_distances), varnames = c("strat1", "strat2"), value.name = "distance(m)") #matrix to data frame
+stratum_distance.l <- data.table(stratum_distance.l) #and then to data table
+stratum_distance.l <- stratum_distance.l[strat1 > strat2,] # get rid of repetitions and self-comparisons
+
+```
+
+Above is distance info, now I need to build community matrix
+```{r list of all strata}
+
+#one PRESENT value for each YEAR, SEASON, STRATUM and SVSPP combination
+neus_full.ID.stratum.unique <- na.omit(unique(neus_full.ID, by = c("YEAR", "STRATUM", "SVSPP")), cols = c("YEAR", "STRATUM", "SVSPP")) #unique STRATUM, year, species combinations, and get rid of any rows where any are NA
+
+#reduce data table to just be svspp, year, sciname, comname, STRATUM
+
+neus_full.ID.stratum.unique.r <- data.table((neus_full.ID.stratum.unique[, c("SVSPP", "SCINAME", "YEAR", "STRATUM")]))
+
+#add presence column 
+neus_full.ID.stratum.unique.r[,"present" := 1]
+
+#now I need to populate a comparison data table with every possible year, region, and species combination to add 0s
+stratum <- as.integer(unique(neus_full.ID.stratum.unique.r$STRATUM)) 
+
+# list of all species, years, strata
+spp.list <- neus_full.ID.stratum.unique.r[, sort(unique(SVSPP))]
+years <- neus_full.ID.stratum.unique.r[, sort(unique(YEAR))]
+stratum <- neus_full.ID.stratum.unique.r[, sort(unique(STRATUM))]
+
+full_set_stratum <- data.table(expand.grid("SVSPP" = spp.list, "YEAR" = years, "STRATUM" = stratum))
+
+```
+Bring in presences to expansion for presence by STRATUM
+```{r bring in actual presences by STRATUM to expansion}
+merge <- neus_full.ID.stratum.unique.r[full_set_stratum, on = c("YEAR", "STRATUM", "SVSPP")]
+merge[,"present" := ifelse(is.na(SCINAME), 0,1)][, SCINAME := NULL] #if scientific name and common name are empty, that is an absence, if populated, presence, also, we don't need these columns, as we'll bring them in below
+
+#bring in spp key
+spp_key <- unique(neus_full.ID[,c("SVSPP", "SCINAME")], col = c("SVSPP", "SCINAME"))
+
+neus_pres_abs_STRATUM <- merge[spp_key, on = c("SVSPP")] 
+
+```
+
+Make distance decay model for each year by loop for all STRATUM, YEAR, SVSPP combos. I've commented out lines that attempt to make a distance decay model because of error. Instead, I will just use this loop to populate a data table with distance and dissimilarities between all strata. I attempt to use decay.model() function from betapart package. 
+--> I can't get this to work
+Error: *cannot find valid starting values: please specify some*
+
+
+```{r jaccard disdissimilarities between STRATUM in multiple years}
+distances_dissimilarities_allyears_STRATUM <- data.table("strat1" = integer(), "strat2" = integer(), "distance(m)" = numeric(),"jaccard_dissimilarity" = numeric(), YEAR = integer())
+
+#Now loop through all years starting in 1967
+for (i in 1:length(years)) {
+  reduced_year <- neus_pres_abs_STRATUM[YEAR == years[i],]
+  reduced_year_wide <- dcast(reduced_year, YEAR + STRATUM ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are YEAR, STRATUM, then SVSPP
+  
+  ncols <- ncol(reduced_year_wide)
+  communitymatrix <- cbind(reduced_year_wide[,3:ncols], reduced_year_wide[,1:2]) #community matrix with YEAR and STRATUM on far right
+  
+  #there are some STRATA with no presences or observations
+  #rowSums(communitymatrix.r[,c(1:817)]) #I guess I will get rid of those
+
+  communitymatrix.r <- communitymatrix[as.logical(rowSums(communitymatrix[,1:(ncols - 2)] != 0)), ] #reduce to only rows with atleast one species present
+  stratum.r <- communitymatrix.r$STRATUM
+
+  dissimilarities <- vegdist(communitymatrix.r[,1:(ncols-2)], method = "jaccard", binary = T) #dissimilarity 
+  ?vegdist
+
+  #make into matrix
+  dissimilarities.m <- as.matrix(dissimilarities, labels=TRUE)
+  colnames(dissimilarities.m) <- rownames(dissimilarities.m) <- stratum.r
+
+  #reshape dissimilarities
+  dissimilarities.l <- melt(dissimilarities.m, varnames = c("strat1", "strat2"), value.name = "jaccard_dissimilarity")
+  dissimilarities.l <- data.table(dissimilarities.l) #and then to data table
+  dissimilarities.l <- dissimilarities.l[strat1 > strat2,] # to get rid of repetitions and self-comparisons
+
+
+  #add year for these values
+  dissimilarities.l[, "YEAR" := years[i]]
+
+  #merge distance with jaccard_dissimilarity for this year
+  dissimilarities.l.full <- stratum_distance.l[dissimilarities.l, on = c("strat1", "strat2")]
+
+  #add to data table
+  distances_dissimilarities_allyears_STRATUM <- rbind(distances_dissimilarities_allyears_STRATUM, dissimilarities.l.full)
+
+  #extract info for distance decay exponential model for each year
+  #reduce stratum_distances to stratum.r
+  #stratum_distances.r <- stratum_distances[as.character(stratum.r), as.character(stratum.r)]
+
+  #modname <- paste0(years[i], "_decay_mod_exponential")
+
+  #assign(modname, decay.model(dissimilarities.m, stratum_distances.r, model.type = "exponential", y.type = "dissimilarities", perm = 100))
+
+  #jpeg(file=paste0("jaccardplot_", years[i], ".jpg"))
+  #plot(x=dissimilarities.l.full$`distance(m)`, y=dissimilarities.l.full$jaccard_dissimilarity, xlab = "Distance(m)", #ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+  #dev.off()
+ 
+  #PCA
+  #vare.pca <- rda(communitymatrix[,c(1:817)])
+  #jpeg(file=paste0("jaccardpca_", years[i], ".jpg"))
+  #plot(vare.pca, display = "sites", xlim = c(-4,4), ylim = c(-4,4))
+  #dev.off()
+  
+}
+
+summary(distances_dissimilarities_allyears_STRATUM) #here we have jaccard and geographic distance
+
+# save(distances_dissimilarities_allyears, file = "output/jaccard_similarities_distances_4reg.Rdata") # from an earlier file
+save(distances_dissimilarities_allyears_STRATUM, file = "output/jaccard_similarities_distances_stratum.Rdata")
+
+```
+
+Because I can't get code to run for distance decay, I will look at distance decay through time visually
+
+```{r distance decay all years}
+# read in dissimilarities for all years, all strata
+load('output/jaccard_similarities_distances_stratum.Rdata') # distances_dissimilarities_allyears_STRATUM
+
+#order data table by year
+setorder(distances_dissimilarities_allyears_STRATUM, by = YEAR)
+
+distance_decay_stratum <- ggplot(data = distances_dissimilarities_allyears_STRATUM, aes(x = `distance(m)`, y = 1-jaccard_dissimilarity, color = YEAR)) +
+  geom_point() +
+  theme_classic() +
+  labs(x = "Distance (m)", y = "Jaccard Similarity") +
+  theme(text=element_text(size = 20))
+distance_decay_stratum
+
+
+ggsave(distance_decay_stratum, path = "plots/", file = "distance_decay_stratum.eps")
+ggsave(distance_decay_stratum, path = "plots/", file = "distance_decay_stratum.jpg")
+
+
+```
+
+Extract coefficient (slope) for each year: how does it change through time? I did this because I couldn't get betapart decay.model to work.
+```{r each year build linear model}
+#I'm interested in the rate of decrease
+
+mod_coefs <- data.table("year" = years, "beta" = 0)
+for (i in 1:length(years)) {
+  # Estimate the parameters using a linear model for this year
+  mod <- lm(I(1 - jaccard_dissimilarity) ~ `distance(m)`, data = distances_dissimilarities_allyears_STRATUM[YEAR == years[i],])  # I() allows - to be used arithmetically, here we get similarity versus distance models
+  mod_coefs[i, beta :=  -coef(mod)[2]] #change in similarity for change in distance
+
+}
+
+ggplot(aes(x = year, y = (beta)), data = mod_coefs) +
+  geom_point() +
+  labs(x = "Year", y = "Slope of Distance Decay Plot\n(ΔSimilarity/ΔDistance)") +
+  geom_smooth() +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = "plots", file = "slope_distance_decay.jpg", width = 6, height = 4, unit = "in")
+
+
+#incecreasing rate of decay through time (strata become less similar through time)
+
+```
+
+
+Below, I continue to attempt to make distance decay from betapart package work, no luck yet. Some years work, others don't
+
+Fitting distance decay models to pair-wise assemblage similarity: fits a negative exponential or power law function(GLM) describing decay of assemblage similarity or increase of dissimilarity with distance.
+
+
+```{r distance decay model}
+
+#haven't figured out error here, same error that appears above
+
+#reduce stratum_distances to stratum.r
+stratum_distances.r <- stratum_distances[as.character(stratum.r), as.character(stratum.r)]
+
+mod_1968 <- decay.model(dissimilarities.m, stratum_distances.r, model.type = "exponential", y.type = "dissimilarities", perm = 1000)
+
+
+```

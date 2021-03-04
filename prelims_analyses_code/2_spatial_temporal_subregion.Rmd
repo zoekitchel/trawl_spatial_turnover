@@ -1,0 +1,649 @@
+---
+title: "2. Spatial Temporal Diversity By Sub-Region"
+output: html_notebook
+---
+
+```{r setup}
+library(data.table)
+library(ggplot2)
+library(geosphere)
+```
+
+Data
+```{r data}
+load("data/NE_trawl_data_full.Rdata")
+```
+
+Group Stratums
+
+For now, I will split into MAB, SNE, GB, and GOM
+
+Region Stratum Key: Made by Zoe 
+```{r region stratum key}
+region_strata_key <- data.table(read.csv("key_reg_strata.csv"))
+```
+
+Set region for each tow
+```{r link key to neus tows}
+neus_full.ID.regions <- neus_full.ID[region_strata_key, on = "STRATUM_NAME"] 
+neus_full.ID.regions.r <- na.omit(neus_full.ID.regions, cols = "reg") #get rid of all rows that didn't match with a subregion
+```
+Find center point of trawls in each region to find distance between regions
+```{r center points of trawls }
+library(rgeos)
+
+
+latlon_reg <- na.omit(unique(neus_full.ID.regions.r, by = c("LAT", "LON")), c("LAT", "LON")) # each lat lon combo can only appear once to reduce bias, also, get rid of single NA row for Lat and Lon
+
+
+# Define centroid function - Lon is first argument and Lat is second
+# Geosphere takes a matrix with two columns: Lon|Lat, so we use cbind to coerce the data to this form
+findCentroid <- function(LON, LAT, ...){
+  centroid(cbind(LON, LAT), ...)
+}
+
+# Find centroid Lon and Lat by ID, as required
+latlon_reg[, c("Cent_lon", "Cent_lat") := as.list(findCentroid(LON, LAT)), by = reg] #NB: you will get an error on this when there are NA's in the LAT LON columns
+
+reg_centroids <- unique(latlon_reg, by = c("Cent_lon", "Cent_lat")) #each region gets one centroid value
+
+reg_centroids <- reg_centroids[, .(reg, Cent_lon, Cent_lat)] #we only need subregion, centroid lon and centroid lat columns
+
+#reorder so in order from N to S
+reg_centroids[, reg := factor(reg, levels = c("GME", "GEO", "SNE", "MAB"))]
+
+setorder(reg_centroids, reg) #set to this new factor level order 
+
+#the location of MAB still doesn't make sense (too far south), but I'm moving forward anyway because this is just a preliminary analysis, and I won't actually be using these sub regions for final analysis
+```
+Now, calculate distances between centroids
+```{r distance between centroids}
+#names of regions need to be numeric
+plot <- data.table("plot" = c(1:4))
+
+reg_centroids_plots <- cbind(plot, reg_centroids)
+
+reg_distances <- distm(reg_centroids_plots[,c(3, 4)]) #distance matrix, consistent across years
+rownames(reg_distances) <- reg_centroids_plots$plot
+colnames(reg_distances) <- reg_centroids_plots$plot
+
+#reshape distances to long form
+reg_distance.l <- melt(as.matrix(reg_distances), varnames = c("reg1", "reg2")) #matrix to data frame, 
+reg_distance.l <- data.table(reg_distance.l) #and then to data table
+reg_distance.l <- reg_distance.l[reg1 >= reg2,] # to get rid of repetitions
+colnames(reg_distance.l)[colnames(reg_distance.l)=="value"] <- "distance(m)" #change column name to distance
+
+
+```
+
+
+Generate presence/absence data
+```{r reduce to simple "yes/no present in this year"}
+#one PRESENT value for each YEAR, SEASON, reg, and SVSPP combination
+neus_full.ID.regions.unique <- unique(neus_full.ID.regions, by = c("YEAR", "reg", "SVSPP")) #generate unique mini-region, year, species combinations
+
+#reduce data table to just be svspp, year, sciname, comname, reg, and delete any rows without a year
+neus_full.ID.regions.unique.r <- data.table(na.omit(neus_full.ID.regions.unique[, c("SVSPP", "SCINAME", "YEAR", "reg")], col = "YEAR")) 
+
+#add presence column 
+neus_full.ID.regions.unique.r[,"present" := 1]
+
+#now I need to populate a comparison data table with every possible year, region, and species combination to add 0s (absences)
+reg <- c("GME", "GEO", "SNE", "MAB")
+spp.list <- unique(neus_full.ID$SVSPP) #0=no ID species
+years <- unique(neus_full.ID[YEAR >1966,]$YEAR) #MAB no data pre 1967
+
+full_set <- data.table(expand.grid("SVSPP" = spp.list, "YEAR" = years, "reg" = reg))
+
+full_set
+
+
+```
+Link this empty full set data table with actual presence data
+```{r bring in actual presences to expansion}
+merge <- neus_full.ID.regions.unique.r[full_set, on = c("YEAR", "reg", "SVSPP")]
+merge[,"present" := ifelse(is.na(SCINAME), 0,1)][,"SCINAME" := NULL] #if scientific name is empty, that is an absence (0), if populated, presence (1), also, we don't need these columns beyond presence/absence ID, as we'll bring them in below
+
+#spp key
+spp_key <- unique(neus_full.ID[,c("SVSPP", "SCINAME")], col = c("SVSPP", "SCINAME"))
+
+#put sci and common names back in
+neus_pres_abs <- merge[spp_key, on = c("SVSPP")] 
+
+
+sum(neus_pres_abs$present) #check to make sure we have the right number of presences
+
+```
+
+*vegan package requirement: "To use the package the data have to be in the form of a community matrix.The basic form is to have the species as columns and the plots as rows."*
+
+Calculate jaccard dissimiliarties between regions over all years
+```{r jaccard dissimilarities between regions in multiple years}
+library(vegan)
+#set up empty data.table to populate in loop
+distances_dissimilarities_allyears <- data.table("reg1" = integer(), "reg2" = integer(), "distance(m)" = numeric(),"jaccard_dissimilarity" = numeric(), YEAR = integer())
+
+#Now loop through all years starting in 1967
+for (i in 1:length(years)) {
+  reduced_year <- neus_pres_abs[YEAR == years[i],] #single year
+  reduced_year_wide <- dcast(reduced_year, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix <- cbind(reduced_year_wide[,c(3:557)], reduced_year_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities <- vegdist(communitymatrix[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l <- melt(as.matrix(dissimilarities), varnames = c("reg1", "reg2"))
+  dissimilarities.l <- data.table(dissimilarities.l) #and then to data table
+  dissimilarities.l <- dissimilarities.l[reg1 >= reg2,] # to get rid of repetitions
+  colnames(dissimilarities.l)[colnames(dissimilarities.l)=="value"] <- "jaccard_dissimilarity" #change column name to distance
+
+
+#add year for these values
+  dissimilarities.l[, "YEAR" := years[i]]
+
+#merge distance with jaccard_dissimilarity for this year
+  dissimilarities.l.full <- reg_distance.l[dissimilarities.l, on = c("reg1", "reg2")]
+
+distances_dissimilarities_allyears <- rbind(distances_dissimilarities_allyears, dissimilarities.l.full) #add to data table
+
+#plot for dissimilarities versus distance for specified year
+jpeg(file=paste0("plots/jaccardplot_", years[i], ".jpg"))
+    plot(x=dissimilarities.l.full$`distance(m)`, y=dissimilarities.l.full$jaccard_dissimilarity, xlab = "Distance(m)", ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+ dev.off()
+ 
+ #PCA plot  for dissimilarties for each specified year
+vare.pca <- rda(communitymatrix[,c(1:555)])
+jpeg(file=paste0("plots/jaccardpca_", years[i], ".jpg"))
+plot(vare.pca, display = "sites", xlim = c(-4,4), ylim = c(-4,4))
+dev.off()
+  
+}
+
+```
+
+
+Jaccard Dissimilarities Distance Decay all in one plot
+```{r Distance Decay one plot}
+library(ggplot2)
+distances_dissimilarities_allyears[,YEAR_fac := as.factor(YEAR)]
+ggplot(data = distances_dissimilarities_allyears, aes(x = `distance(m)`, y = jaccard_dissimilarity, color = YEAR_fac)) +
+  geom_line()
+```
+
+Plot jaccard for 1 and 2 through time
+```{r 1 and 2 through time}
+library(ggpubr)
+reduced_1_2 <- distances_dissimilarities_allyears[reg1 == 2 & reg2 ==1,]
+gme_geo_overtime <- ggplot(data = reduced_1_2, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.4,0.75) +
+  stat_cor(label.y = 0.5, label.x = 1970, size = 8) +
+  stat_regline_equation(label.y = 0.55, label.x = 1970, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
+  ggtitle("GME vs. GEO") +
+  theme_classic() +
+  theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
+
+
+  
+  
+ggsave(gme_geo_overtime, file ="plots/GME & GEO Jaccard Through Time.jpg")
+```
+
+
+Plot jaccard for 1 and 3 through time
+```{r 1 and 3 through time}
+reduced_1_3 <- distances_dissimilarities_allyears[reg1 == 3 & reg2 ==1,]
+gme_sne_overtime <- ggplot(data = reduced_1_3, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.15,0.65) +
+  stat_cor(label.y = 0.56, label.x = 1970, size = 8) +
+  stat_regline_equation(label.y = 0.6, label.x = 1970, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
+  ggtitle("GME vs. SNE") +
+  theme_classic() +
+  theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
+  
+  
+ggsave(gme_sne_overtime, file ="plots/GME & SNE Jaccard Through Time.jpg")
+```
+
+
+Plot jaccard for 1 and 4 through time
+```{r 1 and 4 through time}
+reduced_1_4 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==1,]
+gme_mab_overtime <- ggplot(data = reduced_1_4, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.15,0.65) +
+  stat_cor(label.y = 0.55, label.x = 1980, size = 8) +
+  stat_regline_equation(label.y = 0.6, label.x = 1980, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
+  ggtitle("GME vs. MAB") +
+  theme_classic() +
+  theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
+  
+  
+ggsave(gme_mab_overtime, file ="plots/GME & MAB Jaccard Through Time.jpg")
+```
+
+
+Plot jaccard for 2 and 3 through time
+```{r 2 and 3 through time}
+reduced_3_2 <- distances_dissimilarities_allyears[reg1 == 3 & reg2 ==2,]
+geo_sne_overtime <- ggplot(data = reduced_3_2, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.4,0.75) +
+  stat_cor(label.y = 0.6, label.x = 1990, size = 8) +
+  stat_regline_equation(label.y = 0.62, label.x = 1990, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
+  ggtitle("GEO vs. SNE") +
+  theme_classic() +
+  theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
+  
+  
+ggsave(geo_sne_overtime, file ="plots/GEO & SNE Jaccard Through Time.jpg")
+```
+
+
+Plot jaccard for 2 and 4 through time
+```{r 2 and 4 through time}
+reduced_4_2 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==2,]
+geo_mab_overtime <- ggplot(data = reduced_4_2, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.2,0.6) +
+  stat_cor(label.y = 0.5, label.x = 1980, size = 8) +
+  stat_regline_equation(label.y = 0.55, label.x = 1980, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
+  ggtitle("GEO vs. MAB") +
+  theme_classic() +
+  theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
+  
+  
+ggsave(geo_mab_overtime, file ="plots/GEO & MAB Jaccard Through Time.jpg")
+
+```
+
+
+Plot jaccard for 3 and 4 through time
+```{r 3 and 4 through time}
+reduced_3_4 <- distances_dissimilarities_allyears[reg1 == 4 & reg2 ==3,]
+sne_mab_overtime <- ggplot(data = reduced_3_4, aes(x = YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0.2,0.6) +
+  stat_cor(label.y = 0.25, label.x = 1970, size = 8) +
+  stat_regline_equation(label.y = 0.3, label.x = 1970, size = 8) +
+  labs(x= "Year", y = "Jaccard Similarity") +
+  ggtitle("SNE vs. MAB") +
+  theme_classic() +
+  theme(text = element_text(size = 25), plot.margin = margin(10, 20, 10, 10))
+  
+  
+ggsave(sne_mab_overtime, file ="plots/SNE & MAB Jaccard Through Time.jpg")
+```
+
+Looking at changes in jaccard dissimilarity across time for each region individually
+
+```{r GME jaccard across time (between each year)}
+  reduced_region <- neus_pres_abs[reg == "GME",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_GME <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_GME <- vegdist(communitymatrix_GME[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_GME <- melt(as.matrix(dissimilarities_GME), varnames = c("year1", "year2"))
+  dissimilarities.l_GME <- data.table(dissimilarities.l_GME) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with dissimilarities.l_GME
+dissimilarities_final_GME <- year_turnover_key.final[dissimilarities.l_GME, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_GME)[colnames(dissimilarities_final_GME)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_GME[,"YEAR" := years[1:51]]
+
+
+jpeg(file="plots/jaccard_overtime_GME.jpg")
+    plot(x=dissimilarities_final_GME$YEAR, y=dissimilarities_final_GME$jaccard_dissimilarity, xlab = "Year", ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+```{r GME jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "GME",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  communitymatrix_GME <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_GME <- vegdist(communitymatrix_GME[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_GME <- melt(as.matrix(dissimilarities_GME), varnames = c("year1", "year2"))
+  dissimilarities.l_GME <- data.table(dissimilarities.l_GME) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with dissimilarities.l_GME
+dissimilarities_final_GME_year1 <- year_turnover_key.firstyear[dissimilarities.l_GME, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_GME_year1)[colnames(dissimilarities_final_GME_year1)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_GME_year1[,"YEAR" := years[1:51]]
+
+jaccard_overtime_GME_year1comparison <- ggplot(data = dissimilarities_final_GME_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
+  stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
+  ggtitle("a. GME") +
+  labs(x = "Year", y = "Jaccard Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 20))
+
+ggsave(jaccard_overtime_GME_year1comparison, file ="plots/jaccard_overtime_GME_year1comparison.jpg" )
+
+
+
+```
+
+Looking at changes in jaccard dissimilarity across time for each region individually
+
+```{r GEO jaccard across time}
+  reduced_region <- neus_pres_abs[reg == "GEO",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_GEO <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_GEO <- vegdist(communitymatrix_GEO[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_GEO <- melt(as.matrix(dissimilarities_GEO), varnames = c("year1", "year2"))
+  dissimilarities.l_GEO <- data.table(dissimilarities.l_GEO) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with dissimilarities.l_GEO
+dissimilarities_final_GEO <- year_turnover_key.final[dissimilarities.l_GEO, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_GEO)[colnames(dissimilarities_final_GEO)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_GEO[,"YEAR" := years[1:51]]
+
+
+jpeg(file="plots/jaccard_overtime_GEO.jpg")
+    plot(x=dissimilarities_final_GEO$YEAR, y=dissimilarities_final_GEO$jaccard_dissimilarity, xlab = "Year", ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+```{r GEO jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "GEO",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_GEO <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_GEO <- vegdist(communitymatrix_GEO[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_GEO <- melt(as.matrix(dissimilarities_GEO), varnames = c("year1", "year2"))
+  dissimilarities.l_GEO <- data.table(dissimilarities.l_GEO) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with dissimilarities.l_GEO
+dissimilarities_final_GEO_year1 <- year_turnover_key.firstyear[dissimilarities.l_GEO, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_GEO_year1)[colnames(dissimilarities_final_GEO_year1)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_GEO_year1[,"YEAR" := years[1:51]]
+
+
+jaccard_overtime_GEO_year1comparison <- ggplot(data = dissimilarities_final_GEO_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
+  stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
+  ggtitle("b. GEO") +
+  labs(x = "Year", y = "Jaccard Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 20))
+
+ggsave(jaccard_overtime_GEO_year1comparison, file ="plots/jaccard_overtime_GEO_year1comparison.jpg" )
+
+
+```
+
+
+Looking at changes in jaccard dissimilarity across time for each region individually
+
+```{r SNE jaccard across time}
+  reduced_region <- neus_pres_abs[reg == "SNE",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_SNE <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_SNE <- vegdist(communitymatrix_SNE[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_SNE <- melt(as.matrix(dissimilarities_SNE), varnames = c("year1", "year2"))
+  dissimilarities.l_SNE <- data.table(dissimilarities.l_SNE) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with dissimilarities.l_SNE
+dissimilarities_final_SNE <- year_turnover_key.final[dissimilarities.l_SNE, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_SNE)[colnames(dissimilarities_final_SNE)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_SNE[,"YEAR" := years[1:51]]
+
+
+jpeg(file="plots/jaccard_overtime_SNE.jpg")
+    plot(x=dissimilarities_final_SNE$YEAR, y=dissimilarities_final_SNE$jaccard_dissimilarity, xlab = "Year", ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+
+```{r SNE jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "SNE",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_SNE <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_SNE <- vegdist(communitymatrix_SNE[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_SNE <- melt(as.matrix(dissimilarities_SNE), varnames = c("year1", "year2"))
+  dissimilarities.l_SNE <- data.table(dissimilarities.l_SNE) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with dissimilarities.l_SNE
+dissimilarities_final_SNE_year1 <- year_turnover_key.firstyear[dissimilarities.l_SNE, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_SNE_year1)[colnames(dissimilarities_final_SNE_year1)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_SNE_year1[,"YEAR" := years[1:51]]
+
+
+jaccard_overtime_SNE_year1comparison <- ggplot(data = dissimilarities_final_SNE_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
+  stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
+  ggtitle("c. SNE") +
+  labs(x = "Year", y = "Jaccard Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 20))
+
+ggsave(jaccard_overtime_SNE_year1comparison, file ="plots/jaccard_overtime_SNE_year1comparison.jpg" )
+
+
+```
+
+Looking at changes in jaccard dissimilarity across time for each region individually
+
+```{r MAB jaccard across time}
+  reduced_region <- neus_pres_abs[reg == "MAB",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_MAB <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_MAB <- vegdist(communitymatrix_MAB[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_MAB <- melt(as.matrix(dissimilarities_MAB), varnames = c("year1", "year2"))
+  dissimilarities.l_MAB <- data.table(dissimilarities.l_MAB) #and then to data table
+  
+  
+  #I only want year 2 to be less than year 1 (don't need all comparisons)
+  values_key <- c(1, rep(2:51, each=2), 52)
+  year_turnover_key <- matrix(values_key, nrow = 2)
+  year_turnover_key <- data.table(year_turnover_key)
+  year_turnover_key.t <- transpose(year_turnover_key)
+  year_turnover_key.final <- data.table("year1" = year_turnover_key.t[,V2], "year2" = year_turnover_key.t[,V1])
+  
+  #combine key with dissimilarities.l_MAB
+dissimilarities_final_MAB <- year_turnover_key.final[dissimilarities.l_MAB, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_MAB)[colnames(dissimilarities_final_MAB)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_MAB[,"YEAR" := years[1:51]]
+
+
+jpeg(file="plots/jaccard_overtime_MAB.jpg")
+    plot(x=dissimilarities_final_MAB$YEAR, y=dissimilarities_final_MAB$jaccard_dissimilarity, xlab = "Year", ylab="Jaccard dissimilarity", ylim = c(0:1), pch = 19)
+ dev.off()
+
+
+```
+
+```{r MAB jaccard across time (compared to first year)}
+  reduced_region <- neus_pres_abs[reg == "MAB",]
+  reduced_region_wide <- dcast(reduced_region, YEAR + reg ~ SCINAME, value.var = "present") #long to wide data for community matrix, column names are SVSPP
+  
+  communitymatrix_MAB <- cbind(reduced_region_wide[,c(3:557)], reduced_region_wide[,c(1:2)]) #community matrix
+  
+  
+  dissimilarities_MAB <- vegdist(communitymatrix_MAB[,c(1:555)], method = "jaccard") #dissimilarity matrix
+
+  #reshape dissimilarities
+  dissimilarities.l_MAB <- melt(as.matrix(dissimilarities_MAB), varnames = c("year1", "year2"))
+  dissimilarities.l_MAB <- data.table(dissimilarities.l_MAB) #and then to data table
+  
+  
+  #I only want to compare years with first year (don't need all comparisons)
+  year_turnover_key.firstyear <- data.table("year1" = c(2:52), "year2" = 1)
+  
+  #combine key with dissimilarities.l_MAB
+dissimilarities_final_MAB_year1 <- year_turnover_key.firstyear[dissimilarities.l_MAB, on = c("year1","year2"), nomatch = 0]
+  
+  
+colnames(dissimilarities_final_MAB_year1)[colnames(dissimilarities_final_MAB_year1)=="value"] <- "jaccard_dissimilarity"
+#change column name to distance
+
+dissimilarities_final_MAB_year1[,"YEAR" := years[1:51]]
+
+jaccard_overtime_MAB_year1comparison <- ggplot(data = dissimilarities_final_MAB_year1, aes(x=YEAR, y = (1-jaccard_dissimilarity))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_cor(label.y = 0.15, label.x = 1985, size = 8) +
+  stat_regline_equation(label.y =0.2, label.x = 1985, size = 8) +
+  ggtitle("d. MAB") +
+  labs(x = "Year", y = "Jaccard Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 20))
+
+ggsave(jaccard_overtime_MAB_year1comparison, file ="plots/jaccard_overtime_MAB_year1comparison.jpg" )
+
+```
+
+Simplified species richness through time
+```{r spp richness through time}
+library(ggplot2)
+library(ggpubr)
+
+GME_spp_richness <- rowSums(communitymatrix_GME[,1:555])
+GEO_spp_richness <- rowSums(communitymatrix_GEO[,1:555])
+SNE_spp_richness <- rowSums(communitymatrix_SNE[,1:555])
+MAB_spp_richness <- rowSums(communitymatrix_MAB[,1:555])
+
+spp_richness <- data.table("year" = years, "GME" = GME_spp_richness, "GEO" = GEO_spp_richness, "SNE" = SNE_spp_richness, "MAB" = MAB_spp_richness)
+
+spp_richness.l <- melt(spp_richness, id.vars = c("year"),
+                measure.vars = c("GME", "GEO", "SNE", "MAB"),
+                value.name = "richness")
+
+species_richness_reg <- ggplot(data = spp_richness.l, aes(x = year, y=richness)) +
+  geom_line() +
+  ylim(50,250) +
+  geom_smooth(method = lm) +
+  facet_wrap(~variable) +
+  stat_cor(label.y = 0, label.x = 1990) +
+  stat_regline_equation(label.y = 50, label.x = 1990) +
+  theme_classic()
+
+max(spp_richness.l$richness)
+
+
+ggsave(species_richness_reg, file ="plots/species_richness_reg.jpg")
+  
+```
