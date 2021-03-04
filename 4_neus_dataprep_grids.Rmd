@@ -49,12 +49,12 @@ library(geosphere)  #to calculate distance between lat lon of grid cells
       neus_full <- merge(stratamerge, spp[, .(SVSPP, SCINAME, COMNAME)], by = "SVSPP") #merge species with strata and survey data
 
 #alternatively, using cleaned ocean adapt data
-dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
+dat_exploded <- readRDS("dat_exploded.rds")
 
 dat_NEUS <- dat_exploded[region %in% c("Northeast US Spring", "Northeast US Fall"),]
 
 saveRDS(dat_NEUS, "dat_NEUS.RData")
-dat_WCANN <- readRDS("dat_NEUS.RData")
+dat_NEUS <- readRDS("dat_NEUS.RData")
 
 neus_full_1982onward <- dat_NEUS[year >= 1982,]
 
@@ -69,6 +69,9 @@ coordinates(unique_neus_latlon.sf) <- ~lat + lon
 unique_neus_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 saveRDS(unique_neus_latlon, "unique_neus_latlon.RData")
+
+#open RDS if already saved
+#unique_neus_latlon <- readRDS("unique_neus_latlon.RData")
 
 #plot north america
 world <- ne_countries(scale = "medium", returnclass = "sp")
