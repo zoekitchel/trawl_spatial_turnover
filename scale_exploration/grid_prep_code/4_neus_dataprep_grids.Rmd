@@ -53,8 +53,8 @@ dat_exploded <- readRDS("dat_exploded.rds")
 
 dat_NEUS <- dat_exploded[region %in% c("Northeast US Spring", "Northeast US Fall"),]
 
-saveRDS(dat_NEUS, "dat_NEUS.RData")
-dat_NEUS <- readRDS("dat_NEUS.RData")
+saveRDS(dat_NEUS, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_NEUS.RData")
+dat_NEUS <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_NEUS.RData")
 
 neus_full_1982onward <- dat_NEUS[year >= 1982,]
 
@@ -71,7 +71,7 @@ unique_neus_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +e
 saveRDS(unique_neus_latlon, "unique_neus_latlon.RData")
 
 #open RDS if already saved
-#unique_neus_latlon <- readRDS("unique_neus_latlon.RData")
+unique_neus_latlon <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/unique_neus_latlon.RData")
 
 #plot north america
 world <- ne_countries(scale = "medium", returnclass = "sp")
@@ -774,7 +774,10 @@ neus_reg_distances.l <- neus_reg_distances.l[cell1 > cell2,] # get rid of repeti
 Save
 ```{r save}
 saveRDS(neus_full_1982onward.clean.reduced.again, "neus_full_1982onward.clean.reduced.again.RData")
-saveRDS(neus_reg_distances.l, "neus_reg_distances.l.RData")
+saveRDS(neus_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/neus_reg_distances.l.RData")
+
+saveRDS(neus_reg_distances, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/neus_reg_distances.RData")
+saveRDS(neus_grid_cells, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/neus_grid_cells.RData")
 
 ```
 
