@@ -320,6 +320,46 @@ neus_reg_distances_fall.l <- neus_reg_distances_fall.l[cell1 > cell2,] # get rid
 
 ```
 
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo}
+#spring cell/year/region combos
+neus_spring_unique_tows_cell <- dat_NEUS_grid.spring.reduced[,.SD[1],.(year, cell, haulid)]
+
+#no years have way more tows than others
+plot(neus_spring_unique_tows_cell[,.N,.(year,cell)]$year, neus_spring_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#fall cell/year/region combos
+neus_fall_unique_tows_cell <- dat_NEUS_grid.fall.reduced[,.SD[1],.(year, cell, haulid)]
+
+#no years have way more tows than others
+plot(neus_fall_unique_tows_cell[,.N,.(year,cell)]$year, neus_fall_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(neus_fall_unique_tows_cell[,.N,.(year,cell)]$N < 3) #for fall, this occurs in 131/1781 (7%) year, cell combos
+summary(neus_spring_unique_tows_cell[,.N,.(year,cell)]$N < 3) #for spring this occurs in 243/1881 (13%) cases, year, cell combos
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows}
+#fall
+neus_fall_counts <- neus_fall_unique_tows_cell[,.N,.(year,cell)]
+neus_fall_keep <- neus_fall_counts[N>2,][,N := NULL]
+
+dat_NEUS_grid.fall.reduced_3plustows <- dat_NEUS_grid.fall.reduced[neus_fall_keep, on = .(cell, year)]
+
+#spring
+neus_spring_counts <- neus_spring_unique_tows_cell[,.N,.(year,cell)]
+neus_spring_keep <- neus_spring_counts[N>2,][,N := NULL]
+
+dat_NEUS_grid.spring.reduced_3plustows <- dat_NEUS_grid.spring.reduced[neus_spring_keep, on = .(cell, year)]
+```
+
+
 Save
 ```{r save}
 saveRDS(dat_NEUS_grid.spring.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced.RData")
@@ -327,6 +367,11 @@ saveRDS(neus_reg_distances_spring.l, "/Users/zoekitchel/Documents/grad school/Ru
 
 saveRDS(dat_NEUS_grid.fall.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced.RData")
 saveRDS(neus_reg_distances_fall.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.RData")
+
+saveRDS(dat_NEUS_grid.fall.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.RData")
+
+saveRDS(dat_NEUS_grid.spring.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced_3plustows.RData")
+
 
 ```
 
