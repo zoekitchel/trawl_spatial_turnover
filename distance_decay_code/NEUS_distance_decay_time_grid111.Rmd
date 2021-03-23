@@ -10,25 +10,31 @@ library(ggplot2)
 library(broom) #augment
 library(betapart)
 
+#load spring and fall data
+dat_NEUS_grid.spring.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced_3plustows.RData")
 
-neus_data <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_data_gridded.RData")
+dat_NEUS_grid.fall.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.RData")
 
 #distance among grid cells
+neus_reg_distances_fall.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.RData")
 
-neus_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/neus_reg_distances.l.RData")
+neus_reg_distances_spring.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_spring.l.RData")
 
-neus_distances <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/neus_reg_distances.RData")
 
-neus_grid_cells <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/neus_grid_cells.RData")
-
-#convert distances to km
-neus_distances.l[,`distance(km)` := `distance(m)`/1000][,`distance(m)` := NULL]
 ```
 
 I need it to be a data frame formatted species (rows) by sites/years (columns)
+TO DO -any reason I shouldn't just sum? should I sample 1 tow from each grid cell and take an average? randomly sample one tow from each cell?
+
+-I think I should randomly sample 3 tows from one cell, calculate metrics, and then resample
+
+
 
 ```{r sum across grid cells and years}
-neus_data_year_cell <- neus_data[,wtcpue_sum := sum(wtcpue, na.rm = T), .(matched_name2, cell, year)]
+#fall
+neus_data_year_cell_fall <- dat_NEUS_grid.fall.reduced[,wtcpue_sum := sum(wtcpue, na.rm = T), .(matched_name2, cell, year)]
+
+#spring
 
 neus_data_year_cell.r <- unique(neus_data_year_cell[,.(matched_name2, cell, year, wtcpue_sum)])
 ```
@@ -239,7 +245,7 @@ beta.pair.abund <- beta.pair.abund(reduced_year_wide[,3:ncol(reduced_year_wide)]
   
 #bray total (nestedness and turnover)  
   #bray balanced (turnover)
-  fit_bray_total <- decay.model(1-beta.pair.abund$beta.bray.bal, distances, model.type = "exp", y.type = "sim") # 1 minus because output of betadist object gives us dissimilarity
+  fit_bray_total <- decay.model(1-beta.pair.abund$beta.bray, distances, model.type = "exp", y.type = "sim") # 1 minus because output of betadist object gives us dissimilarity
   
 #    fit_bray$a.intercept = intercept of the model
   intercept_bray_total <- fit_bray_total$a.intercept
@@ -275,7 +281,7 @@ beta.pair.abund <- beta.pair.abund(reduced_year_wide[,3:ncol(reduced_year_wide)]
   neus_similarity_mod_coefs[i,"jaccard_turnover_initial_sim"] <- initial_sim_turnover_jaccard
   
   #total jaccard from pres abs data
-    fit_total_jaccard <- decay.model(1-beta.pair$beta.jtu, distances, y.type = "similarities", model.type = "exp") #beta.jtu dissimilarity matrix accounting for spatial total, measured as the totalfraction of Jaccard pair-wise dissimilarity
+    fit_total_jaccard <- decay.model(1-beta.pair$beta.jac, distances, y.type = "similarities", model.type = "exp") #beta.jtu dissimilarity matrix accounting for spatial total, measured as the totalfraction of Jaccard pair-wise dissimilarity
   
   #    fit_jaccard$a.intercept = intercept of the model
   intercept_total_jaccard <- fit_total_jaccard$a.intercept
@@ -294,20 +300,20 @@ beta.pair.abund <- beta.pair.abund(reduced_year_wide[,3:ncol(reduced_year_wide)]
 }
 
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs) +
-  geom_point(aes(y = jaccard_final_sim), shape = 15) +
-  geom_smooth(aes(y = jaccard_final_sim), linetype = 1, color = "black") +
-  geom_point(aes(y = bray_final_sim), shape = 4) +
-  labs(x = "Year", y = "Final/Asymptote Similarity of Exponential") +
-  geom_smooth(aes(y = bray_final_sim), linetype = 2, color = "black") +
+  geom_point(aes(y = jaccard_total_halving), shape = 15) +
+  geom_smooth(aes(y = jaccard_total_halving), linetype = 1, color = "black") +
+  geom_point(aes(y = jaccard_turnover_halving), shape = 15, color = "green") +
+  geom_smooth(aes(y = jaccard_turnover_halving), linetype = 1, color = "green") +
+  labs(x = "Year", y = "Jaccard Similarity Halving Distance (m)") +
   theme_classic() +
   theme(text = element_text(size = 13))
 
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs) +
-  geom_point(aes(y = jaccard_alpha), shape = 15) +
-  geom_smooth(aes(y = jaccard_alpha), linetype = 1, color = "black") +
-  geom_point(aes(y = bray_alpha), shape = 4) +
-  labs(x = "Year", y = "Rate of decay (alpha)") +
-  geom_smooth(aes(y = bray_alpha), linetype = 2, color = "black") +
+  geom_point(aes(y = bray_total_halving), color = "black") +
+  geom_smooth(aes(y = bray_total_halving), color = "black") +
+  geom_point(aes(y = bray_balanced_halving), color = "green") +
+  geom_smooth(aes(y = bray_balanced_halving), color = "green") +
+  labs(x = "Year", y = "Bray Similarity Halving Distance (m)") +
   theme_classic() +
   theme(text = element_text(size = 13))
 
