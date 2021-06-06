@@ -30,8 +30,9 @@ dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spat
 ```{r WCANN}
 dat_WCANN <- dat_exploded[region == "West Coast Annual",]
 
-saveRDS(dat_WCANN, "WCANN.RData")
-dat_WCANN <- readRDS("WCANN.RData")
+saveRDS(dat_WCANN, "WCANN.rds")
+dat_WCANN <- readRDS("WCANN.rds")
+rm(dat_exploded)
 ```
 
 ```{r pull in WCANN}
@@ -93,11 +94,11 @@ grid_wcann <- dgcellstogrid(dggs, unique_wcann_latlon[,cell], frame = T, wrapcel
 #update grid properties to include # of trawls in each cell
 grid_wcann <- merge(grid, unique_wcann_latlon, by.x = "cell", by.y ="cell")
 
-ggplot(data = grid_wcann, aes(x = long, y = lat.x, group = cell)) +
+ggplot(data = grid_wcann, aes(x = long, y = lat, group = cell)) +
   geom_polygon() +
   coord_quickmap()
 
-saveRDS(grid_wcann, "grid_wcann.RData")
+saveRDS(grid_wcann, "grid_wcann.rds")
 
 ```
 
@@ -105,7 +106,7 @@ Trying to plot with grid overlaying
 ```{r grid overlaying}
 
 na_outline + 
-   geom_polygon(grid, mapping = aes(x = long,y = lat.x, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+   geom_polygon(grid_wcann, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
 
 ggsave(filename = "grid_WCANN_cells_spacing_111.pdf")
   
@@ -123,19 +124,16 @@ gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
 
 result.long <- data.table(result.long)
 
-#delete repeats, and get rid of crustacea shrimp (not ID'd to species)
-#Astropecten verilli -> Astropecten verrilli
-#Chrysaora fuscens->Chrysaora fuscescens
+#delete repeats and get weird of weird ones
 
 
 dat_WCANN$spp <- gsub("Astropecten verilli", "Astropecten verrilli", dat_WCANN$spp) #won't come up for some reason, ignore for now
 dat_WCANN$spp <- gsub("Chrysaora fuscens", "Chrysaora fuscescens", dat_WCANN$spp)
 
+#unique species names again
+spp_wcann <- dat_WCANN[,unique(spp)]
 
 #run long again
-
-#unique species names
-spp_wcann <- dat_WCANN[,unique(spp)]
 
 
 #Using taxize package, I'm going to check and standardize species scientific names
@@ -145,7 +143,9 @@ gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
 
 result.long <- data.table(result.long)
 
-result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score >= 0.85,]
+#checked, only genus only spp are graded lower than 0.98
+
+result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75,]
 
 #merge cleaned species names with neus full 
 dat_WCANN.clean <- dat_WCANN[result.short, on = "spp"]
@@ -167,7 +167,6 @@ dat_wcann.reduced <- dat_WCANN.clean[!cell %in% grid_cells_to_exclude]
 #732196 observations left, this should be great
 
 #how many tows (TOW) per cell in a given year
-colnames(dat_wcann.reduced)
 
 haul_cell_unique <- unique(dat_wcann.reduced[,.(haulid, cell, year)])
 
@@ -181,7 +180,7 @@ dat_wcann.reduced.again <- dat_wcann.reduced[!cell %in% cells_to_delete]
 
 #down to 673516 observations
 
-saveRDS(dat_wcann.reduced.again, "wcann_data_gridded.RData")
+saveRDS(dat_wcann.reduced.again, "wcann_data_gridded.rds")
 
 ```
 
@@ -201,5 +200,45 @@ rownames(wcann_reg_distances) <- wcann_grid_cells$cell
 wcann_reg_distances.l <- melt(as.matrix(wcann_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
 wcann_reg_distances.l <- data.table(wcann_reg_distances.l) #and then to data table
 wcann_reg_distances.l <- wcann_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
-saveRDS(wcann_reg_distances.l, "wcann_reg_distances.l.RData")
+saveRDS(wcann_reg_distances.l, "wcann_reg_distances.l.rds")
+```
+
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo}
+#cell/year/region combos
+wcann_unique_tows_cell <- dat_wcann.reduced[,.SD[1],.(year, cell, haulid)]
+
+#no years have way more tows than others
+plot(wcann_unique_tows_cell[,.N,.(year,cell)]$year, wcann_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(wcann_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 14/309 cell/year combos  (4.5%, no biggie)
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows}
+wcann_counts <- wcann_unique_tows_cell[,.N,.(year,cell)]
+wcann_keep <- wcann_counts[N>2,][,N := NULL]
+
+dat_wcann_grid.reduced_3plustows <- dat_wcann.reduced[wcann_keep, on = .(cell, year)]
+
+
+```
+
+
+Save
+```{r save}
+saveRDS(dat_wcann.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/dat_WCANN_grid.reduced.rds")
+
+
+saveRDS(wcann_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/wcann_reg_distances.l.rds")
+
+saveRDS(dat_wcann_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/dat_WCANN_grid.reduced_3plustows.rds")
+
+
 ```

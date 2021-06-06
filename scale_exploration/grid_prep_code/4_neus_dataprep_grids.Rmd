@@ -97,7 +97,7 @@ dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest') #make cells
 
 unique_neus_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
 
-#centers of cells
+#centers of cells 
 neus_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_neus_latlon[,cell])
 
 #linking cell centers to unique_neus_latlon
@@ -262,7 +262,7 @@ dat_NEUS_grid.fall.reduced <- dat_NEUS_grid.clean[!cell %in% dump_fall][region =
 ```
 
 This is where I would use rarefaction or coverage, for now I will skip
-```{rarefaction or coverage?}
+```{r rarefaction or coverage?}
 #how many tows (TOW) per cell in a given year
 colnames(dat_NEUS_grid.clean.reduced)
 
