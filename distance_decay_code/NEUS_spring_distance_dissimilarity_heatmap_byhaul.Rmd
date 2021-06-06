@@ -1,5 +1,5 @@
 ---
-title: "NEUS_similarity_heatmap_distance"
+title: "NEUS_spring_similarity_heatmap_distance"
 output: html_notebook
 ---
 
@@ -17,10 +17,7 @@ library(cowplot)
 #load spring and fall data
 dat_NEUS_grid.spring.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced_3plustows.RData")
 
-dat_NEUS_grid.fall.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.RData")
-
 #distance among grid cells
-neus_reg_distances_fall.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.RData")
 
 neus_reg_distances_spring.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_spring.l.RData")
 ```
@@ -266,6 +263,14 @@ Box plots
     ylim(c(0,0.48)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90)))
+
+#corresponding models
+neus_spring_avg_jaccard_mod <- lm(data = neus_spring_distances_dissimilarities_allyears, formula = jaccard_similarity ~ as.numeric(year))
+
+neus_spring_avg_bray_curtis_mod <- lm(data = neus_spring_distances_dissimilarities_allyears, formula = bray_curtis_similarity ~ as.numeric(year))
+
+summary(neus_spring_avg_jaccard_mod)
+summary(neus_spring_avg_bray_curtis_mod)
 ```
 
 Now, merge the previous two plots
