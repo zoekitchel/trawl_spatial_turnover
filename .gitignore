@@ -9,3 +9,4 @@
 neus_data_gridded.RData
 neus_full_1982onward.clean.reduced.again.RData
 ebs_data_gridded.RData
+*.eps
