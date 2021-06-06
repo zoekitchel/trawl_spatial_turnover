@@ -1,0 +1,230 @@
+---
+title: "Prepping GMEX Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+```
+
+
+Very confused of how to pull in data right now. To keep it easy, I'll use cleaned Ocean Adapt data
+
+https://github.com/pinskylab/OceanAdapt/tree/update_2019/data_clean/by_species.RData
+
+December 1, 2020
+```{r pull in data all regions}
+dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
+```
+
+```{r GMEX}
+dat_GMEX <- dat_exploded[region == "Gulf of Mexico",]
+
+saveRDS(dat_GMEX, "GMEX.rds")
+dat_GMEX <- readRDS("GMEX.rds")
+rm(dat_exploded)
+```
+
+```{r pull in GMEX}
+
+# Get Unique lines in the data table
+unique_gmex_latlon<- unique(dat_GMEX[,.(lat, lon)])
+unique_gmex_latlon.sf <- unique_gmex_latlon
+  
+#make lat lon coordinates into polygon
+coordinates(unique_gmex_latlon.sf) <- ~lat + lon
+unique_gmex_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_gmex_latlon, "unique_gmex_latlon.rds")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-180, -51.5,23, 67)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_gmex_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_gmex_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
+
+#centersof cells
+gmex_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_gmex_latlon[,cell])
+
+#linking cell centers to unique_gmex_latlon
+unique_gmex_latlon[,LON_CENTER := gmex_cellcenters$lon_deg][,LAT_CENTER := gmex_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+dat_GMEX <- merge(dat_GMEX, unique_gmex_latlon, by = c("lat", "lon"))
+
+#number of tows in each cell
+towcount <- unique_gmex_latlon[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_gmex <- dgcellstogrid(dggs, unique_gmex_latlon[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_gmex <- merge(grid, unique_gmex_latlon, by.x = "cell", by.y ="cell")
+
+ggplot(data = grid_gmex, aes(x = long, y = lat, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_gmex, "grid_gmex.rds")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying}
+
+na_outline + 
+   geom_polygon(grid_gmex, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "grid_GMEX_cells_spacing_111.pdf")
+  
+```
+Cleaning spp names (must be ID'd to species!)
+```{r clean GMEX names}
+#unique species names
+spp_gmex <- dat_GMEX[,unique(spp)]
+
+
+#Using taxize package, I'm going to check and standardize species scientific names
+result.long <- spp_gmex %>%
+gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
+            with_canonical_ranks=T)
+
+result.long <- data.table(result.long)
+
+# be sure to keep these with randomly  low scores, otherwise, score about 75 is good
+#-Pseudomedaeus agassizi
+#-Petrochirus diogenes
+#-Goniaster tessellatus
+
+#delete repeats and get weird of weird ones
+
+result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75 | matched_name2 %in% c("Pseudomedaeus agassizi", "Petrochirus diogenes", "Goniaster tessellatus"),]
+
+#merge cleaned species names with neus full 
+dat_GMEX.clean <- dat_GMEX[result.short, on = "spp"]
+
+```
+
+
+Now, we'll overlay grid cells onto this list of tows (dat_gmex) using lat and lon and gridrr package
+```{r get rid of underused grid cells}
+
+year_grid <- data.table(table(dat_GMEX.clean$cell, dat_GMEX.clean$year))
+
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+
+#delete these grid cells from full data table
+dat_gmex.reduced <- dat_GMEX.clean[!cell %in% grid_cells_to_exclude]
+
+#362516 observations left, this should be great
+
+#how many tows (TOW) per cell in a given year
+
+haul_cell_unique <- unique(dat_gmex.reduced[,.(haulid, cell, year)])
+
+gmex_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
+
+gmex_cells_lessthan3 <- gmex_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(gmex_cells_lessthan3[,cell])
+
+dat_gmex.reduced.again <- dat_gmex.reduced[!cell %in% cells_to_delete]
+
+#down to 192500 observations
+
+saveRDS(dat_gmex.reduced.again, "gmex_data_gridded.rds")
+
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells}
+#just need grid cell # and center lat lon for each grid cell 
+gmex_grid_cells <- unique(dat_gmex.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+
+gmex_grid_cells <- setorder(gmex_grid_cells, cell)
+
+gmex_reg_distances <- distm(gmex_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(gmex_reg_distances) <- gmex_grid_cells$cell
+rownames(gmex_reg_distances) <- gmex_grid_cells$cell
+
+#reorient to long form 
+gmex_reg_distances.l <- melt(as.matrix(gmex_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+gmex_reg_distances.l <- data.table(gmex_reg_distances.l) #and then to data table
+gmex_reg_distances.l <- gmex_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+saveRDS(gmex_reg_distances.l, "gmex_reg_distances.l.rds")
+```
+
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo}
+#cell/year/region combos
+gmex_unique_tows_cell <- dat_gmex.reduced[,.SD[1],.(year, cell, haulid)]
+
+#no years have way more tows than others
+plot(gmex_unique_tows_cell[,.N,.(year,cell)]$year, gmex_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(gmex_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 17/137 cell/year combos  (12%)
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows}
+gmex_counts <- gmex_unique_tows_cell[,.N,.(year,cell)]
+gmex_keep <- gmex_counts[N>2,][,N := NULL]
+
+dat_gmex_grid.reduced_3plustows <- dat_gmex.reduced[gmex_keep, on = .(cell, year)]
+
+
+```
+
+
+Save
+```{r save}
+saveRDS(dat_gmex.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GMEX/dat_GMEX_grid.reduced.rds")
+
+
+saveRDS(gmex_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GMEX/gmex_reg_distances.l.rds")
+
+saveRDS(dat_gmex_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GMEX/dat_GMEX_grid.reduced_3plustows.rds")
+
+
+```
