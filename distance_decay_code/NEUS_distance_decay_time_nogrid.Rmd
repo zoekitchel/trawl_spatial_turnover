@@ -203,8 +203,9 @@ load("neus_similarity_mod_coefs_spring.RData")
 
 
 ```
-Visualizing model parameters over time
-```{r visualizing spring model parameters}
+
+Visualizing spring model parameters over time
+```{r visualizing spring model parameters HALVING DISTANCE}
 #jaccard total halving distance
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
   geom_errorbar(aes(ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
@@ -238,9 +239,43 @@ ggsave(path = here::here("figures","neus"),filename = "neus_spring_bray_halving_
 
 ```
 
+Now, same, but for spring initial similarity
+```{r visualizing spring model parameters}
+#jaccard initial similarity
+ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
+  geom_errorbar(aes(ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_initial)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_jaccard_initial_similarity.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_jaccard_initial_similarity.eps")
+
+#bray curtis initial similarity
+ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
+  geom_errorbar(aes(ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_initial)) +
+  geom_smooth(method = "lm", aes(y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
 
 
-Distance decay for FALL NEUS
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_bray_curtis_initial_similarity.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_bray_curtis_initial_similarity.eps")
+
+```
+
+
+##Distance decay for FALL NEUS
 ```{r each year build exponential model for fall}
 
 #years
@@ -412,30 +447,181 @@ for (i in 1:length(neus_years_fall)) {
 
 saveRDS(neus_similarity_mod_coefs_fall, file = "neus_similarity_mod_coefs_fall.rds")
 
-#neus_fall_distances_dissimilarities_allyears <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/distance_decay_code/neus_fall_distances_dissimilarities_allyears.rds")
+```
 
-
+##Visualizing fall model parameters over time
+```{r visualizing fall model parameters jaccard halving distance}
+#jaccard total halving distance
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_fall) +
-  geom_point(aes(y = jaccard_total_halving), shape = 15) +
-  geom_smooth(aes(y = jaccard_total_halving), linetype = 1, color = "black") +
-  geom_point(aes(y = jaccard_turnover_halving), shape = 15, color = "green") +
-  geom_smooth(aes(y = jaccard_turnover_halving), linetype = 1, color = "green") +
-  labs(x = "Year", y = "Jaccard Similarity Halving Distance (m)") +
+  geom_errorbar(aes(ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+ # ylim(170,1600) +
+  labs(x = "Year", y = "Jaccard Similarity Halving Distance (km)") +
   theme_classic() +
   theme(text = element_text(size = 13))
 
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_jaccard_halving_distance.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_jaccard_halving_distance.eps")
+
+#bray curtis total halving distance
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_fall) +
-  geom_point(aes(y = bray_total_halving), color = "black") +
-  geom_smooth(aes(y = bray_total_halving), color = "black") +
-  geom_point(aes(y = bray_balanced_halving), color = "green") +
-  geom_smooth(aes(y = bray_balanced_halving), color = "green") +
-  labs(x = "Year", y = "Bray Similarity Halving Distance (m)") +
+  geom_errorbar(aes(ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Similarity Halving Distance (km)") +
+#  ylim(150,750) +
   theme_classic() +
   theme(text = element_text(size = 13))
 
-ggsave(path = "plots", file = "slopes_for_distance_decay.jpg", width = 6, height = 4, unit = "in")
+
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_bray_halving_distance.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_bray_halving_distance.eps")
+
+```
+Now, same, but for fall initial similarity
+```{r visualizing fall model parameters initial similarity}
+#jaccard initial similarity
+ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_fall) +
+  geom_errorbar(aes(ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_initial)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_jaccard_initial_similarity.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_jaccard_initial_similarity.eps")
+
+#bray curtis initial similarity
+ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_fall) +
+  geom_errorbar(aes(ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_initial)) +
+  geom_smooth(method = "lm", aes(y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
 
 
-#increasing rate of decay through time (strata become less similar through time)
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_bray_curtis_initial_similarity.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_fall_bray_curtis_initial_similarity.eps")
 
+```
+
+##Plot both seasons together
+
+Halving distance
+
+```{r both jaccard together halving distance}
+#jaccard total halving distance
+ggplot() +
+  #spring
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_total_halving/1000)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3) +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_total_halving/1000),shape = 15, color = "grey") +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_total_halving/1000),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_jaccard_halvingdistance.jpg")
+```
+Both Bray together
+```{r both bray together halving}
+#jbray total halving distance
+ggplot() +
+  #spring
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_total_halving/1000)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_balanced_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_balanced_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3) +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_total_halving/1000),shape = 15, color = "grey") +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_total_halving/1000),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_balanced_halving/1000), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_balanced_halving/1000), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_bray_halvingdistance.jpg")
+```
+Now, same but for initial sim
+Jaccard initial similarity
+```{r both seasons jaccard initial similarity}
+#jaccard initial similarity
+ggplot() +
+  #spring
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_total_initial)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3) +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_total_initial),shape = 15, color = "grey") +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_total_initial),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_turnover_initial), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_initial), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_jaccard_initialdistance.jpg")
+```
+
+Both seasons of Bray together
+```{r both bray together initial similarity neus}
+#bray initial similarity
+ggplot() +
+  #spring
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_total_initial)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = neus_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3) +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_total_initial),shape = 15, color = "grey") +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_total_initial),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = neus_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_balanced_initial), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = neus_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_balanced_initial), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_bray_initialdistance.jpg")
 ```
