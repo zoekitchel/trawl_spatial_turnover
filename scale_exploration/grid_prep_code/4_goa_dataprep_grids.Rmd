@@ -211,7 +211,7 @@ This is where I would use rarefaction or coverage, for now I will skip
 ```{r rarefaction or coverage?}
 #how many tows (TOW) per cell in a given year
 
-haul_cell_unique <- unique(dat_goa.reduced[,.(haulid, cell, year)])
+haul_cell_unique <- unique(dat_GOA_grid.reduced[,.(haulid, cell, year)])
 
 goa_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
 
@@ -219,7 +219,7 @@ goa_cells_lessthan3 <- goa_samplingevents_byyear[N<3,]
 
 cells_to_delete <- unique(goa_cells_lessthan3[,cell])
 
-dat_goa.reduced.again <- dat_goa.reduced[!cell %in% cells_to_delete]
+dat_goa.reduced.again <- dat_GOA_grid.reduced[!cell %in% cells_to_delete]
 
 #down to 1582496   observations
 
@@ -276,7 +276,7 @@ dat_goa_grid.reduced_3plustows <- dat_GOA_grid.reduced[goa_keep, on = .(cell, ye
 
 Save
 ```{r save}
-saveRDS(dat_goa.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/dat_GOA_grid.reduced.rds")
+saveRDS(dat_GOA_grid.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/dat_GOA_grid.reduced.rds")
 
 
 saveRDS(goa_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/goa_reg_distances.l.rds")
