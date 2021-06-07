@@ -12,14 +12,14 @@ library(betapart)
 library(geosphere)
 
 #load spring and fall data
-dat_NEUS_grid.spring.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced_3plustows.RData")
+dat_NEUS_grid.spring.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced_3plustows.rds")
 
-dat_NEUS_grid.fall.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.RData")
+dat_NEUS_grid.fall.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.rds")
 
 #distance among grid cells
-neus_reg_distances_fall.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.RData")
+neus_reg_distances_fall.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.rds")
 
-neus_reg_distances_spring.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_spring.l.RData")
+neus_reg_distances_spring.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_spring.l.rds")
 
 
 ```
@@ -217,8 +217,8 @@ ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
   theme_classic() +
   theme(text = element_text(size = 13))
 
-ggsave(path = here::here("figures","neus"),filename = "neus_jaccard_halving_distance.jpg")
-ggsave(path = here::here("figures","neus"),filename = "neus_jaccard_halving_distance.eps")
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_jaccard_halving_distance.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_jaccard_halving_distance.eps")
 
 #bray curtis total halving distance
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
@@ -233,8 +233,8 @@ ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
   theme(text = element_text(size = 13))
 
 
-ggsave(path = here::here("figures","neus"),filename = "neus_bray_halving_distance.jpg")
-ggsave(path = here::here("figures","neus"),filename = "neus_bray_halving_distance.eps")
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_bray_halving_distance.jpg")
+ggsave(path = here::here("figures","neus"),filename = "neus_spring_bray_halving_distance.eps")
 
 ```
 

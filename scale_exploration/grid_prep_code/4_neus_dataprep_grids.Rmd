@@ -44,9 +44,9 @@ dat_NEUS <- dat_exploded[region %in% c("Northeast US Spring", "Northeast US Fall
 
 rm(dat_exploded)
 
-saveRDS(dat_NEUS, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_NEUS.RData")
+saveRDS(dat_NEUS, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_NEUS.rds")
 #if we need to load, unhash
-#dat_NEUS <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_NEUS.RData")
+dat_NEUS <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_NEUS.rds")
 
 setkey(dat_NEUS)
 
@@ -58,7 +58,7 @@ unique_neus_latlon.sf <- unique_neus_latlon
 coordinates(unique_neus_latlon.sf) <- ~lat + lon
 unique_neus_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
-saveRDS(unique_neus_latlon, "unique_neus_latlon.RData") #save list of lat lon coordinates
+saveRDS(unique_neus_latlon, "unique_neus_latlon.rds") #save list of lat lon coordinates
 
 
 ```
@@ -254,8 +254,8 @@ dump_fall <- c(6664, 6583, 6576, 6575, 6571, 6076, 5831, 5507, 5347, 5346, 5265,
 
 
 #delete these grid cells from full data table
-dat_NEUS_grid.spring.reduced <- dat_NEUS_grid.clean[!cell %in% dump_spring][region == "Northeast US Spring",]
-dat_NEUS_grid.fall.reduced <- dat_NEUS_grid.clean[!cell %in% dump_fall][region == "Northeast US Fall",]
+dat_NEUS_grid.clean.spring.reduced <- dat_NEUS_grid.clean[!cell %in% dump_spring][region == "Northeast US Spring",]
+dat_NEUS_grid.clean.fall.reduced <- dat_NEUS_grid.clean[!cell %in% dump_fall][region == "Northeast US Fall",]
 
 #1116697 fall observations left, 882424 spring observations left
 
@@ -336,8 +336,8 @@ plot(neus_fall_unique_tows_cell[,.N,.(year,cell)]$year, neus_fall_unique_tows_ce
 
 #therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
 
-summary(neus_fall_unique_tows_cell[,.N,.(year,cell)]$N < 3) #for fall, this occurs in 131/1781 (7%) year, cell combos
-summary(neus_spring_unique_tows_cell[,.N,.(year,cell)]$N < 3) #for spring this occurs in 243/1881 (13%) cases, year, cell combos
+summary(neus_fall_unique_tows_cell[,.N,.(year,cell)]$N < 3) #for fall, this occurs in 131/1650 (8%) year, cell combos
+summary(neus_spring_unique_tows_cell[,.N,.(year,cell)]$N < 3) #for spring this occurs in 243/1638 (15%) cases, year, cell combos
 
 #I don't think I need to exclude in ALL years, just in a few years
 #an alternative would be to assess coverage using biomass (# of singletons and doubletons)

@@ -124,28 +124,13 @@ gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
 
 result.long <- data.table(result.long)
 
+#this spp scored randomly low
+#-Laqueus californicus
+
 #delete repeats and get weird of weird ones
 
 
-dat_GOA$spp <- gsub("Astropecten verilli", "Astropecten verrilli", dat_GOA$spp) #won't come up for some reason, ignore for now
-dat_GOA$spp <- gsub("Chrysaora fuscens", "Chrysaora fuscescens", dat_GOA$spp)
-
-#unique species names again
-spp_goa <- dat_GOA[,unique(spp)]
-
-#run long again
-
-
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_goa %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
-
-result.long <- data.table(result.long)
-
-#checked, only genus only spp are graded lower than 0.98
-
-result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75,]
+result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75 | matched_name2 == "Laqueus californicus",]
 
 #merge cleaned species names with neus full 
 dat_GOA.clean <- dat_GOA[result.short, on = "spp"]
@@ -153,19 +138,77 @@ dat_GOA.clean <- dat_GOA[result.short, on = "spp"]
 ```
 
 
-Now, we'll overlay grid cells onto this list of tows (dat_goa) using lat and lon and gridrr package
+Now, we'll overlay grid cells onto this list of tows using LAT and LON and gridrr package
 ```{r get rid of underused grid cells}
 
 year_grid <- data.table(table(dat_GOA.clean$cell, dat_GOA.clean$year))
 
-#there are some grid cells with infrequent records, I will delete these
-grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+#full matrix of year x grid x  cell
+cell_numbers <- unique(dat_GOA.clean$cell)
+years <- unique(dat_GOA.clean$year)
+seasons <- unique(dat_GOA.clean$region)
+
+cells_cross_years_cross_region <- data.table(expand.grid(cell = cell_numbers, year = years, region = seasons))
+
+observations <- unique(dat_GOA.clean[,.N,by = c("year","cell", "region")])
+
+#merge possible cell year region combinations with actual observations
+goa_cell_data_nodata <- observations[cells_cross_years_cross_region, on = .(year, cell, region)]
+
+#new pres/abs column
+goa_cell_data_nodata[,pres := ifelse(is.na(N), 0, 1)]
+
+#which grid cells are sampled in which years?
+ggplot(goa_cell_data_nodata, aes(as.factor(year), as.factor(cell))) + 
+  geom_tile(aes(fill = factor(pres)), color = "grey", size = 0.01) +
+#  facet_wrap(~region, scales="free") +
+  scale_fill_manual(values = c("white", "black"), breaks = c(0,1), labels = c("No Data", "Data")) +
+  labs(x = "Year", y = "Cell") +
+  theme(legend.title = element_blank(),
+        axis.text.y = element_text(size = 4),
+        axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5),
+        strip.text.x = element_text(size = 10),
+        axis.ticks = element_blank()) +
+  facet_wrap(~region)
+
+ggsave(filename = "goa_data_availability.jpg", path = "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/")
+
+```
+Delete cells that aren't sampled regularly (missing more than 2 years from 1984-2017):
+
+- 59451
+- 59370
+- 2210
+- 1805
+- 1642
+- 1640
+- 1477
+- 1395
+- 1233
+- 1229
+- 1146
+- 1063
+- 986
+- 815
+- 489
+
+
+
+Infrequently sampled cells (cells with less than 1 survey in a region every year)
+```{r infrequently sampled cells}
+#dump 
+dump <- c(59451, 59370, 2210, 1805, 1642, 1640, 1477, 1395, 1233, 1229, 1146, 1063, 986, 815, 489)
+
 
 #delete these grid cells from full data table
-dat_goa.reduced <- dat_GOA.clean[!cell %in% grid_cells_to_exclude]
+dat_GOA_grid.reduced <- dat_GOA.clean[!cell %in% dump]
+dim(dat_GOA_grid.reduced )
+#1840756 observations left
 
-#732196 observations left, this should be great
+```
 
+This is where I would use rarefaction or coverage, for now I will skip
+```{r rarefaction or coverage?}
 #how many tows (TOW) per cell in a given year
 
 haul_cell_unique <- unique(dat_goa.reduced[,.(haulid, cell, year)])
@@ -178,7 +221,7 @@ cells_to_delete <- unique(goa_cells_lessthan3[,cell])
 
 dat_goa.reduced.again <- dat_goa.reduced[!cell %in% cells_to_delete]
 
-#down to 673516 observations
+#down to 1582496   observations
 
 saveRDS(dat_goa.reduced.again, "goa_data_gridded.rds")
 
@@ -187,7 +230,7 @@ saveRDS(dat_goa.reduced.again, "goa_data_gridded.rds")
 Find distance between center of each grid cell
 ```{r distance between grid cells}
 #just need grid cell # and center lat lon for each grid cell 
-goa_grid_cells <- unique(dat_goa.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+goa_grid_cells <- unique(dat_GOA_grid.reduced[,.(cell, LON_CENTER, LAT_CENTER)])
 
 goa_grid_cells <- setorder(goa_grid_cells, cell)
 
@@ -206,14 +249,14 @@ saveRDS(goa_reg_distances.l, "goa_reg_distances.l.rds")
 Check the # of tows per grid cell/year combo
 ```{r number of tows per grid cell/year/region combo}
 #cell/year/region combos
-goa_unique_tows_cell <- dat_goa.reduced[,.SD[1],.(year, cell, haulid)]
+goa_unique_tows_cell <- dat_GOA_grid.reduced[,.SD[1],.(year, cell, haulid)]
 
 #no years have way more tows than others
 plot(goa_unique_tows_cell[,.N,.(year,cell)]$year, goa_unique_tows_cell[,.N,.(year,cell)]$N)
 
 #therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
 
-summary(goa_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 14/309 cell/year combos  (4.5%, no biggie)
+summary(goa_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 50/839 cell/year combos  (6%, no biggie)
 
 #I don't think I need to exclude in ALL years, just in a few years
 #an alternative would be to assess coverage using biomass (# of singletons and doubletons)
@@ -225,7 +268,7 @@ Delete all observations with less than 3 tows in a given year/cell
 goa_counts <- goa_unique_tows_cell[,.N,.(year,cell)]
 goa_keep <- goa_counts[N>2,][,N := NULL]
 
-dat_goa_grid.reduced_3plustows <- dat_goa.reduced[goa_keep, on = .(cell, year)]
+dat_goa_grid.reduced_3plustows <- dat_GOA_grid.reduced[goa_keep, on = .(cell, year)]
 
 
 ```
