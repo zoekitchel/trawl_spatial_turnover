@@ -12,14 +12,14 @@ library(betapart)
 library(geosphere)
 
 #load spring and fall data
-dat_NEUS_grid.spring.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced_3plustows.rds")
+dat_NEUS_grid.spring.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.spring.reduced_3plustows.RData")
 
-dat_NEUS_grid.fall.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.rds")
+dat_NEUS_grid.fall.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.RData")
 
 #distance among grid cells
-neus_reg_distances_fall.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.rds")
+neus_reg_distances_fall.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.RData")
 
-neus_reg_distances_spring.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_spring.l.rds")
+neus_reg_distances_spring.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_spring.l.RData")
 
 
 ```
@@ -266,7 +266,7 @@ for (i in 1:length(neus_years_fall)) {
   nsites=nrow(lat_lon_haulid)
   
   Results_jaccardtotal=matrix(NA,nrow=nsites,ncol=2)
-  Results_jaccardturnover=matrix(NA,nrow=nsites,ncol=2)
+   Results_jaccardturnover=matrix(NA,nrow=nsites,ncol=2)
   
     
   Results_braytotal=matrix(NA,nrow=nsites,ncol=2)
@@ -412,7 +412,7 @@ for (i in 1:length(neus_years_fall)) {
 
 saveRDS(neus_similarity_mod_coefs_fall, file = "neus_similarity_mod_coefs_fall.rds")
 
-neus_fall_distances_dissimilarities_allyears <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/distance_decay_code/neus_fall_distances_dissimilarities_allyears.rds")
+#neus_fall_distances_dissimilarities_allyears <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/distance_decay_code/neus_fall_distances_dissimilarities_allyears.rds")
 
 
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_fall) +
