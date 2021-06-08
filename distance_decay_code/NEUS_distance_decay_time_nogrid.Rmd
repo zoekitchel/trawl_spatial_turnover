@@ -127,7 +127,7 @@ for (i in 1:length(neus_years_spring)) {
   }
   
     Results_braytotal=cbind(Results_braytotal[,1],-Results_braytotal[,2],
-                            exp(Results_braytotal[,1]),-log(2)/Results_braytotal[,2])
+                            exp(Results_braytotal[,1]),-log(2)/Results_braytotal[,2]) #check this calculation, fine for now
     colnames(Results_braytotal)=c("a_intercept","beta_slope","s0","halfd")
     Summary_braytotal=rbind(apply(Results_braytotal,2,mean),
                 sqrt(diag(var(Results_braytotal)*(nsites-1)*(1-1/nsites))))
@@ -446,6 +446,7 @@ for (i in 1:length(neus_years_fall)) {
 }
 
 saveRDS(neus_similarity_mod_coefs_fall, file = "neus_similarity_mod_coefs_fall.rds")
+neus_similarity_mod_coefs_fall <- readRDS("neus_similarity_mod_coefs_fall.rds")
 
 ```
 
@@ -546,7 +547,7 @@ ggplot() +
   theme_classic() +
   theme(text = element_text(size = 13))
 
-ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_jaccard_halvingdistance.jpg")
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_jaccard_halvingdistance.jpg", height = 4, width = 4, unit = "in")
 ```
 Both Bray together
 ```{r both bray together halving}
@@ -571,7 +572,7 @@ ggplot() +
   theme_classic() +
   theme(text = element_text(size = 13))
 
-ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_bray_halvingdistance.jpg")
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_bray_halvingdistance.jpg", height = 4, width = 4, unit = "in")
 ```
 Now, same but for initial sim
 Jaccard initial similarity
@@ -597,7 +598,7 @@ ggplot() +
   theme_classic() +
   theme(text = element_text(size = 13))
 
-ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_jaccard_initialdistance.jpg")
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_jaccard_initialdistance.jpg", height = 4, width = 4, unit = "in")
 ```
 
 Both seasons of Bray together
@@ -623,5 +624,5 @@ ggplot() +
   theme_classic() +
   theme(text = element_text(size = 13))
 
-ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_bray_initialdistance.jpg")
+ggsave(path = here::here("figures","neus"), filename = "neus_bothseasons_bray_initialdistance.jpg", height = 4, width = 4, unit = "in")
 ```
