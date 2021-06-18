@@ -1,5 +1,5 @@
 ---
-title: "NEUS_fall_similarity_heatmap_distance"
+title: "EBS_similarity_heatmap_distance"
 output: html_notebook
 ---
 
@@ -13,68 +13,59 @@ library(vegan)
 library(raster)
 library(here)
 library(cowplot)
+library(plyr)
 
-#load fall data
-dat_NEUS_grid.fall.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/dat_NEUS_grid.fall.reduced_3plustows.RData")
+#load data
+dat_EBS_grid.reduced_3plustows <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/dat_EBS_grid.reduced_3plustows.rds")
 
 #distance among grid cells
 
-neus_reg_distances_fall.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_reg_distances_fall.l.RData")
+ebs_reg_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/ebs_reg_distances.l.rds")
 ```
 Lists of Years
 ```{r year lists}
-#fall
-dat_NEUS_grid.fall.reduced_3plustows[,year:= as.numeric(year)] #make numeric
-setorder(dat_NEUS_grid.fall.reduced_3plustows, year)
+dat_EBS_grid.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+setorder(dat_EBS_grid.reduced_3plustows, year)
 
-neus_years_fall <- unique(dat_NEUS_grid.fall.reduced_3plustows[,year])
+ebs_years <- unique(dat_EBS_grid.reduced_3plustows[,year])
 
-#fall
-dat_NEUS_grid.fall.reduced_3plustows[,year:= as.numeric(year)] #make numeric
-setorder(dat_NEUS_grid.fall.reduced_3plustows, year)
-
-neus_years_fall <- unique(dat_NEUS_grid.fall.reduced_3plustows[,year])
 ```
 
 Haul ID keys
 ```{r list of haulids}
-neus_fall_haulids <- unique(dat_NEUS_grid.fall.reduced_3plustows[,haulid])
-neus_fall_haulids_key <- data.table(haulid = neus_fall_haulids, key_ID = seq(1,length(neus_fall_haulids), by = 1))
+ebs_haulids <- unique(dat_EBS_grid.reduced_3plustows[,haulid])
+ebs_haulids_key <- data.table(haulid = ebs_haulids, key_ID = seq(1,length(ebs_haulids), by = 1))
 
-neus_fall_haulids <- unique(dat_NEUS_grid.fall.reduced_3plustows[,haulid])
-neus_fall_haulids_key <- data.table(haulid = neus_fall_haulids, key_ID = seq(1,length(neus_fall_haulids), by = 1))
 ```
 
 Convert haulids to numeric key_IDs
 ```{r}
-#fall
-dat_NEUS_grid.fall.reduced_3plustows <- dat_NEUS_grid.fall.reduced_3plustows[neus_fall_haulids_key, on = "haulid"]
 
-#fall
-dat_NEUS_grid.fall.reduced_3plustows <- dat_NEUS_grid.fall.reduced_3plustows[neus_fall_haulids_key, on = "haulid"]
+dat_EBS_grid.reduced_3plustows <- dat_EBS_grid.reduced_3plustows[ebs_haulids_key, on = "haulid"]
+
 ```
 
 
 Dissimilarities across multiple years
-fall
-```{r dissimilarities between cells across multiple years for fall}
-neus_fall_distances_dissimilarities_allyears <- data.table("haulid1" = integer(), "haulid2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity" = numeric(), year = integer(), "jaccard_dissimilarity" = numeric())
+
+```{r dissimilarities between cells across multiple years for spring}
+ebs_distances_dissimilarities_allyears <- data.table("haulid1" = integer(), "haulid2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity" = numeric(), year = integer(), "jaccard_dissimilarity" = numeric())
 
 #Now loop through all years
-for (i in 1:length(neus_years_fall)) {
-  reduced_year <- dat_NEUS_grid.fall.reduced_3plustows[year == neus_years_fall[i],]
+for (i in 1:length(ebs_years)) {
+  reduced_year <- dat_EBS_grid.reduced_3plustows[year == ebs_years[i],]
   
   #distances among cells
   setorder(reduced_year, key_ID)
   
   lat_lon_haulid <- unique(reduced_year[,.(lat,lon,key_ID)])
-  neus_distances <- distm(lat_lon_haulid[,.(lon,lat)])
+  ebs_distances <- distm(lat_lon_haulid[,.(lon,lat)])
   key_IDs <- lat_lon_haulid[,key_ID]
 
-  colnames(neus_distances) <- rownames(neus_distances) <- key_IDs
+  colnames(ebs_distances) <- rownames(ebs_distances) <- key_IDs
 
   #wide to long
-  haulid_distances.l <- reshape2::melt(neus_distances,varnames = (c("haulid1", "haulid2")), value.name = "distance")
+  haulid_distances.l <- reshape2::melt(ebs_distances,varnames = (c("haulid1", "haulid2")), value.name = "distance")
   
   #make into data table
   haulid_distances.l <- data.table(haulid_distances.l)
@@ -104,8 +95,8 @@ for (i in 1:length(neus_years_fall)) {
   dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
 
   #add year for these values
-  dissimilarities_abundance.l[, "year" := neus_years_fall[i]]
-  dissimilarities_occurrence.l[, "year" := neus_years_fall[i]]
+  dissimilarities_abundance.l[, "year" := ebs_years[i]]
+  dissimilarities_occurrence.l[, "year" := ebs_years[i]]
 
   #merge distance with dissimilarity for this year with both metrics of dissimilarity
   dissimilarities_full <- haulid_distances.l[dissimilarities_abundance.l, on = c("haulid1", "haulid2")]
@@ -113,61 +104,63 @@ for (i in 1:length(neus_years_fall)) {
 
 
   #add to data table
-  neus_fall_distances_dissimilarities_allyears <- rbind(neus_fall_distances_dissimilarities_allyears, dissimilarities_full)
+  ebs_distances_dissimilarities_allyears <- rbind(ebs_distances_dissimilarities_allyears, dissimilarities_full)
   
 }
 
-summary(neus_fall_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
+summary(ebs_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
 
 #delete repeats
-neus_fall_distances_dissimilarities_allyears <- neus_fall_distances_dissimilarities_allyears[haulid1 >= haulid2,] #3165272 to 1588479 rows
+ebs_distances_dissimilarities_allyears <- ebs_distances_dissimilarities_allyears[haulid1 >= haulid2,] #3165272 to 1588479 rows
 
 
-neus_fall_distances_dissimilarities_allyears[,bray_curtis_similarity := (1-bray_curtis_dissimilarity)][,jaccard_similarity := (1-jaccard_dissimilarity)]
+ebs_distances_dissimilarities_allyears[,bray_curtis_similarity := (1-bray_curtis_dissimilarity)][,jaccard_similarity := (1-jaccard_dissimilarity)]
 
-saveRDS(neus_fall_distances_dissimilarities_allyears, file = "neus_fall_distances_dissimilarities_allyears.rds")
+saveRDS(ebs_distances_dissimilarities_allyears, file = "ebs_distances_dissimilarities_allyears.rds")
 
-neus_fall_distances_dissimilarities_allyears <- readRDS("neus_fall_distances_dissimilarities_allyears.rds")
+ebs_distances_dissimilarities_allyears <- readRDS("ebs_distances_dissimilarities_allyears.rds")
 
 ```
 
 #Heat map
 
 Subsample for plotting
+
+#try rounding to 50s this time!
 ```{r subsample}
 #jaccard only
-neus_fall_distances_dissimilarities_allyears_jaccard <- neus_fall_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity)]
+ebs_distances_dissimilarities_allyears_jaccard <- ebs_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity, bray_curtis_similarity)][,distance_km := distance/1000]
 
 #new column with rounded distance
-neus_fall_distances_dissimilarities_allyears_jaccard[,distance_10s := round(distance,-1)] #round to nearest 100
+ebs_distances_dissimilarities_allyears_jaccard[,distance_km_50s := round_any(distance_km,50)][,distance_km_10s := round_any(distance_km,10)] #round to nearest 10
 
-#new column with median jaccard similarity
-neus_fall_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean := mean(jaccard_similarity), .(year, distance_10s)]
+#new column with median jaccard similarity & bray similarity means
+ebs_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean_10s := mean(jaccard_similarity), .(year, distance_km_10s)][, bray_similarity_mean_10s := mean(bray_curtis_similarity), .(year, distance_km_10s)]
 
 #reduce to unique values
-neus_fall_distances_dissimilarities_allyears_jaccard_rounded <- unique(neus_fall_distances_dissimilarities_allyears_jaccard, by = c("year","distance_10s"))
+ebs_distances_dissimilarities_allyears_jaccard_rounded <- unique(ebs_distances_dissimilarities_allyears_jaccard, by = c("year","distance_km_10s"))
 ```
 
 
 All possible combos
 ```{r all combos}
 #all possible 10s
-seq_10 <- seq(0,max(neus_fall_distances_dissimilarities_allyears_jaccard_rounded$distance_10s), by = 10)
+seq_10 <- seq(0,max(ebs_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10s), by = 10)
+
+#all possiblew 50s
+seq_50 <- seq(0,max(ebs_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10), by = 50)
 
 #datatable with all possible combos
-neus_fall_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = neus_years_fall, distance_10s = seq_10))
-
-#make sure year is numeric
-neus_fall_distances_dissimilarities_allyears_jaccard_rounded[,year:=as.numeric(year)]
+ebs_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = ebs_years, distance_km_10s = seq_10))
 
 #combine
-neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- neus_fall_distances_dissimilarities_allyears_jaccard_allcombos[neus_fall_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_10s")]
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- ebs_distances_dissimilarities_allyears_jaccard_allcombos[ebs_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_km_10s")]
 ```
 
 
 Trying to use ggplot
 ```{r}
-ggplot(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos, aes(year, distance_10s, fill = jaccard_similarity_mean)) +
+ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos, aes(year, distance_10s, fill = jaccard_similarity_mean)) +
   geom_raster(interpolate = T) +
   theme_classic() +
   scale_fill_viridis(discrete = F)
@@ -178,129 +171,119 @@ library(sp)
 
 Convert to matrix
 ```{r jaccard matrix}
-neus_fall_distances_dissimilarities_allyears_jaccard_wide <-
-data.table::dcast(neus_fall_distances_dissimilarities_allyears_jaccard_rounded[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
+ebs_distances_dissimilarities_allyears_jaccard_wide <-
+data.table::dcast(ebs_distances_dissimilarities_allyears_jaccard_rounded[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
 
-setkey(neus_fall_distances_dissimilarities_allyears_jaccard_wide, distance_10s)
+setkey(ebs_distances_dissimilarities_allyears_jaccard_wide, distance_10s)
 
 #get rid of first column
-neus_fall_distances_dissimilarities_allyears_jaccard_wide.m <- neus_fall_distances_dissimilarities_allyears_jaccard_wide[,2:ncol(neus_fall_distances_dissimilarities_allyears_jaccard_wide)]
+ebs_distances_dissimilarities_allyears_jaccard_wide.m <- ebs_distances_dissimilarities_allyears_jaccard_wide[,2:ncol(ebs_distances_dissimilarities_allyears_jaccard_wide)]
 
-neus_fall_distances_dissimilarities_allyears_jaccard_wide.m <- as.matrix(neus_fall_distances_dissimilarities_allyears_jaccard_wide.m)
+ebs_distances_dissimilarities_allyears_jaccard_wide.m <- as.matrix(ebs_distances_dissimilarities_allyears_jaccard_wide.m)
 
-neus_fall_distances_dissimilarities_allyears_jaccard_wide.r <- as.raster (neus_fall_distances_dissimilarities_allyears_jaccard_wide.m)
+ebs_distances_dissimilarities_allyears_jaccard_wide.r <- as.raster (ebs_distances_dissimilarities_allyears_jaccard_wide.m)
 ```
 
 Convert comprehensive table to matrix
 ```{r}
-neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide <- data.table::dcast(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide <- data.table::dcast(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
 
-setkey(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide, distance_10s)
+setkey(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide, distance_10s)
 
 #get rid of first column
-neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide[,2:ncol(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide)]
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide[,2:ncol(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide)]
 
-neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- as.matrix(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- as.matrix(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
 
-neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.r <- as.raster (neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.r <- as.raster (ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
 ```
 
+Plot raster
+```{r}
+image(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.r)
+```
 From "Depth-Time visualization using R, the tidyverse, and ggplot2" tutorial
 
 ```{r plot heat maps}
 
 #convert year to factor
-setkey(neus_fall_distances_dissimilarities_allyears,year)
-neus_fall_distances_dissimilarities_allyears[,year.f := as.factor(year)]
+setkey(ebs_distances_dissimilarities_allyears,year)
+ebs_distances_dissimilarities_allyears[,year.f := as.factor(year)]
 
 #jaccard similarity
-neus_fall_jaccard_heatmap <- ggplot(neus_fall_distances_dissimilarities_allyears,aes(as.factor(year),distance/1000, color = jaccard_similarity)) +
-  geom_point(shape = 15, size = 0.7) +
+(ebs_jaccard_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = jaccard_similarity_mean_10s)) +
+  geom_point(shape = 15, size = 1) +
   scale_color_gradientn(colors =
 c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
   ) +
-scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears$year.f), breaks = c("1972", "1980", "1990", "2000", "2010", "2019")) +
+scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
   labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
-  theme_classic()
+  theme_classic())
 
-ggsave(plot = neus_fall_jaccard_heatmap, path = here::here("figures","neus"),file = "neus_fall_jaccard_heatmap.jpg")
-ggsave(plot = neus_fall_jaccard_heatmap, path = here::here("figures","neus"),file = "neus_fall_jaccard_heatmap.eps")
+ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "ebs_jaccard_heatmap.jpg")
+ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "ebs_jaccard_heatmap.eps")
 
 
 #bray curtis similarity
-neus_fall_bray_heatmap <- ggplot(neus_fall_distances_dissimilarities_allyears,aes(as.factor(year),distance/1000, color = bray_curtis_similarity)) +
-  geom_point(shape = 15, size = 0.7) +
+(ebs_bray_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = bray_similarity_mean_10s)) +
+  geom_point(shape = 15, size = 1) +
   scale_color_gradientn(colors =
 c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
   ) +
-  scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears$year.f), breaks = c("1972", "1980", "1990", "2000", "2010", "2019")) +
+  scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
   labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
-  theme_classic()
+  theme_classic())
 
-ggsave(plot = neus_fall_bray_heatmap, path = here::here("figures","neus"),file = "neus_fall_bray_heatmap.jpg")
-ggsave(plot = neus_fall_bray_heatmap, path = here::here("figures","neus"),file = "neus_fall_bray_heatmap.eps")
+ggsave(plot = ebs_bray_heatmap, path = here::here("figures","ebs"),file = "ebs_bray_heatmap.jpg")
+ggsave(plot = ebs_bray_heatmap, path = here::here("figures","ebs"),file = "ebs_bray_heatmap.eps")
 ```
 Box plots
-```{r fall box plots}
+```{r spring box plots}
 
 #jaccard similarity
-(neus_fall_jaccard_boxplot <- ggplot(neus_fall_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity)) +
+(ebs_jaccard_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity)) +
   geom_boxplot(outlier.shape = NA, lwd = 0.2) +
   labs(x="Year", y = "Jaccard Similarity") +
-  scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears$year.f), breaks = c("1972", "1980", "1990", "2000", "2010", "2019")) +
+  scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
   geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
   ylim(c(0,0.68)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90)))
 
 #bray curtis similarity
-(neus_fall_bray_boxplot <- ggplot(neus_fall_distances_dissimilarities_allyears,aes(year.f,bray_curtis_similarity)) +
+(ebs_bray_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,bray_curtis_similarity)) +
   geom_boxplot(outlier.shape = NA, lwd = 0.2) +
   labs(x="Year", y = "Bray Curtis Similarity") +
-  scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears$year.f), breaks = c("1972", "1980", "1990", "2000", "2010", "2019")) +
+  scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
   geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
     ylim(c(0,0.48)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90)))
 
 #corresponding models
-neus_fall_avg_jaccard_mod <- lm(data = neus_fall_distances_dissimilarities_allyears, formula = jaccard_similarity ~ as.numeric(year))
+ebs_avg_jaccard_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = jaccard_similarity ~ as.numeric(year))
 
-neus_fall_avg_bray_curtis_mod <- lm(data = neus_fall_distances_dissimilarities_allyears, formula = bray_curtis_similarity ~ as.numeric(year))
+ebs_avg_bray_curtis_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = bray_curtis_similarity ~ as.numeric(year))
 
-summary(neus_fall_avg_jaccard_mod)
-summary(neus_fall_avg_bray_curtis_mod)
+summary(ebs_avg_jaccard_mod)
+summary(ebs_avg_bray_curtis_mod)
 ```
 
 Now, merge the previous two plots
 ```{r merge plots}
 #pull out legend
-neus_fall_legend_heatmaps <- get_legend(neus_fall_jaccard_heatmap + labs(color = "Similarity"))
+ebs_legend_heatmaps <- get_legend(ebs_jaccard_heatmap + labs(color = "Similarity"))
 
-neus_fall_merge <- plot_grid(neus_fall_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) , neus_fall_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()), neus_fall_legend_heatmaps, neus_fall_jaccard_boxplot, neus_fall_bray_boxplot,  nrow = 2, ncol = 3, align = "hv", axis = "lb")
+ebs_merge <- plot_grid(ebs_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) , ebs_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()), ebs_legend_heatmaps, ebs_jaccard_boxplot, ebs_bray_boxplot,  nrow = 2, ncol = 3, align = "hv", axis = "lb")
 
-neus_fall_merge
+ebs_merge
 
-ggsave(neus_fall_merge, path = here::here("figures","neus"), file = "neus_fall_heat_boxplot_merge.jpg", width = 8, height = 5, unit = "in")
-ggsave(neus_fall_merge, path = here::here("figures","neus"), file = "neus_fall_heat_boxplot_merge.eps", width = 8, height = 5, unit = "in")
+ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.jpg", width = 8, height = 5, unit = "in")
+ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.eps", width = 8, height = 5, unit = "in")
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ###maybe i'll do this later? maybe not
@@ -311,7 +294,7 @@ Linear Interpolation
 I interpolate in the distance direction first, because I think this is the better assumption: as you go down further away, a reasonable way to estimate the similarity at a distance which you did not measure is to draw a straight line between the similarity at the distance that you did measure. (Not great, but sure)
 ```{r}
 estimate_jac_sim_by_year <- function(target_year, target_distance) {
-  data_for_year <- neus_fall_distances_dissimilarities_allyears[year == target_year]
+  data_for_year <- ebs_distances_dissimilarities_allyears[year == target_year]
   
   # approx() is one way to do a linear interpolation
   approx(data_for_year$distance, data_for_year$jaccard_similarity, xout = target_distance)$y
@@ -322,10 +305,10 @@ estimate_jac_sim_by_year(1990, c(0,3000,300000))
 Expand data inputs
 ```{r}
 temp_interp_depth <- data.table(expand.grid(
-  # the same years as neus fall
-  year = neus_years_fall,
+  # the same years as ebs spring
+  year = ebs_years,
   # ddistances can now be any value
-  distance = seq(0, max(neus_fall_distances_dissimilarities_allyears$distance), by = 10))
+  distance = seq(0, max(ebs_distances_dissimilarities_allyears$distance), by = 10))
 )
 
 temp_interp_depth[,jaccard_similarity_modeled := estimate_jac_sim_by_year(year,distance), year]
@@ -360,7 +343,7 @@ Expand year grid
 ```{r}
 jac_sim_raster <- data.table(expand.grid(
   # dates can now be any value
-  year = seq(min(neus_years_fall), max(neus_years_fall), by = 1),
+  year = seq(min(ebs_years), max(ebs_years), by = 1),
   # depths must be the same as in temp_interp_depth
   distance = unique(temp_interp_depth$distance))
 )
@@ -381,3 +364,4 @@ c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
   coord_cartesian(expand = FALSE)
 ```
 
+                 

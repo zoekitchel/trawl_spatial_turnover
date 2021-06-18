@@ -208,9 +208,9 @@ Visualizing spring model parameters over time
 ```{r visualizing spring model parameters HALVING DISTANCE}
 #jaccard total halving distance
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
-  geom_errorbar(aes(ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
-  geom_point(aes(y = jaccard_total_halving/1000)) +
-  geom_smooth(method = "lm", aes(y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+ # geom_errorbar(aes(ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = #jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
+ # geom_point(aes(y = jaccard_total_halving/1000)) +
+#  geom_smooth(method = "lm", aes(y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
   geom_errorbar(aes(ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
   geom_point(aes(y = jaccard_turnover_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
   geom_smooth(method = "lm", aes(y = jaccard_turnover_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
@@ -223,9 +223,9 @@ ggsave(path = here::here("figures","neus"),filename = "neus_spring_jaccard_halvi
 
 #bray curtis total halving distance
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
-  geom_errorbar(aes(ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
-  geom_point(aes(y = bray_total_halving/1000)) +
-  geom_smooth(method = "lm", aes(y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(aes(ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
+#  geom_point(aes(y = bray_total_halving/1000)) +
+ # geom_smooth(method = "lm", aes(y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
   geom_errorbar(aes(ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
   geom_point(aes(y = bray_balanced_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
   geom_smooth(method = "lm", aes(y = bray_balanced_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
@@ -243,9 +243,9 @@ Now, same, but for spring initial similarity
 ```{r visualizing spring model parameters}
 #jaccard initial similarity
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
-  geom_errorbar(aes(ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
-  geom_point(aes(y = jaccard_total_initial)) +
-  geom_smooth(method = "lm", aes(y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+ # geom_errorbar(aes(ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+#  geom_point(aes(y = jaccard_total_initial)) +
+ # geom_smooth(method = "lm", aes(y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
   geom_errorbar(aes(ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
   geom_point(aes(y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
   geom_smooth(method = "lm", aes(y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
@@ -258,9 +258,9 @@ ggsave(path = here::here("figures","neus"),filename = "neus_spring_jaccard_initi
 
 #bray curtis initial similarity
 ggplot(aes(x = as.numeric(year)), data = neus_similarity_mod_coefs_spring) +
-  geom_errorbar(aes(ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
-  geom_point(aes(y = bray_total_initial)) +
-  geom_smooth(method = "lm", aes(y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(aes(ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+#  geom_point(aes(y = bray_total_initial)) +
+#  geom_smooth(method = "lm", aes(y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
   geom_errorbar(aes(ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
   geom_point(aes(y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
   geom_smooth(method = "lm", aes(y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +

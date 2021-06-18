@@ -30,10 +30,10 @@ setorder(dat_NEUS_grid.spring.reduced_3plustows, year)
 neus_years_spring <- unique(dat_NEUS_grid.spring.reduced_3plustows[,year])
 
 #fall
-dat_NEUS_grid.fall.reduced_3plustows[,year:= as.numeric(year)] #make numeric
-setorder(dat_NEUS_grid.fall.reduced_3plustows, year)
+#dat_NEUS_grid.fall.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+#setorder(dat_NEUS_grid.fall.reduced_3plustows, year)
 
-neus_years_fall <- unique(dat_NEUS_grid.fall.reduced_3plustows[,year])
+#neus_years_fall <- unique(dat_NEUS_grid.fall.reduced_3plustows[,year])
 ```
 
 Haul ID keys
@@ -41,8 +41,8 @@ Haul ID keys
 neus_spring_haulids <- unique(dat_NEUS_grid.spring.reduced_3plustows[,haulid])
 neus_spring_haulids_key <- data.table(haulid = neus_spring_haulids, key_ID = seq(1,length(neus_spring_haulids), by = 1))
 
-neus_fall_haulids <- unique(dat_NEUS_grid.fall.reduced_3plustows[,haulid])
-neus_fall_haulids_key <- data.table(haulid = neus_fall_haulids, key_ID = seq(1,length(neus_fall_haulids), by = 1))
+#neus_fall_haulids <- unique(dat_NEUS_grid.fall.reduced_3plustows[,haulid])
+#neus_fall_haulids_key <- data.table(haulid = neus_fall_haulids, key_ID = seq(1,length(neus_fall_haulids), by = 1))
 ```
 
 Convert haulids to numeric key_IDs
@@ -51,7 +51,7 @@ Convert haulids to numeric key_IDs
 dat_NEUS_grid.spring.reduced_3plustows <- dat_NEUS_grid.spring.reduced_3plustows[neus_spring_haulids_key, on = "haulid"]
 
 #fall
-dat_NEUS_grid.fall.reduced_3plustows <- dat_NEUS_grid.fall.reduced_3plustows[neus_fall_haulids_key, on = "haulid"]
+#dat_NEUS_grid.fall.reduced_3plustows <- dat_NEUS_grid.fall.reduced_3plustows[neus_fall_haulids_key, on = "haulid"]
 ```
 
 
@@ -139,7 +139,7 @@ Subsample for plotting
 neus_spring_distances_dissimilarities_allyears_jaccard <- neus_spring_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity)]
 
 #new column with rounded distance
-neus_spring_distances_dissimilarities_allyears_jaccard[,distance_10s := round(distance,-1)] #round to nearest 100
+neus_spring_distances_dissimilarities_allyears_jaccard[,distance_10s := round(distance,-1)] #round to nearest 10
 
 #new column with median jaccard similarity
 neus_spring_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean := mean(jaccard_similarity), .(year, distance_10s)]
@@ -216,7 +216,7 @@ neus_spring_distances_dissimilarities_allyears[,year.f := as.factor(year)]
 
 #jaccard similarity
 (neus_spring_jaccard_heatmap <- ggplot(neus_spring_distances_dissimilarities_allyears,aes(as.factor(year),distance/1000, color = jaccard_similarity)) +
-  geom_point(shape = 15, size = 0.7) +
+  geom_point(shape = 3, size = 0.7, alpha = 0.3) +
   scale_color_gradientn(colors =
 c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
   ) +
@@ -230,7 +230,7 @@ ggsave(plot = neus_spring_jaccard_heatmap, path = here::here("figures","neus"),f
 
 #bray curtis similarity
 (neus_spring_bray_heatmap <- ggplot(neus_spring_distances_dissimilarities_allyears,aes(as.factor(year),distance/1000, color = bray_curtis_similarity)) +
-  geom_point(shape = 15, size = 0.7) +
+  geom_point(shape = 3, size = 0.7, alpha = 0.3) +
   scale_color_gradientn(colors =
 c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
   ) +
@@ -243,6 +243,7 @@ ggsave(plot = neus_spring_bray_heatmap, path = here::here("figures","neus"),file
 ```
 Box plots
 ```{r spring box plots}
+library(ggpubr)
 
 #jaccard similarity
 (neus_spring_jaccard_boxplot <- ggplot(neus_spring_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity)) +

@@ -1,0 +1,228 @@
+---
+title: "Prepping Southeast US Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+```
+
+
+Very confused of how to pull in data right now. To keep it easy, I'll use cleaned Ocean Adapt data
+
+https://github.com/pinskylab/OceanAdapt/tree/update_2019/data_clean/by_species.RData
+
+December 1, 2020
+```{r pull in data all regions}
+dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
+```
+
+```{r SA}
+dat_SA <- dat_exploded[region %in% c("Southeast US Spring","Southeast US Summer","Southeast US Fall")]
+
+saveRDS(dat_SA, "SA.rds")
+dat_SA <- readRDS("SA.rds")
+rm(dat_exploded)
+```
+
+```{r pull in SA}
+
+# Get Unique lines in the data table
+unique_sa_latlon<- unique(dat_SA[,.(lat, lon)])
+unique_sa_latlon.sf <- unique_sa_latlon
+  
+#make lat lon coordinates into polygon
+coordinates(unique_sa_latlon.sf) <- ~lat + lon
+unique_sa_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_sa_latlon, "unique_sa_latlon.rds")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-180, -51.5,23, 67)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_sa_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_sa_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
+
+#centersof cells
+sa_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_sa_latlon[,cell])
+
+#linking cell centers to unique_sa_latlon
+unique_sa_latlon[,LON_CENTER := sa_cellcenters$lon_deg][,LAT_CENTER := sa_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+dat_SA <- merge(dat_SA, unique_sa_latlon, by = c("lat", "lon"))
+
+#number of tows in each cell
+towcount <- unique_sa_latlon[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_sa <- dgcellstogrid(dggs, unique_sa_latlon[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_sa <- merge(grid, unique_sa_latlon, by.x = "cell", by.y ="cell")
+
+ggplot(data = grid_sa, aes(x = long, y = lat, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_sa, "grid_sa.rds")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying}
+
+na_outline + 
+   geom_polygon(grid_sa, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "grid_SA_cells_spacing_111.pdf")
+  
+```
+Cleaning spp names (must be ID'd to species!)
+```{r clean SA names}
+#unique species names
+spp_sa <- dat_SA[,unique(spp)]
+
+
+#Using taxize package, I'm going to check and standardize species scientific names
+result.long <- spp_sa %>%
+gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
+            with_canonical_ranks=T)
+
+result.long <- data.table(result.long)
+
+# be sure to keep these with randomly  low scores, otherwise, score about 75 is good
+#Peprilus triacanthus
+
+#delete repeats and get weird of weird ones
+
+result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75 | matched_name2 %in% c("Peprilus triacanthus"),]
+
+#merge cleaned species names with neus full 
+dat_SA.clean <- dat_SA[result.short, on = "spp"]
+
+```
+
+
+Now, we'll overlay grid cells onto this list of tows (dat_sa) using lat and lon and gridrr package
+```{r get rid of underused grid cells}
+
+year_grid <- data.table(table(dat_SA.clean$cell, dat_SA.clean$year))
+
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+
+#delete these grid cells from full data table
+dat_sa.reduced <- dat_SA.clean[!cell %in% grid_cells_to_exclude]
+
+#362516 observations left, this should be great
+
+#how many tows (TOW) per cell in a given year
+
+haul_cell_unique <- unique(dat_sa.reduced[,.(haulid, cell, year)])
+
+sa_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
+
+sa_cells_lessthan3 <- sa_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(sa_cells_lessthan3[,cell])
+
+dat_sa.reduced.again <- dat_sa.reduced[!cell %in% cells_to_delete]
+
+#down to 734608 observations
+
+saveRDS(dat_sa.reduced.again, "sa_data_gridded.rds")
+
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells}
+#just need grid cell # and center lat lon for each grid cell 
+sa_grid_cells <- unique(dat_sa.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+
+sa_grid_cells <- setorder(sa_grid_cells, cell)
+
+sa_reg_distances <- distm(sa_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(sa_reg_distances) <- sa_grid_cells$cell
+rownames(sa_reg_distances) <- sa_grid_cells$cell
+
+#reorient to long form 
+sa_reg_distances.l <- melt(as.matrix(sa_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+sa_reg_distances.l <- data.table(sa_reg_distances.l) #and then to data table
+sa_reg_distances.l <- sa_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+saveRDS(sa_reg_distances.l, "sa_reg_distances.l.rds")
+```
+
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo}
+#cell/year/region combos
+sa_unique_tows_cell <- dat_sa.reduced[,.SD[1],.(year, cell, haulid)]
+
+#no years have way more tows than others
+plot(sa_unique_tows_cell[,.N,.(year,cell)]$year, sa_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(sa_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 1/389 cell/year combos  0.2%
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows}
+sa_counts <- sa_unique_tows_cell[,.N,.(year,cell)]
+sa_keep <- sa_counts[N>2,][,N := NULL]
+
+dat_sa_grid.reduced_3plustows <- dat_sa.reduced[sa_keep, on = .(cell, year)]
+
+
+```
+
+
+Save
+```{r save}
+saveRDS(dat_sa.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SA/dat_SA_grid.reduced.rds")
+
+
+saveRDS(sa_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SA/sa_reg_distances.l.rds")
+
+saveRDS(dat_sa_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SA/dat_SA_grid.reduced_3plustows.rds")
+
+
+```

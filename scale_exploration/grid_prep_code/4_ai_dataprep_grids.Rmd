@@ -92,9 +92,9 @@ towcount <- unique_ai_latlon[, .N, by = cell]
 grid_ai <- dgcellstogrid(dggs, unique_ai_latlon[,cell], frame = T, wrapcells = F)
 
 #update grid properties to include # of trawls in each cell
-grid_ai <- merge(grid, unique_ai_latlon, by.x = "cell", by.y ="cell")
+grid_ai <- merge(grid_ai, unique_ai_latlon, by.x = "cell", by.y ="cell")
 
-ggplot(data = grid_ai, aes(x = long, y = lat, group = cell)) +
+ggplot(data = grid_ai, aes(x = long, y = lat.x, group = cell)) +
   geom_polygon() +
   coord_quickmap()
 
@@ -106,7 +106,7 @@ Trying to plot with grid overlaying
 ```{r grid overlaying}
 
 na_outline + 
-   geom_polygon(grid_ai, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+   geom_polygon(grid_ai, mapping = aes(x = long,y = lat.x, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
 
 ggsave(filename = "grid_AI_cells_spacing_111.pdf")
   

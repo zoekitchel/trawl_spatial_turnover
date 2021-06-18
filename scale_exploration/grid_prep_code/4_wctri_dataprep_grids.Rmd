@@ -125,27 +125,9 @@ gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
 result.long <- data.table(result.long)
 
 #delete repeats and get weird of weird ones
+# keep Moroteuthis robustus, otherwise only keep those with high scores
 
-
-dat_WCTRI$spp <- gsub("Astropecten verilli", "Astropecten verrilli", dat_WCTRI$spp) #won't come up for some reason, ignore for now
-dat_WCTRI$spp <- gsub("Chrysaora fuscens", "Chrysaora fuscescens", dat_WCTRI$spp)
-
-#unique species names again
-spp_wctri <- dat_WCTRI[,unique(spp)]
-
-#run long again
-
-
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_wctri %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
-
-result.long <- data.table(result.long)
-
-#checked, only genus only spp are graded lower than 0.98
-
-result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75,]
+result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75 | matched_name2 == "Moroteuthis robustus",]
 
 #merge cleaned species names with neus full 
 dat_WCTRI.clean <- dat_WCTRI[result.short, on = "spp"]
@@ -178,7 +160,7 @@ cells_to_delete <- unique(wctri_cells_lessthan3[,cell])
 
 dat_wctri.reduced.again <- dat_wctri.reduced[!cell %in% cells_to_delete]
 
-#down to 673516 observations
+#down to 287190 observations
 
 saveRDS(dat_wctri.reduced.again, "wctri_data_gridded.rds")
 
@@ -213,7 +195,7 @@ plot(wctri_unique_tows_cell[,.N,.(year,cell)]$year, wctri_unique_tows_cell[,.N,.
 
 #therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
 
-summary(wctri_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 14/309 cell/year combos  (4.5%, no biggie)
+summary(wctri_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 4/196 cell/year combos  (2%, no biggie)
 
 #I don't think I need to exclude in ALL years, just in a few years
 #an alternative would be to assess coverage using biomass (# of singletons and doubletons)

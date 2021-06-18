@@ -124,22 +124,11 @@ gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
 
 result.long <- data.table(result.long)
 
-#delete repeats and get weird of weird ones
-
-
-dat_SHELF$spp <- gsub("Astropecten verilli", "Astropecten verrilli", dat_SHELF$spp) #won't come up for some reason, ignore for now
-dat_SHELF$spp <- gsub("Chrysaora fuscens", "Chrysaora fuscescens", dat_SHELF$spp)
+#no repeats and get weird of weird ones
 
 #unique species names again
 spp_shelf <- dat_SHELF[,unique(spp)]
 
-#run long again
-
-
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_shelf %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
 
 result.long <- data.table(result.long)
 
@@ -164,7 +153,7 @@ grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
 #delete these grid cells from full data table
 dat_shelf.reduced <- dat_SHELF.clean[!cell %in% grid_cells_to_exclude]
 
-#732196 observations left, this should be great
+#270643 observations left, this should be great
 
 #how many tows (TOW) per cell in a given year
 
@@ -178,7 +167,7 @@ cells_to_delete <- unique(shelf_cells_lessthan3[,cell])
 
 dat_shelf.reduced.again <- dat_shelf.reduced[!cell %in% cells_to_delete]
 
-#down to 673516 observations
+#down to 114793 observations
 
 saveRDS(dat_shelf.reduced.again, "shelf_data_gridded.rds")
 
@@ -213,7 +202,7 @@ plot(shelf_unique_tows_cell[,.N,.(year,cell)]$year, shelf_unique_tows_cell[,.N,.
 
 #therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
 
-summary(shelf_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 14/309 cell/year combos  (4.5%, no biggie)
+summary(shelf_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 112/946 cell/year combos  (12%)
 
 #I don't think I need to exclude in ALL years, just in a few years
 #an alternative would be to assess coverage using biomass (# of singletons and doubletons)
