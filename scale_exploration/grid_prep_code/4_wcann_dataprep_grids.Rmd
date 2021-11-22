@@ -5,6 +5,10 @@ output: html_notebook
 
 
 ```{r setup}
+#if not already installed
+#install.packages("/Users/zoekitchel/Downloads/dggridR", 
+#                 repos = NULL, 
+#                 type = "source")
 library(dggridR)
 library(data.table)
 library(rgdal)
@@ -15,34 +19,31 @@ library(rnaturalearthdata)
 library(rgeos)
 library(taxize) #standardizing names
 library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
 ```
 
 
-Very confused of how to pull in data right now. To keep it easy, I'll use cleaned Ocean Adapt data
+Moving forward, I plan to use data directly from FishGlob.
 
-https://github.com/pinskylab/OceanAdapt/tree/update_2019/data_clean/by_species.RData
+November 21, 2021
+```{r pull in data from fishglob for wcann from Google Drive}
+drive_download("WCANN_clean.csv",
+               overwrite = T)
 
-December 1, 2020
-```{r pull in data all regions}
-dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
-```
+wcann <- fread("WCANN_clean.csv")
 
-```{r WCANN}
-dat_WCANN <- dat_exploded[region == "West Coast Annual",]
+file.remove("WCANN_clean.csv")
 
-saveRDS(dat_WCANN, "WCANN.rds")
-dat_WCANN <- readRDS("WCANN.rds")
-rm(dat_exploded)
 ```
 
 ```{r pull in WCANN}
 
 # Get Unique lines in the data table
-unique_wcann_latlon<- unique(dat_WCANN[,.(lat, lon)])
+unique_wcann_latlon<- unique(wcann[,.(latitude, longitude)])
 unique_wcann_latlon.sf <- unique_wcann_latlon
   
 #make lat lon coordinates into polygon
-coordinates(unique_wcann_latlon.sf) <- ~lat + lon
+coordinates(unique_wcann_latlon.sf) <- ~latitude + longitude
 unique_wcann_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 saveRDS(unique_wcann_latlon, "unique_wcann_latlon.RData")
@@ -64,7 +65,7 @@ north_america_df <- fortify(north_america_spdf)
   scale_x_continuous(expand = c(0,0)) +
   scale_y_continuous(expand = c(0,0)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
- geom_point(unique_wcann_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+ geom_point(unique_wcann_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
   coord_equal())
 
 ```
@@ -73,7 +74,7 @@ Playing around with dggridR (package that makes grid cells)
 ```{r learning dggridR}
 dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
 
-unique_wcann_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
+unique_wcann_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for NEUS trawl
 
 #centersof cells
 wcann_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_wcann_latlon[,cell])
@@ -83,7 +84,7 @@ unique_wcann_latlon[,LON_CENTER := wcann_cellcenters$lon_deg][,LAT_CENTER := wca
 
 #link centers back to main data table
 
-dat_WCANN <- merge(dat_WCANN, unique_wcann_latlon, by = c("lat", "lon"))
+wcann <- merge(wcann, unique_wcann_latlon, by = c("latitude", "longitude"))
 
 #number of tows in each cell
 towcount <- unique_wcann_latlon[, .N, by = cell]
@@ -92,7 +93,7 @@ towcount <- unique_wcann_latlon[, .N, by = cell]
 grid_wcann <- dgcellstogrid(dggs, unique_wcann_latlon[,cell], frame = T, wrapcells = F)
 
 #update grid properties to include # of trawls in each cell
-grid_wcann <- merge(grid, unique_wcann_latlon, by.x = "cell", by.y ="cell")
+grid_wcann <- merge(grid_wcann, unique_wcann_latlon, by = "cell")
 
 ggplot(data = grid_wcann, aes(x = long, y = lat, group = cell)) +
   geom_polygon() +
@@ -110,65 +111,25 @@ na_outline +
 
 ggsave(filename = "grid_WCANN_cells_spacing_111.pdf")
   
-```
-Cleaning spp names (must be ID'd to species!)
-```{r clean WCANN names}
-#unique species names
-spp_wcann <- dat_WCANN[,unique(spp)]
+````
 
+Now, we'll overlay grid cells onto this list of tows (wcann) using lat and lon and gridrr package
 
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_wcann %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
-
-result.long <- data.table(result.long)
-
-#delete repeats and get weird of weird ones
-
-
-dat_WCANN$spp <- gsub("Astropecten verilli", "Astropecten verrilli", dat_WCANN$spp) #won't come up for some reason, ignore for now
-dat_WCANN$spp <- gsub("Chrysaora fuscens", "Chrysaora fuscescens", dat_WCANN$spp)
-
-#unique species names again
-spp_wcann <- dat_WCANN[,unique(spp)]
-
-#run long again
-
-
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_wcann %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
-
-result.long <- data.table(result.long)
-
-#checked, only genus only spp are graded lower than 0.98
-
-result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75,]
-
-#merge cleaned species names with neus full 
-dat_WCANN.clean <- dat_WCANN[result.short, on = "spp"]
-
-```
-
-
-Now, we'll overlay grid cells onto this list of tows (dat_wcann) using lat and lon and gridrr package
 ```{r get rid of underused grid cells}
 
-year_grid <- data.table(table(dat_WCANN.clean$cell, dat_WCANN.clean$year))
+year_grid <- data.table(table(wcann$cell, wcann$year))
 
 #there are some grid cells with infrequent records, I will delete these
 grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
 
 #delete these grid cells from full data table
-dat_wcann.reduced <- dat_WCANN.clean[!cell %in% grid_cells_to_exclude]
+wcann.reduced <- wcann[!cell %in% grid_cells_to_exclude]
 
-#732196 observations left, this should be great
+#169766 observations left, this should be great
 
 #how many tows (TOW) per cell in a given year
 
-haul_cell_unique <- unique(dat_wcann.reduced[,.(haulid, cell, year)])
+haul_cell_unique <- unique(wcann.reduced[,.(haul_id, cell, year)])
 
 wcann_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
 
@@ -176,18 +137,18 @@ wcann_cells_lessthan3 <- wcann_samplingevents_byyear[N<3,]
 
 cells_to_delete <- unique(wcann_cells_lessthan3[,cell])
 
-dat_wcann.reduced.again <- dat_wcann.reduced[!cell %in% cells_to_delete]
+wcann.reduced.again <- wcann.reduced[!cell %in% cells_to_delete]
 
-#down to 673516 observations
+#down to 161508 observations
 
-saveRDS(dat_wcann.reduced.again, "wcann_data_gridded.rds")
+saveRDS(wcann.reduced.again, "wcann_data_gridded.rds")
 
 ```
 
 Find distance between center of each grid cell
 ```{r distance between grid cells}
 #just need grid cell # and center lat lon for each grid cell 
-wcann_grid_cells <- unique(dat_wcann.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+wcann_grid_cells <- unique(wcann.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
 
 wcann_grid_cells <- setorder(wcann_grid_cells, cell)
 
@@ -206,7 +167,7 @@ saveRDS(wcann_reg_distances.l, "wcann_reg_distances.l.rds")
 Check the # of tows per grid cell/year combo
 ```{r number of tows per grid cell/year/region combo}
 #cell/year/region combos
-wcann_unique_tows_cell <- dat_wcann.reduced[,.SD[1],.(year, cell, haulid)]
+wcann_unique_tows_cell <- wcann.reduced[,.SD[1],.(year, cell, haul_id)]
 
 #no years have way more tows than others
 plot(wcann_unique_tows_cell[,.N,.(year,cell)]$year, wcann_unique_tows_cell[,.N,.(year,cell)]$N)
@@ -225,7 +186,7 @@ Delete all observations with less than 3 tows in a given year/cell
 wcann_counts <- wcann_unique_tows_cell[,.N,.(year,cell)]
 wcann_keep <- wcann_counts[N>2,][,N := NULL]
 
-dat_wcann_grid.reduced_3plustows <- dat_wcann.reduced[wcann_keep, on = .(cell, year)]
+wcann_grid.reduced_3plustows <- wcann.reduced[wcann_keep, on = .(cell, year)]
 
 
 ```
@@ -233,12 +194,12 @@ dat_wcann_grid.reduced_3plustows <- dat_wcann.reduced[wcann_keep, on = .(cell, y
 
 Save
 ```{r save}
-saveRDS(dat_wcann.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/dat_WCANN_grid.reduced.rds")
+saveRDS(wcann.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/dat_WCANN_grid.reduced.rds")
 
 
 saveRDS(wcann_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/wcann_reg_distances.l.rds")
 
-saveRDS(dat_wcann_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/dat_WCANN_grid.reduced_3plustows.rds")
+saveRDS(wcann_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCANN/dat_WCANN_grid.reduced_3plustows.rds")
 
 
 ```
