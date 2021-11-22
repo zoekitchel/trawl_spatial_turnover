@@ -64,6 +64,7 @@ north_america_df <- fortify(north_america_spdf)
  geom_point(unique_wctri_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
   coord_equal())
 
+
 ```
 
 Playing around with dggridR (package that makes grid cells)
@@ -185,6 +186,22 @@ wctri_keep <- wctri_counts[N>2,][,N := NULL]
 dat_wctri_grid.reduced_3plustows <- dat_wctri.reduced[wctri_keep, on = .(cell, year)]
 
 
+```
+
+Summary of area sampled
+```{r sum area sampled}
+#distance between furthest north and furthest south point
+library(geosphere)
+max_north_south_km <- (distm(c(mean(dat_wctri_grid.reduced_3plustows$longitude), min(dat_wctri_grid.reduced_3plustows$latitude)), c(mean(dat_wctri_grid.reduced_3plustows$longitude), max(dat_wctri_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+#distance between furthest east and furthest west point
+max_west_east_km <- (distm(c(min(dat_wctri_grid.reduced_3plustows$longitude), mean(dat_wctri_grid.reduced_3plustows$latitude)), c(max(dat_wctri_grid.reduced_3plustows$longitude), mean(dat_wctri_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+
+max_north_south_km
+max_west_east_km
+
+summary(dat_wctri_grid.reduced_3plustows$depth)
+
+length(unique(dat_wctri_grid.reduced_3plustows$accepted_name))
 ```
 
 

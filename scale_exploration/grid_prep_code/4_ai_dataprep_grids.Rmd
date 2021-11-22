@@ -14,58 +14,54 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 library(rgeos)
 library(taxize) #standardizing names
-library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
 ```
 
 
-Very confused of how to pull in data right now. To keep it easy, I'll use cleaned Ocean Adapt data
+Moving forward, I plan to use data directly from FishGlob.
 
-https://github.com/pinskylab/OceanAdapt/tree/update_2019/data_clean/by_species.RData
+November 21, 2021
+```{r pull in data from fishglob for West Coast Triennial from Google Drive}
+drive_download("AI_clean.csv",
+               overwrite = T)
 
-December 1, 2020
-```{r pull in data all regions}
-dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
-```
+ai <- fread("AI_clean.csv")
 
-```{r AI}
-dat_AI <- dat_exploded[region == "Aleutian Islands",]
+file.remove("AI_clean.csv")
 
-saveRDS(dat_AI, "AI.rds")
-dat_AI <- readRDS("AI.rds")
-rm(dat_exploded)
 ```
 
 ```{r pull in AI}
 
 # Get Unique lines in the data table
-unique_ai_latlon<- unique(dat_AI[,.(lat, lon)])
+unique_ai_latlon<- unique(ai[,.(latitude, longitude)])
 unique_ai_latlon.sf <- unique_ai_latlon
   
 #make lat lon coordinates into polygon
-coordinates(unique_ai_latlon.sf) <- ~lat + lon
+coordinates(unique_ai_latlon.sf) <- ~latitude + longitude
 unique_ai_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 saveRDS(unique_ai_latlon, "unique_ai_latlon.RData")
 
-#plot north america
-world <- ne_countries(scale = "medium", returnclass = "sp")
+world <- data.table(map_data('world'))
+north_america <- world[long >= -200 & long <= -130 & lat >= 50 & lat <= 80]
+#if positive, subtract 360
+unique_ai_latlon[,longitude_s := ifelse(longitude > 0,(longitude-360),(longitude))]
+# Fixed map
+ggplot() +
+geom_polygon(data = north_america, 
+                                 aes(x=long, y = lat, group = group), 
+                                 fill = "white", 
+                                 color="black") +
+    coord_fixed(xlim = c(-200, -140),  ylim = c(50, 80), ratio = 1.3) +
+  geom_point(data = unique_ai_latlon,
+    aes(
+      x = longitude_s,
+      y = latitude),
+    color = "red", size = 0.1
+  ) +
+  theme_bw()
 
-world_ext <- extent(-180, -51.5,23, 67)
-
-north_america_spdf <- crop(world, world_ext)
-
-north_america_df <- fortify(north_america_spdf)
-
-(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
-  geom_polygon(color = "white", fill = "grey") +
-  labs(x = "Longitude", y = "Latitude") +
-  coord_equal() +
-  theme_classic() +
-  scale_x_continuous(expand = c(0,0)) +
-  scale_y_continuous(expand = c(0,0)) +
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
- geom_point(unique_ai_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
-  coord_equal())
 
 ```
 
@@ -73,7 +69,7 @@ Playing around with dggridR (package that makes grid cells)
 ```{r learning dggridR}
 dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
 
-unique_ai_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
+unique_ai_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for NEUS trawl
 
 #centersof cells
 ai_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_ai_latlon[,cell])
@@ -83,7 +79,7 @@ unique_ai_latlon[,LON_CENTER := ai_cellcenters$lon_deg][,LAT_CENTER := ai_cellce
 
 #link centers back to main data table
 
-dat_AI <- merge(dat_AI, unique_ai_latlon, by = c("lat", "lon"))
+ai <- merge(ai, unique_ai_latlon, by = c("latitude", "longitude"))
 
 #number of tows in each cell
 towcount <- unique_ai_latlon[, .N, by = cell]
@@ -92,9 +88,9 @@ towcount <- unique_ai_latlon[, .N, by = cell]
 grid_ai <- dgcellstogrid(dggs, unique_ai_latlon[,cell], frame = T, wrapcells = F)
 
 #update grid properties to include # of trawls in each cell
-grid_ai <- merge(grid_ai, unique_ai_latlon, by.x = "cell", by.y ="cell")
+grid_ai <- merge(grid_ai, unique_ai_latlon, by= "cell")
 
-ggplot(data = grid_ai, aes(x = long, y = lat.x, group = cell)) +
+ggplot(data = grid_ai, aes(x = long, y = lat, group = cell)) +
   geom_polygon() +
   coord_quickmap()
 
@@ -106,7 +102,7 @@ Trying to plot with grid overlaying
 ```{r grid overlaying}
 
 na_outline + 
-   geom_polygon(grid_ai, mapping = aes(x = long,y = lat.x, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+   geom_polygon(grid_ai, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
 
 ggsave(filename = "grid_AI_cells_spacing_111.pdf")
   
@@ -114,41 +110,10 @@ ggsave(filename = "grid_AI_cells_spacing_111.pdf")
 Cleaning spp names (must be ID'd to species!)
 ```{r clean AI names}
 #unique species names
-spp_ai <- dat_AI[,unique(spp)]
+ai.clean <- ai[rank == "Species",]
 
 
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_ai %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
 
-result.long <- data.table(result.long)
-
-#delete repeats and get weird of weird ones
-
-
-dat_AI$spp <- gsub("Astropecten verilli", "Astropecten verrilli", dat_AI$spp) #won't come up for some reason, ignore for now
-dat_AI$spp <- gsub("Chrysaora fuscens", "Chrysaora fuscescens", dat_AI$spp)
-
-#unique species names again
-spp_ai <- dat_AI[,unique(spp)]
-
-#run long again
-
-
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_ai %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
-
-result.long <- data.table(result.long)
-
-#checked, only genus only spp are graded lower than 0.98
-
-result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75,]
-
-#merge cleaned species names with neus full 
-dat_AI.clean <- dat_AI[result.short, on = "spp"]
 
 ```
 
@@ -156,19 +121,19 @@ dat_AI.clean <- dat_AI[result.short, on = "spp"]
 Now, we'll overlay grid cells onto this list of tows (dat_ai) using lat and lon and gridrr package
 ```{r get rid of underused grid cells}
 
-year_grid <- data.table(table(dat_AI.clean$cell, dat_AI.clean$year))
+year_grid <- data.table(table(ai.clean$cell, ai.clean$year))
 
 #there are some grid cells with infrequent records, I will delete these
 grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
 
 #delete these grid cells from full data table
-dat_ai.reduced <- dat_AI.clean[!cell %in% grid_cells_to_exclude]
+dat_ai.reduced <- ai.clean[!cell %in% grid_cells_to_exclude]
 
 #732196 observations left, this should be great
 
 #how many tows (TOW) per cell in a given year
 
-haul_cell_unique <- unique(dat_ai.reduced[,.(haulid, cell, year)])
+haul_cell_unique <- unique(dat_ai.reduced[,.(haul_id, cell, year)])
 
 ai_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
 
@@ -206,14 +171,14 @@ saveRDS(ai_reg_distances.l, "ai_reg_distances.l.rds")
 Check the # of tows per grid cell/year combo
 ```{r number of tows per grid cell/year/region combo}
 #cell/year/region combos
-ai_unique_tows_cell <- dat_ai.reduced[,.SD[1],.(year, cell, haulid)]
+ai_unique_tows_cell <- dat_ai.reduced[,.SD[1],.(year, cell, haul_id)]
 
 #no years have way more tows than others
 plot(ai_unique_tows_cell[,.N,.(year,cell)]$year, ai_unique_tows_cell[,.N,.(year,cell)]$N)
 
 #therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
 
-summary(ai_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 14/309 cell/year combos  (4.5%, no biggie)
+summary(ai_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 27/393 cell/year combos  (6.8%%, no biggie)
 
 #I don't think I need to exclude in ALL years, just in a few years
 #an alternative would be to assess coverage using biomass (# of singletons and doubletons)
@@ -231,14 +196,34 @@ dat_ai_grid.reduced_3plustows <- dat_ai.reduced[ai_keep, on = .(cell, year)]
 ```
 
 
+Summary of area sampled
+```{r sum area sampled}
+#distance between furthest north and furthest south point
+library(geosphere)
+max_north_south_km <- (distm(c(mean(dat_ai_grid.reduced_3plustows$longitude), min(dat_ai_grid.reduced_3plustows$latitude)), c(mean(dat_ai_grid.reduced_3plustows$longitude), max(dat_ai_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+#distance between furthest east and furthest west point
+max_west_east_km <- (distm(c(min(dat_ai_grid.reduced_3plustows$longitude), mean(dat_ai_grid.reduced_3plustows$latitude)), c(max(dat_ai_grid.reduced_3plustows$longitude), mean(dat_ai_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+
+max_north_south_km
+max_west_east_km
+
+summary(dat_ai_grid.reduced_3plustows$depth)
+
+length(unique(dat_ai_grid.reduced_3plustows$accepted_name))
+
+sort(unique(as.numeric(dat_ai_grid.reduced_3plustows$year)))
+length(unique(dat_ai_grid.reduced_3plustows$year))
+```
+
+
 Save
 ```{r save}
-saveRDS(dat_ai.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-AI/dat_AI_grid.reduced.rds")
+saveRDS(dat_ai.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-AI/dat_ai.reduced.rds")
 
 
-saveRDS(ai_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-AI/ai_reg_distances.l.rds")
+saveRDS(ai_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-AI/dat_ai_reg_distances.l.rds")
 
-saveRDS(dat_ai_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-AI/dat_AI_grid.reduced_3plustows.rds")
+saveRDS(dat_ai_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-AI/dat_ai_grid.reduced_3plustows.rds")
 
 
 ```

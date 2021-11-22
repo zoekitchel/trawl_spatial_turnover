@@ -186,6 +186,21 @@ shelf_grid.reduced_3plustows <- shelf.reduced[shelf_keep, on = .(cell, year)]
 
 ```
 
+Summary of area sampled
+```{r sum area sampled}
+#distance between furthest north and furthest south point
+library(geosphere)
+max_north_south_km <- (distm(c(mean(shelf_grid.reduced_3plustows$longitude), min(shelf_grid.reduced_3plustows$latitude)), c(mean(shelf_grid.reduced_3plustows$longitude), max(shelf_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+#distance between furthest east and furthest west point
+max_west_east_km <- (distm(c(min(shelf_grid.reduced_3plustows$longitude), mean(shelf_grid.reduced_3plustows$latitude)), c(max(shelf_grid.reduced_3plustows$longitude), mean(shelf_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+
+max_north_south_km
+max_west_east_km
+
+summary(shelf_grid.reduced_3plustows$depth)
+
+length(unique(shelf_grid.reduced_3plustows$accepted_name))
+```
 
 Save
 ```{r save}

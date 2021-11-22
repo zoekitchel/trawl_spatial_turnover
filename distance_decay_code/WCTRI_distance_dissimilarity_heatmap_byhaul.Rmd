@@ -32,16 +32,16 @@ wctri_years <- unique(dat_WCTRI_grid.reduced_3plustows[,year])
 ```
 
 Haul ID keys
-```{r list of haulids}
-wctri_haulids <- unique(dat_WCTRI_grid.reduced_3plustows[,haulid])
-wctri_haulids_key <- data.table(haulid = wctri_haulids, key_ID = seq(1,length(wctri_haulids), by = 1))
+```{r list of haul_ids}
+wctri_haul_ids <- unique(dat_WCTRI_grid.reduced_3plustows[,haul_id])
+wctri_haul_ids_key <- data.table(haul_id = wctri_haul_ids, key_ID = seq(1,length(wctri_haul_ids), by = 1))
 
 ```
 
-Convert haulids to numeric key_IDs
+Convert haul_ids to numeric key_IDs
 ```{r}
 
-dat_WCTRI_grid.reduced_3plustows <- dat_WCTRI_grid.reduced_3plustows[wctri_haulids_key, on = "haulid"]
+dat_WCTRI_grid.reduced_3plustows <- dat_WCTRI_grid.reduced_3plustows[wctri_haul_ids_key, on = "haul_id"]
 
 ```
 
@@ -49,7 +49,7 @@ dat_WCTRI_grid.reduced_3plustows <- dat_WCTRI_grid.reduced_3plustows[wctri_hauli
 Dissimilarities across multiple years
 
 ```{r dissimilarities between cells across multiple years for spring}
-wctri_distances_dissimilarities_allyears <- data.table("haulid1" = integer(), "haulid2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity" = numeric(), year = integer(), "jaccard_dissimilarity" = numeric())
+wctri_distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), "haul_id2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity" = numeric(), year = integer(), "jaccard_dissimilarity" = numeric())
 
 #Now loop through all years
 for (i in 1:length(wctri_years)) {
@@ -58,17 +58,17 @@ for (i in 1:length(wctri_years)) {
   #distances among cells
   setorder(reduced_year, key_ID)
   
-  lat_lon_haulid <- unique(reduced_year[,.(lat,lon,key_ID)])
-  wctri_distances <- distm(lat_lon_haulid[,.(lon,lat)])
-  key_IDs <- lat_lon_haulid[,key_ID]
+  lat_lon_haul_id <- unique(reduced_year[,.(lat,lon,key_ID)])
+  wctri_distances <- distm(lat_lon_haul_id[,.(lon,lat)])
+  key_IDs <- lat_lon_haul_id[,key_ID]
 
   colnames(wctri_distances) <- rownames(wctri_distances) <- key_IDs
 
   #wide to long
-  haulid_distances.l <- reshape2::melt(wctri_distances,varnames = (c("haulid1", "haulid2")), value.name = "distance")
+  haul_id_distances.l <- reshape2::melt(wctri_distances,varnames = (c("haul_id1", "haul_id2")), value.name = "distance")
   
   #make into data table
-  haulid_distances.l <- data.table(haulid_distances.l)
+  haul_id_distances.l <- data.table(haul_id_distances.l)
 
   
   reduced_year_wide <- dcast(reduced_year, key_ID + year ~ matched_name2, value.var = "wtcpue", fun.aggregate = sum) #long to wide data for community matrix, column names are cell then species
@@ -76,7 +76,7 @@ for (i in 1:length(wctri_years)) {
   ncols <- ncol(reduced_year_wide)
   communitymatrix <- cbind(reduced_year_wide[,3:ncols], reduced_year_wide[,1:2]) #community matrix with year and cell on far right
 
-  #list of haulid keys
+  #list of haul_id keys
   key_IDs_subset <- communitymatrix$key_ID
 
   dissimilarities_abundance <- vegdist(communitymatrix[,1:(ncols-2)], method = "bray", binary = F) #dissimilarity 
@@ -89,8 +89,8 @@ for (i in 1:length(wctri_years)) {
   colnames(dissimilarities_occurrence.m) <- rownames(dissimilarities_occurrence.m) <- key_IDs_subset
 
   #reshape dissimilarities
-  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haulid1", "haulid2"), value.name = "bray_curtis_dissimilarity")
-  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haulid1", "haulid2"), value.name = "jaccard_dissimilarity")
+  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haul_id1", "haul_id2"), value.name = "bray_curtis_dissimilarity")
+  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haul_id1", "haul_id2"), value.name = "jaccard_dissimilarity")
   dissimilarities_abundance.l <- data.table(dissimilarities_abundance.l) #and then to data table
   dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
 
@@ -99,8 +99,8 @@ for (i in 1:length(wctri_years)) {
   dissimilarities_occurrence.l[, "year" := wctri_years[i]]
 
   #merge distance with dissimilarity for this year with both metrics of dissimilarity
-  dissimilarities_full <- haulid_distances.l[dissimilarities_abundance.l, on = c("haulid1", "haulid2")]
-  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haulid1", "haulid2", "year")]
+  dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance.l, on = c("haul_id1", "haul_id2")]
+  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haul_id1", "haul_id2", "year")]
 
 
   #add to data table
@@ -111,7 +111,7 @@ for (i in 1:length(wctri_years)) {
 summary(wctri_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
 
 #delete repeats
-wctri_distances_dissimilarities_allyears <- wctri_distances_dissimilarities_allyears[haulid1 >= haulid2,] #3165272 to 1588479 rows
+wctri_distances_dissimilarities_allyears <- wctri_distances_dissimilarities_allyears[haul_id1 >= haul_id2,] #3165272 to 1588479 rows
 
 
 wctri_distances_dissimilarities_allyears[,bray_curtis_similarity := (1-bray_curtis_dissimilarity)][,jaccard_similarity := (1-jaccard_dissimilarity)]
