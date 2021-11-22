@@ -212,9 +212,9 @@ ebs_distances_dissimilarities_allyears[,year.f := as.factor(year)]
 
 #jaccard similarity
 (ebs_jaccard_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = jaccard_similarity_mean_10s)) +
-  geom_point(shape = 15, size = 1) +
+  geom_point(shape = "-", size = 9) +
   scale_color_gradientn(colors =
-c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
   ) +
 scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
   labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
@@ -226,9 +226,9 @@ ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "eb
 
 #bray curtis similarity
 (ebs_bray_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = bray_similarity_mean_10s)) +
-  geom_point(shape = 15, size = 1) +
+  geom_point(shape = "-", size = 9) +
   scale_color_gradientn(colors =
-c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
   ) +
   scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
   labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
@@ -276,7 +276,10 @@ Now, merge the previous two plots
 #pull out legend
 ebs_legend_heatmaps <- get_legend(ebs_jaccard_heatmap + labs(color = "Similarity"))
 
-ebs_merge <- plot_grid(ebs_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) , ebs_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()), ebs_legend_heatmaps, ebs_jaccard_boxplot, ebs_bray_boxplot,  nrow = 2, ncol = 3, align = "hv", axis = "lb")
+ebs_merge <- plot_grid(ebs_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) ,
+                       ebs_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank()),
+                    #   ebs_legend_heatmaps,
+                       ebs_jaccard_boxplot, ebs_bray_boxplot,  nrow = 2, ncol = 2, align = "hv", axis = "lb")
 
 ebs_merge
 

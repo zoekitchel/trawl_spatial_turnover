@@ -15,37 +15,39 @@ library(rnaturalearthdata)
 library(rgeos)
 library(taxize) #standardizing names
 library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
 ```
 
 
-Very confused of how to pull in data right now. To keep it easy, I'll use cleaned Ocean Adapt data
+Moving forward, I plan to use data directly from FishGlob.
 
-https://github.com/pinskylab/OceanAdapt/tree/update_2019/data_clean/by_species.RData
+November 21, 2021
+```{r pull in data from fishglob for Scotian Shelf from Google Drive}
+drive_download("EBS_clean.csv",
+               overwrite = T)
 
-December 1, 2020
-```{r pull in data all regions}
-dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
+ebs <- fread("EBS_clean.csv")
+
+file.remove("EBS_clean.csv")
+
 ```
 
 In the Eastern Bering Sea, sampling years prior to 1984 (data begin in 1982) were excluded from analysis due to large apparent increases in the number of species recorded in the first two years. (Ryan et al. 2017)
 
 ```{r EBS}
-dat_EBS <- dat_exploded[region == "Eastern Bering Sea",][year >= 1984,]
+ebs <- ebs[year >= 1984,]
 
-saveRDS(dat_EBS, "dat_EBS.rds")
-rm(dat_exploded)
-dat_EBS <- readRDS("dat_EBS.rds")
 ```
 
 
 ```{r pull in EBS}
 
 # Get Unique lines in the data table
-unique_EBS_latlon<- unique(dat_EBS[,.(lat, lon)])
+unique_EBS_latlon<- unique(ebs[,.(latitude, longitude)])
 unique_EBS_latlon.sf <- unique_EBS_latlon
   
 #make lat lon coordinates into polygon
-coordinates(unique_EBS_latlon.sf) <- ~lat + lon
+coordinates(unique_EBS_latlon.sf) <- ~latitude + longitude
 unique_EBS_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 saveRDS(unique_EBS_latlon, "unique_EBS_latlon.rds")
@@ -67,7 +69,7 @@ north_america_df <- fortify(north_america_spdf)
   scale_x_continuous(expand = c(0,0)) +
   scale_y_continuous(expand = c(0,0)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
- geom_point(unique_EBS_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+ geom_point(unique_EBS_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
   coord_equal())
 
 ```
@@ -76,7 +78,7 @@ Playing around with dggridR (package that makes grid cells)
 ```{r learning dggridR}
 dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
 
-unique_EBS_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for EBS trawl
+unique_EBS_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for EBS trawl
 
 #centersof cells
 EBS_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_EBS_latlon[,cell])
@@ -86,23 +88,22 @@ unique_EBS_latlon[,LON_CENTER := EBS_cellcenters$lon_deg][,LAT_CENTER := EBS_cel
 
 #link centers back to main data table
 
-dat_EBS_grid <- merge(dat_EBS, unique_EBS_latlon, by = c("lat", "lon"))
-
+ebs <- merge(ebs, unique_EBS_latlon, by = c("latitude", "longitude"))
 
 #number of tows in each cell
 towcount <- unique_EBS_latlon[, .N, by = cell]
 
 #get the grid cell boundary for cells which had trawls
-grid_ebs <- dgcellstogrid(dggs, unique_EBS_latlon[,cell], frame = T, wrapcells = F)
+grid_EBS <- dgcellstogrid(dggs, unique_EBS_latlon[,cell], frame = T, wrapcells = F)
 
 #update grid properties to include # of trawls in each cell
-grid_ebs <- merge(grid, unique_EBS_latlon, by.x = "cell", by.y ="cell")
+grid_EBS <- merge(grid_EBS, unique_EBS_latlon, by = "cell")
 
-ggplot(data = grid_ebs, aes(x = long, y = lat, group = cell)) +
+ggplot(data = grid_EBS, aes(x = long, y = lat, group = cell)) +
   geom_polygon() +
   coord_quickmap()
 
-saveRDS(grid_ebs, "grid_ebs.rds")
+saveRDS(grid_EBS, "grid_EBS.rds")
 
 ```
 
@@ -110,81 +111,44 @@ Trying to plot with grid overlaying
 ```{r grid overlaying}
 
 na_outline + 
-   geom_polygon(grid_ebs, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+   geom_polygon(grid_EBS, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
 
 ggsave(filename = "grid_EBS_cells_spacing_111.pdf")
   
 ```
-Cleaning spp names (must be ID'd to species!)
-```{r clean ebs names}
-#first remove any floating white space before or after words
-dat_EBS_grid <- dat_EBS_grid[,spp := trimws(spp)]
-#keep only rows with space in SCINAME column (signifying genus and species are identified)
-dat_EBS_grid.r <- dat_EBS_grid[grep(" ", spp),]
-#unique species names
-spp_EBS <- dat_EBS_grid.r[,unique(spp)]
 
-
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_EBS %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
-
-result.long <- data.table(result.long)
-
-#delete repeats, and get rid of crustacea shrimp (not ID'd to species)
-
-result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][user_supplied_name != "Crustacea shrimp",][,spp := user_supplied_name]
-
-#delete any that didn't reach above 0.75 EXCEPT
-#-Plicifusus kroyeri
-#-Beringius beringii
-result.short <- result.short[score > 0.75 | matched_name2 %in% c("Plicifusus kroyeri","Beringius beringii")]
-
-#merge cleaned species names with EBS full 
-dat_EBS_grid.clean <- dat_EBS_grid.r[result.short, on = "spp"]
-
-
-
-```
-
-Now, we'll overlay grid cells onto this list of tows (dat_EBS) using lat and lon and gridrr package
+Now, we'll overlay grid cells onto this list of tows (ebs) using lat and lon and gridrr package
 
 ```{r get rid of underused grid cells}
 
-year_grid <- data.table(table(dat_EBS_grid.clean$cell, dat_EBS_grid.clean$year))
+year_grid <- data.table(table(ebs$cell, ebs$year))
 
-#full matrix of year x grid x  cell
-cell_numbers <- unique(dat_EBS_grid.clean$cell)
-years <- unique(dat_EBS_grid.clean$year)
-seasons <- unique(dat_EBS_grid.clean$region)
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
 
-cells_cross_years_cross_region <- data.table(expand.grid(cell = cell_numbers, year = years, region = seasons))
+#delete these grid cells from full data table
+ebs.reduced <- ebs[!cell %in% grid_cells_to_exclude]
 
-observations <- unique(dat_EBS_grid.clean[,.N,by = c("year","cell", "region")])
+#270643 observations left, this should be great
 
-#merge possible cell year region combinations with actual observations
-EBS_cell_data_nodata <- observations[cells_cross_years_cross_region, on = .(year, cell, region)]
+#how many tows (TOW) per cell in a given year
 
-#new pres/abs column
-EBS_cell_data_nodata[,pres := ifelse(is.na(N), 0, 1)]
+haul_cell_unique <- unique(ebs.reduced[,.(haul_id, cell, year)])
 
-#which grid cells are sampled in which years?
-ggplot(EBS_cell_data_nodata, aes(as.factor(year), as.factor(cell))) + 
-  geom_tile(aes(fill = factor(pres)), color = "grey", size = 0.01) +
-#  facet_wrap(~region, scales="free") +
-  scale_fill_manual(values = c("white", "black"), breaks = c(0,1), labels = c("No Data", "Data")) +
-  labs(x = "Year", y = "Cell") +
-  theme(legend.title = element_blank(),
-        axis.text.y = element_text(size = 4),
-        axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5),
-        strip.text.x = element_text(size = 10),
-        axis.ticks = element_blank()) +
-  facet_wrap(~region)
+ebs_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
 
-ggsave(filename = "ebs_data_availability.jpg", path = "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/USA-EBS/")
+ebs_cells_lessthan3 <- ebs_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(ebs_cells_lessthan3[,cell])
+
+ebs.reduced.again <- ebs.reduced[!cell %in% cells_to_delete]
+
+#down to 114793 observations
+
+saveRDS(ebs.reduced.again, "ebs_data_gridded.rds")
 
 ```
+
 Delete cells that aren't sampled regularly (missing more than 2 years from 1972-2019):
 
 32234: sampled sporadically
@@ -197,10 +161,10 @@ dump <- 32234
 
 
 #delete these grid cells from full data table
-dat_EBS_grid.reduced <- dat_EBS_grid.clean[cell != dump]
+grid_EBS.reduced.again.again <- ebs.reduced.again[cell != dump]
 
 
-#1473226 observations (down from 1474297)
+#114262 observations (no change)
 
 ```
 
@@ -208,7 +172,7 @@ This is where I would use rarefaction or coverage, for now I will skip
 ```{r rarefaction or coverage?}
 #how many tows (TOW) per cell in a given year
 
-cell_tow_year <- unique(dat_EBS_grid.reduced[,.(haulid, cell, year)])
+cell_tow_year <- unique(grid_EBS.reduced.again.again[,.(haul_id, cell, year)])
 
 ebs_samplingevents_byyear <- cell_tow_year[,.N, .(year, cell)]
 
@@ -216,7 +180,7 @@ ebs_cells_lessthan3 <- ebs_samplingevents_byyear[N<3,] #need three to build rare
 
 cells_to_delete <- unique(ebs_cells_lessthan3[,cell])
 
-ebs_full_1982onward.clean.reduced.again <- dat_EBS_grid.reduced[!cell %in% cells_to_delete]
+ebs_full_1982onward.clean.reduced.again <- grid_EBS.reduced[!cell %in% cells_to_delete]
 
 #1299247 observations
 
@@ -229,14 +193,14 @@ Find distance between center of each grid cell
 ```{r distance between grid cells}
 
 #just need grid cell # and center lat lon for each grid cell 
-ebs_grid_cells <- unique(dat_EBS_grid.reduced[,.(cell, LON_CENTER, LAT_CENTER)])
+grid_EBS_cells <- unique(grid_EBS.reduced.again.again[,.(cell, LON_CENTER, LAT_CENTER)])
 
-ebs_grid_cells <- setorder(ebs_grid_cells, cell)
+grid_EBS_cells <- setorder(grid_EBS_cells, cell)
 
-ebs_reg_distances <- distm(ebs_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+ebs_reg_distances <- distm(grid_EBS_cells[,.(LON_CENTER, LAT_CENTER)])
 
-colnames(ebs_reg_distances) <- ebs_grid_cells$cell
-rownames(ebs_reg_distances) <- ebs_grid_cells$cell
+colnames(ebs_reg_distances) <- grid_EBS_cells$cell
+rownames(ebs_reg_distances) <- grid_EBS_cells$cell
 
 #reorient to long form 
 ebs_reg_distances.l <- reshape2::melt(as.matrix(ebs_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
@@ -248,7 +212,7 @@ ebs_reg_distances.l <- ebs_reg_distances.l[cell1 > cell2,] # get rid of repetiti
 Check the # of tows per grid cell/year combo
 ```{r number of tows per grid cell/year/region combo}
 #cell/year/region combos
-ebs_unique_tows_cell <- dat_EBS_grid.reduced[,.SD[1],.(year, cell, haulid)]
+ebs_unique_tows_cell <- grid_EBS.reduced.again.again[,.SD[1],.(year, cell, haul_id)]
 
 #no years have way more tows than others
 plot(ebs_unique_tows_cell[,.N,.(year,cell)]$year, ebs_unique_tows_cell[,.N,.(year,cell)]$N)
@@ -267,7 +231,7 @@ Delete all observations with less than 3 tows in a given year/cell
 ebs_counts <- ebs_unique_tows_cell[,.N,.(year,cell)]
 ebs_keep <- ebs_counts[N>2,][,N := NULL]
 
-dat_EBS_grid.reduced_3plustows <- dat_EBS_grid.reduced[ebs_keep, on = .(cell, year)]
+grid_EBS.reduced_3plustows <- grid_EBS.reduced.again.again[ebs_keep, on = .(cell, year)]
 
 
 ```
@@ -275,12 +239,12 @@ dat_EBS_grid.reduced_3plustows <- dat_EBS_grid.reduced[ebs_keep, on = .(cell, ye
 
 Save
 ```{r save}
-saveRDS(dat_EBS_grid.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/dat_EBS_grid.reduced.rds")
+saveRDS(grid_EBS.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/grid_EBS.reduced.rds")
 
 
 saveRDS(ebs_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/ebs_reg_distances.l.rds")
 
-saveRDS(dat_EBS_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/dat_EBS_grid.reduced_3plustows.rds")
+saveRDS(grid_EBS.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/grid_EBS.reduced_3plustows.rds")
 
 
 ```
