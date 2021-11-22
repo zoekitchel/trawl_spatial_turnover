@@ -223,34 +223,34 @@ shelf_distances_dissimilarities_allyears[,year.f := as.factor(year)]
 
 #jaccard similarity
 (shelf_jaccard_heatmap <- ggplot(shelf_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = jaccard_similarity_mean_10s)) +
-  geom_point(shape = 15, size = 1) +
+  geom_point(shape = "-", size = 9) +
   scale_color_gradientn(colors =
-c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
   ) +
 scale_x_discrete(limits=levels(shelf_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1973", "1980", "1990", "2000", "2010", "2019")) +
   labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
   theme_classic())
 
-ggsave(plot = shelf_jaccard_heatmap, path = here::here("figures","shelf"),file = "shelf_jaccard_heatmap.jpg")
-ggsave(plot = shelf_jaccard_heatmap, path = here::here("figures","shelf"),file = "shelf_jaccard_heatmap.eps")
+ggsave(plot = shelf_jaccard_heatmap, width = 6, height = 3, unit = "in", path = here::here("figures","shelf"),file = "shelf_jaccard_heatmap.jpg")
+ggsave(plot = shelf_jaccard_heatmap, width = 6, height = 3, unit = "in", path = here::here("figures","shelf"),file = "shelf_jaccard_heatmap.eps")
 
 
 #bray curtis similarity
 (shelf_bray_heatmap <- ggplot(shelf_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = bray_similarity_mean_10s)) +
-  geom_point(shape = 15, size = 1) +
+  geom_point(shape = "-", size = 9) +
   scale_color_gradientn(colors =
-c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
   ) +
   scale_x_discrete(limits=levels(shelf_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1973", "1980", "1990", "2000", "2010", "2019")) +
   labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
   theme_classic())
 
-ggsave(plot = shelf_bray_heatmap, path = here::here("figures","shelf"),file = "shelf_bray_heatmap.jpg")
-ggsave(plot = shelf_bray_heatmap, path = here::here("figures","shelf"),file = "shelf_bray_heatmap.eps")
+ggsave(plot = shelf_bray_heatmap, width = 6, height = 3,  unit = "in", path = here::here("figures","shelf"),file = "shelf_bray_heatmap.jpg")
+ggsave(plot = shelf_bray_heatmap, width = 6, height = 3,  unit = "in", path = here::here("figures","shelf"),file = "shelf_bray_heatmap.eps")
 ```
 Box plots
 ```{r spring box plots}
-
+library(ggpubr)
 #jaccard similarity
 (shelf_jaccard_boxplot <- ggplot(shelf_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity)) +
   geom_boxplot(outlier.shape = NA, lwd = 0.2) +
@@ -287,12 +287,15 @@ Now, merge the previous two plots
 #pull out legend
 shelf_legend_heatmaps <- get_legend(shelf_jaccard_heatmap + labs(color = "Similarity"))
 
-shelf_merge <- plot_grid(shelf_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) , shelf_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()), shelf_legend_heatmaps, shelf_jaccard_boxplot, shelf_bray_boxplot,  nrow = 2, ncol = 3, align = "hv", axis = "lb")
+shelf_merge <- plot_grid(shelf_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) ,
+                         shelf_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank()),
+                         shelf_jaccard_boxplot,
+                         shelf_bray_boxplot,  nrow = 2, ncol = 2, align = "hv", axis = "lb")
 
 shelf_merge
 
-ggsave(shelf_merge, path = here::here("figures","shelf"), file = "shelf_heat_boxplot_merge.jpg", width = 8, height = 5, unit = "in")
-ggsave(shelf_merge, path = here::here("figures","shelf"), file = "shelf_heat_boxplot_merge.eps", width = 8, height = 5, unit = "in")
+ggsave(shelf_merge, path = here::here("figures","shelf"), file = "shelf_heat_boxplot_merge.jpg", width = 10, height = 5, unit = "in")
+ggsave(shelf_merge, path = here::here("figures","shelf"), file = "shelf_heat_boxplot_merge.eps", width = 10, height = 5, unit = "in")
 
 ```
 
