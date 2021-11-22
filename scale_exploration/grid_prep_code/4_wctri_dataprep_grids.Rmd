@@ -15,34 +15,31 @@ library(rnaturalearthdata)
 library(rgeos)
 library(taxize) #standardizing names
 library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
 ```
 
 
-Very confused of how to pull in data right now. To keep it easy, I'll use cleaned Ocean Adapt data
+Moving forward, I plan to use data directly from FishGlob.
 
-https://github.com/pinskylab/OceanAdapt/tree/update_2019/data_clean/by_species.RData
+November 21, 2021
+```{r pull in data from fishglob for West Coast Triennial from Google Drive}
+drive_download("WCTRI_clean.csv",
+               overwrite = T)
 
-December 1, 2020
-```{r pull in data all regions}
-dat_exploded <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/dat_exploded.rds")
-```
+wctri <- fread("WCTRI_clean.csv")
 
-```{r WCTRI}
-dat_WCTRI <- dat_exploded[region == "West Coast Triennial",]
+file.remove("WCTRI_clean.csv")
 
-saveRDS(dat_WCTRI, "WCTRI.rds")
-dat_WCTRI <- readRDS("WCTRI.rds")
-rm(dat_exploded)
 ```
 
 ```{r pull in WCTRI}
 
 # Get Unique lines in the data table
-unique_wctri_latlon<- unique(dat_WCTRI[,.(lat, lon)])
+unique_wctri_latlon<- unique(wctri[,.(latitude, longitude)])
 unique_wctri_latlon.sf <- unique_wctri_latlon
   
 #make lat lon coordinates into polygon
-coordinates(unique_wctri_latlon.sf) <- ~lat + lon
+coordinates(unique_wctri_latlon.sf) <- ~latitude + longitude
 unique_wctri_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 saveRDS(unique_wctri_latlon, "unique_wctri_latlon.RData")
@@ -64,7 +61,7 @@ north_america_df <- fortify(north_america_spdf)
   scale_x_continuous(expand = c(0,0)) +
   scale_y_continuous(expand = c(0,0)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
- geom_point(unique_wctri_latlon, mapping = aes(lon, lat), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+ geom_point(unique_wctri_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
   coord_equal())
 
 ```
@@ -73,7 +70,7 @@ Playing around with dggridR (package that makes grid cells)
 ```{r learning dggridR}
 dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
 
-unique_wctri_latlon[,cell := dgGEO_to_SEQNUM(dggs, lon, lat)] #get corresponding grid cells for NEUS trawl
+unique_wctri_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for NEUS trawl
 
 #centersof cells
 wctri_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_wctri_latlon[,cell])
@@ -83,7 +80,7 @@ unique_wctri_latlon[,LON_CENTER := wctri_cellcenters$lon_deg][,LAT_CENTER := wct
 
 #link centers back to main data table
 
-dat_WCTRI <- merge(dat_WCTRI, unique_wctri_latlon, by = c("lat", "lon"))
+wctri <- merge(wctri, unique_wctri_latlon, by = c("latitude", "longitude"))
 
 #number of tows in each cell
 towcount <- unique_wctri_latlon[, .N, by = cell]
@@ -92,7 +89,7 @@ towcount <- unique_wctri_latlon[, .N, by = cell]
 grid_wctri <- dgcellstogrid(dggs, unique_wctri_latlon[,cell], frame = T, wrapcells = F)
 
 #update grid properties to include # of trawls in each cell
-grid_wctri <- merge(grid, unique_wctri_latlon, by.x = "cell", by.y ="cell")
+grid_wctri <- merge(grid, unique_wctri_latlon, by="cell")
 
 ggplot(data = grid_wctri, aes(x = long, y = lat, group = cell)) +
   geom_polygon() +
@@ -111,46 +108,24 @@ na_outline +
 ggsave(filename = "grid_WCTRI_cells_spacing_111.pdf")
   
 ```
-Cleaning spp names (must be ID'd to species!)
-```{r clean WCTRI names}
-#unique species names
-spp_wctri <- dat_WCTRI[,unique(spp)]
-
-
-#Using taxize package, I'm going to check and standardize species scientific names
-result.long <- spp_wctri %>%
-gnr_resolve(data_source_ids = c(9,155), #marine species and fisebase sources
-            with_canonical_ranks=T)
-
-result.long <- data.table(result.long)
-
-#delete repeats and get weird of weird ones
-# keep Moroteuthis robustus, otherwise only keep those with high scores
-
-result.short <- result.long[result.long[, .I[which.max(score)], by=.(user_supplied_name, matched_name2)]$V1][,spp := user_supplied_name][score > 0.75 | matched_name2 == "Moroteuthis robustus",]
-
-#merge cleaned species names with neus full 
-dat_WCTRI.clean <- dat_WCTRI[result.short, on = "spp"]
-
-```
 
 
 Now, we'll overlay grid cells onto this list of tows (dat_wctri) using lat and lon and gridrr package
 ```{r get rid of underused grid cells}
 
-year_grid <- data.table(table(dat_WCTRI.clean$cell, dat_WCTRI.clean$year))
+year_grid <- data.table(table(wctri$cell, wctri$year))
 
 #there are some grid cells with infrequent records, I will delete these
 grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
 
 #delete these grid cells from full data table
-dat_wctri.reduced <- dat_WCTRI.clean[!cell %in% grid_cells_to_exclude]
+dat_wctri.reduced <- wctri[!cell %in% grid_cells_to_exclude]
 
-#732196 observations left, this should be great
+#73784 observations left, this should be great
 
 #how many tows (TOW) per cell in a given year
 
-haul_cell_unique <- unique(dat_wctri.reduced[,.(haulid, cell, year)])
+haul_cell_unique <- unique(dat_wctri.reduced[,.(haul_id, cell, year)])
 
 wctri_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
 
@@ -160,7 +135,7 @@ cells_to_delete <- unique(wctri_cells_lessthan3[,cell])
 
 dat_wctri.reduced.again <- dat_wctri.reduced[!cell %in% cells_to_delete]
 
-#down to 287190 observations
+#down to 60735 observations
 
 saveRDS(dat_wctri.reduced.again, "wctri_data_gridded.rds")
 
@@ -188,14 +163,14 @@ saveRDS(wctri_reg_distances.l, "wctri_reg_distances.l.rds")
 Check the # of tows per grid cell/year combo
 ```{r number of tows per grid cell/year/region combo}
 #cell/year/region combos
-wctri_unique_tows_cell <- dat_wctri.reduced[,.SD[1],.(year, cell, haulid)]
+wctri_unique_tows_cell <- dat_wctri.reduced[,.SD[1],.(year, cell, haul_id)]
 
 #no years have way more tows than others
 plot(wctri_unique_tows_cell[,.N,.(year,cell)]$year, wctri_unique_tows_cell[,.N,.(year,cell)]$N)
 
 #therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
 
-summary(wctri_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 4/196 cell/year combos  (2%, no biggie)
+summary(wctri_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 3/197 cell/year combos  (1.5%, no biggie)
 
 #I don't think I need to exclude in ALL years, just in a few years
 #an alternative would be to assess coverage using biomass (# of singletons and doubletons)
@@ -215,12 +190,12 @@ dat_wctri_grid.reduced_3plustows <- dat_wctri.reduced[wctri_keep, on = .(cell, y
 
 Save
 ```{r save}
-saveRDS(dat_wctri.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCTRI/dat_WCTRI_grid.reduced.rds")
+saveRDS(dat_wctri.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCTRI/wctri_grid.reduced.rds")
 
 
 saveRDS(wctri_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCTRI/wctri_reg_distances.l.rds")
 
-saveRDS(dat_wctri_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCTRI/dat_WCTRI_grid.reduced_3plustows.rds")
+saveRDS(dat_wctri_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCTRI/wctri_grid.reduced_3plustows.rds")
 
 
 ```
