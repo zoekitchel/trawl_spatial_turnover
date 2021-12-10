@@ -51,7 +51,7 @@ saveRDS(unique_wcann_latlon, "unique_wcann_latlon.RData")
 #plot north america
 world <- ne_countries(scale = "medium", returnclass = "sp")
 
-world_ext <- extent(-180, -51.5,23, 67)
+world_ext <- extent(-128, -115,28, 50)
 
 north_america_spdf <- crop(world, world_ext)
 
@@ -195,19 +195,19 @@ Summary of area sampled
 ```{r sum area sampled}
 #distance between furthest north and furthest south point
 library(geosphere)
-max_north_south_km <- (distm(c(mean(dat_goa_grid.reduced_3plustows$longitude), min(dat_goa_grid.reduced_3plustows$latitude)), c(mean(dat_goa_grid.reduced_3plustows$longitude), max(dat_goa_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+max_north_south_km <- (distm(c(mean(wcann_grid.reduced_3plustows$longitude), min(wcann_grid.reduced_3plustows$latitude)), c(mean(wcann_grid.reduced_3plustows$longitude), max(wcann_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
 #distance between furthest east and furthest west point
-max_west_east_km <- (distm(c(min(dat_goa_grid.reduced_3plustows$longitude), mean(dat_goa_grid.reduced_3plustows$latitude)), c(max(dat_goa_grid.reduced_3plustows$longitude), mean(dat_goa_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+max_west_east_km <- (distm(c(min(wcann_grid.reduced_3plustows$longitude), mean(wcann_grid.reduced_3plustows$latitude)), c(max(wcann_grid.reduced_3plustows$longitude), mean(wcann_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
 
 max_north_south_km
 max_west_east_km
 
-summary(dat_goa_grid.reduced_3plustows$depth)
+summary(wcann_grid.reduced_3plustows$depth)
 
-length(unique(dat_goa_grid.reduced_3plustows$accepted_name))
+length(unique(wcann_grid.reduced_3plustows$accepted_name))
 
-sort(unique(as.numeric(goa$year)))
-length(unique(goa$year))
+sort(unique(as.numeric(wcann$year)))
+length(unique(wcann$year))
 ```
 
 Save

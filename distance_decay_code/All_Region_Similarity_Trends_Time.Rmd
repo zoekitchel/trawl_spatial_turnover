@@ -1,0 +1,153 @@
+---
+title: "All Region Similarity Trends Time"
+output: html_notebook
+---
+
+Here, we will make a figure where I plot pairwise similarity trends over time for all regions we're examining right now
+```{r setup}
+library(data.table)
+library(ggplot2)
+
+#pull in similarity and year for each region ('REGION'_distances_dissimilarities_allyears_jaccard_rounded_allcombos)
+
+#gmex fall
+
+gmex_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","gmex_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+gmex_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,region := "gmex"][,season := "fall"]
+
+#gmex summer
+gmex_summer_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","gmex_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+gmex_summer_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,region := "gmex"][,season := "summer"]
+
+#neus fall
+
+neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,year.f := as.factor(year)][,region := "neus"][,season := "fall"]
+
+#neus spring
+neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,year.f := as.factor(year)][,region := "neus"][,season := "spring"]
+
+#swc
+swc_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","swc_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+swc_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,region := "swc"][,season := "NA"]
+
+#ns
+ns_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","ns_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+ns_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,region := "ns"][,season := "NA"]
+
+#pt
+pt_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","pt_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+pt_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,region := "pt"][,season := "NA"]
+
+#ebs
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,year.f := as.factor(year)][,region := "ebs"][,season := "NA"]
+
+#shelf
+shelf_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- readRDS(here::here("output","distance_decay","shelf_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+shelf_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,year.f := as.factor(year)][,region := "shelf"][,season := "NA"]
+
+
+```
+
+
+Merge 
+```{r}
+#any item in environment that ends with all combos
+Pattern1<-grep("allcombos",names(.GlobalEnv),value=TRUE)
+distances_dissimilarities_allyears_jaccard_rounded_allcombos <- do.call(rbind,mget(Pattern1[-2]))
+     
+#merge region season
+
+distances_dissimilarities_allyears_jaccard_rounded_allcombos[,region_season := paste0(region,"_",season)]
+```
+
+Load region statistics
+```{r load region stats}
+gmex_stats <- readRDS(here::here("output","region_stats","gmex_stats.rds"))
+swc_stats <- readRDS(here::here("output","region_stats","swc_stats.rds"))
+ns_stats <- readRDS(here::here("output","region_stats","ns_stats.rds"))
+pt_stats <- readRDS(here::here("output","region_stats","pt_stats.rds"))
+ebs_stats <- readRDS(here::here("output","region_stats","ebs_stats.rds"))
+ebs_stats[,region := "ebs"]
+neus_stats <- readRDS(here::here("output","region_stats","neus_stats.rds"))
+shelf_stats <- readRDS(here::here("output","region_stats","shelf_stats.rds"))
+
+
+#any item in environment that ends with all combos
+
+region_stats <- rbind(gmex_stats, swc_stats, ns_stats, pt_stats, ebs_stats, neus_stats,shelf_stats)
+
+region_stats[,spp_num := as.numeric(spp_num)][,study_period := as.numeric(study_period)][,study_duration := as.numeric(study_duration)][,lat_range := as.numeric(lat_range)][,mid_lat := as.numeric(mid_lat)][,lon_range := as.numeric(lon_range)][,area := as.numeric(area)][,depth_range := as.numeric(depth_range)][,mid_depth := as.numeric(mid_depth)][,jac_change := ifelse(jac_coef > 0 & jac_p < 0.05, 1, ifelse(jac_coef < 0 & jac_p < 0.05,  -1,0))][,bray_change := ifelse(bray_coef > 0 & bray.p < 0.05, 1, ifelse(bray_coef < 0 & bray.p < 0.05,  -1,0))][,region_season := paste0(region,"_",season)]
+```
+
+
+```{r ggplot2}
+ggplot(data = distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(x = as.numeric(year), y = jaccard_similarity_turnover, color = region_season)) +
+  geom_smooth(se = F, method = "lm") +
+  labs(x = "Year",y = "Jaccard Similarity") +
+  theme_classic()
+
+ggplot(data = distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(x = as.numeric(year), y = bray_curtis_similarity_balanced, color = region_season)) +
+  geom_smooth(se = F, method = "lm") +
+  labs(x = "Year",y = "Bray Similarity") +
+  theme_classic()
+```
+
+Now, how do variables such as:
+* Number of species in region
+* Length of study period
+* Number of years in which data was collected
+* Range of latitudes sampled
+* Mid latitude of region
+* Range of longitudes sampled
+* Overall area sampled
+* Depths sampled
+
+Come into play with the trend we identify? 
+
+Inputs = these variables, colors = coefficient value (if significant)
+
+```{r pca}
+library(factoextra)
+region_stats.descriptive <- data.frame(region_stats[,3:9])
+rownames(region_stats.descriptive) <- region_stats$region_season
+region_stats.pca <- prcomp(region_stats.descriptive, center = TRUE,scale. = TRUE)
+
+fviz_pca_ind(region_stats.pca,
+             repel = TRUE     # Avoid text overlapping
+             )
+
+fviz_pca_biplot(region_stats.pca, repel = TRUE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969"  # Individuals color
+                )
+
+summary(CaS.pca)
+
+load.pca <- CaS.pca$loadings
+print(load.pca)
+
+fviz_pca_var(CaS.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE,     # Avoid text overlapping
+             geom = c("arrow", "text")
+             )
+
+fviz_pca(region_stats.pca, label = c("var","ind"), repel = T, habillage = region_stats$region_season, ggtheme = theme_classic())
+fviz_pca(region_stats.pca, label = c("var","ind"), repel = T, habillage = region_stats$jac_change, ggtheme = theme_classic())
+fviz_pca(region_stats.pca, label = c("var","ind"), repel = T, habillage = region_stats$bray_change, ggtheme = theme_classic())
+
+
+```
+

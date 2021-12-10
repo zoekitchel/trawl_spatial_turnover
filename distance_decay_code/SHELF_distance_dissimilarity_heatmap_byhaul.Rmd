@@ -54,7 +54,39 @@ dat_SHELF_grid.reduced_3plustows <- dat_SHELF_grid.reduced_3plustows[shelf_hauli
 #fall
 #dat_SHELF_grid.fall.reduced_3plustows <- dat_SHELF_grid.fall.reduced_3plustows[shelf_fall_haulids_key, on = "haulid"]
 ```
+```{r region stats}
+shelf_stats <- data.table(region = character() , season = character(), spp_num = numeric(), study_period = numeric(), study_duration = numeric(), lat_range = numeric(), mid_lat = numeric(), lon_range = numeric(), area = numeric(), depth_range = numeric(),  mid_depth = numeric())
 
+
+#maps
+####unique lat lon
+shelf_lat_lon <- unique(dat_SHELF_grid.reduced_3plustows[,.(lat, lon)])
+
+shelf_pts <- st_as_sf(shelf_lat_lon, coords=c('lon','lat'), crs=4326 )
+
+shelf_conc <- concaveman(shelf_pts)
+
+shelf_area <- st_area(shelf_conc) #m2
+
+#row
+shelf <- c("shelf","NA",length(unique(dat_SHELF_grid.reduced_3plustows$accepted_name)),
+               max(dat_SHELF_grid.reduced_3plustows$year)-min(dat_SHELF_grid.reduced_3plustows$year),
+               length(unique(dat_SHELF_grid.reduced_3plustows$year)),
+               max(dat_SHELF_grid.reduced_3plustows$lat)-min(dat_SHELF_grid.reduced_3plustows$lat),
+               mean(dat_SHELF_grid.reduced_3plustows$lat),
+               max(dat_SHELF_grid.reduced_3plustows$lon)-min(dat_SHELF_grid.reduced_3plustows$lon),
+               shelf_area,
+               max(dat_SHELF_grid.reduced_3plustows$depth, na.rm = T)-min(dat_SHELF_grid.reduced_3plustows$depth, na.rm = T),
+               mean(dat_SHELF_grid.reduced_3plustows$depth, na.rm = T)
+               )
+
+
+
+shelf_stats <- data.table(rbind(shelf))
+
+colnames(shelf_stats)<-c("region","season","spp_num","study_period","study_duration","lat_range","mid_lat","lon_range","area","depth_range","mid_depth")
+
+```
 
 Dissimilarities across multiple years
 SPRING
@@ -300,6 +332,25 @@ ggsave(shelf_merge, path = here::here("figures","shelf"), file = "shelf_heat_box
 ```
 
 
+Add extra columns with coefficients
+```{r data summary with coef}
+
+shelf_stats[,jac_coef := 
+           shelf_avg_jaccard_mod$coefficients[[2]]][, jac_p := 
+          summary(shelf_avg_jaccard_mod)$coefficients[2,4]][,bray_coef :=
+          shelf_avg_bray_curtis_mod$coefficients[[2]]][,bray.p := 
+          summary(shelf_avg_bray_curtis_mod)$coefficients[2,4]]
+
+
+saveRDS(shelf_stats, here::here("output","region_stats","shelf_stats.rds"))
+```
+
+
+
+
+
+
+
 ###maybe i'll do this later? maybe not
 At its heart, this graphic is just a ggplot() with a geom_raster() layer. The complication is, geom_raster() requires equally spaced points in both the x- and y-direction. The rest of this post is about how to make that happen.
 
@@ -377,5 +428,7 @@ c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
   ) +
   coord_cartesian(expand = FALSE)
 ```
+
+
 
                  

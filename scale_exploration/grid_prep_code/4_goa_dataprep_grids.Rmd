@@ -47,7 +47,7 @@ saveRDS(unique_goa_latlon, "unique_goa_latlon.RData")
 #plot north america
 world <- ne_countries(scale = "medium", returnclass = "sp")
 
-world_ext <- extent(-180, -51.5,23, 67)
+world_ext <- extent(-175, -125,50, 60)
 
 north_america_spdf <- crop(world, world_ext)
 

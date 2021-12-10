@@ -1,0 +1,397 @@
+---
+title: "Prepping NEUS Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
+```
+
+
+Moving forward, I plan to use data directly from FishGlob.
+
+November 30, 2021
+```{r pull in data from fishglob for NEUS from Google Drive}
+drive_download("NEUS_clean.csv",
+               overwrite = T)
+
+neus <- fread("NEUS_clean.csv")
+
+file.remove("NEUS_clean.csv")
+
+```
+What seasons do we have? Which has most data? Eventually, look at both? (Fall and Summer have similar numbers)
+```{r seasons?}
+summary(as.factor(neus$season))
+
+neus_fall <- neus[season == "Fall"]
+neus_spring <- neus[season == "Spring"]
+```
+
+##FALL
+```{r pull in fall NEUS}
+
+# Get Unique lines in the data table
+unique_neus_latlon_fall <- unique(neus_fall[,.(latitude, longitude)])
+unique_neus_latlon.sf <- unique_neus_latlon_fall
+  
+#make lat lon coordinates into polygon
+coordinates(unique_neus_latlon.sf) <- ~latitude + longitude
+unique_neus_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_neus_latlon_fall, "unique_neus_latlon_fall.rds")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-85, -60,30, 50)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_neus_latlon_fall, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR fall}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_neus_latlon_fall[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for NEUS trawl
+
+#centersof cells
+neus_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_neus_latlon_fall[,cell])
+
+#linking cell centers to unique_neus_latlon
+unique_neus_latlon_fall[,LON_CENTER := neus_cellcenters$lon_deg][,LAT_CENTER := neus_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+neus_fall <- merge(neus_fall, unique_neus_latlon_fall, by = c("latitude", "longitude"))
+
+#number of tows in each cell
+towcount <- unique_neus_latlon_fall[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_neus_fall <- dgcellstogrid(dggs, unique_neus_latlon_fall[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_neus_fall <- merge(grid_neus_fall, unique_neus_latlon_fall, by = "cell")
+
+ggplot(data = grid_neus_fall, aes(x = long, y = lat, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_neus_fall, "grid_neus_fall.rds")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying fall}
+
+na_outline + 
+   geom_polygon(grid_neus_fall, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "grid_NEUS_cells_spacing_111_fall.pdf")
+  
+```
+Cleaning spp names (must be ID'd to species!)
+```{r clean NEUS names to species fall}
+#unique species names
+neus_fall.clean <- neus_fall[rank == "Species"]
+
+
+```
+
+
+Now, we'll overlay grid cells onto this list of tows (dat_neus) using lat and lon and gridrr package
+```{r get rid of underused grid cells fall}
+
+year_grid <- data.table(table(neus_fall.clean$cell, neus_fall.clean$year))
+
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+
+#delete these grid cells from full data table
+neus_fall.reduced <- neus_fall.clean[!cell %in% grid_cells_to_exclude]
+
+#115782 observations left, this should be great
+
+#how many tows (TOW) per cell in a given year
+
+haul_cell_unique <- unique(neus_fall.reduced[,.(haul_id, cell, year)])
+
+neus_fall_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
+
+neus_fall_cells_lessthan3 <- neus_fall_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(neus_fall_cells_lessthan3[,cell])
+
+neus_fall.reduced.again <- neus_fall.reduced[!cell %in% cells_to_delete]
+
+#down to 85563 observations
+
+saveRDS(neus_fall.reduced.again, "neus_fall.reduced.again.rds")
+
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells fall}
+#just need grid cell # and center lat lon for each grid cell 
+neus_fall_grid_cells <- unique(neus_fall.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+
+neus_fall_grid_cells <- setorder(neus_fall_grid_cells, cell)
+
+neus_fall_reg_distances <- distm(neus_fall_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(neus_fall_reg_distances) <- neus_fall_grid_cells$cell
+rownames(neus_fall_reg_distances) <- neus_fall_grid_cells$cell
+
+#reorient to long form 
+neus_fall_reg_distances.l <- melt(as.matrix(neus_fall_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+neus_fall_reg_distances.l <- data.table(neus_fall_reg_distances.l) #and then to data table
+neus_fall_reg_distances.l <- neus_fall_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+saveRDS(neus_fall_reg_distances.l, "neus_fall_reg_distances.l.rds")
+```
+
+CHECK CLAIM THAT #no years have way more tows than others, because this isn't true
+
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo for fall}
+#cell/year/region combos
+neus_fall_unique_tows_cell <- neus_fall.reduced[,.SD[1],.(year, cell, haul_id)]
+
+#no years have way more tows than others
+plot(neus_fall_unique_tows_cell[,.N,.(year,cell)]$year, neus_fall_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(neus_fall_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 8/520 cell/year combos  (1.5%%)
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows fall}
+neus_fall_counts <- neus_fall_unique_tows_cell[,.N,.(year,cell)]
+neus_fall_keep <- neus_fall_counts[N>2,][,N := NULL]
+
+neus_fall_grid.reduced_3plustows <- neus_fall.reduced[neus_fall_keep, on = .(cell, year)]
+
+
+```
+
+
+Save
+```{r save fall}
+saveRDS(neus_fall.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_fall.reduced.rds")
+
+
+saveRDS(neus_fall_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_fall_reg_distances.l.rds")
+
+saveRDS(neus_fall_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_fall_grid.reduced_3plustows.rds")
+
+
+```
+
+##SPRING
+
+```{r pull in spring NEUS}
+
+# Get Unique lines in the data table
+unique_neus_latlon_spring <- unique(neus_spring[,.(latitude, longitude)])
+unique_neus_latlon.sf <- unique_neus_latlon_spring
+  
+#make lat lon coordinates into polygon
+coordinates(unique_neus_latlon.sf) <- ~latitude + longitude
+unique_neus_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_neus_latlon_spring, "unique_neus_latlon_spring.rds")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-100, -80,23, 32)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_neus_latlon_spring, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR spring}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_neus_latlon_spring[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for NEUS trawl
+
+#centersof cells
+neus_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_neus_latlon_spring[,cell])
+
+#linking cell centers to unique_neus_latlon
+unique_neus_latlon_spring[,LON_CENTER := neus_cellcenters$lon_deg][,LAT_CENTER := neus_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+neus_spring <- merge(neus_spring, unique_neus_latlon_spring, by = c("latitude", "longitude"))
+
+#number of tows in each cell
+towcount <- unique_neus_latlon_spring[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_neus_spring <- dgcellstogrid(dggs, unique_neus_latlon_spring[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_neus_spring <- merge(grid_neus_spring, unique_neus_latlon_spring, by = "cell")
+
+ggplot(data = grid_neus_spring, aes(x = long, y = lat, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_neus_spring, "grid_neus_spring.rds")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying spring}
+
+na_outline + 
+   geom_polygon(grid_neus_spring, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "grid_NEUS_cells_spacing_111_spring.pdf")
+  
+```
+Cleaning spp names (must be ID'd to species!)
+```{r clean NEUS names to species spring}
+#unique species names
+neus_spring.clean <- neus_spring[rank == "Species"]
+
+
+```
+
+
+Now, we'll overlay grid cells onto this list of tows (dat_neus) using lat and lon and gridrr package
+```{r get rid of underused grid cells spring}
+
+year_grid <- data.table(table(neus_spring.clean$cell, neus_spring.clean$year))
+
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+
+#delete these grid cells from full data table
+neus_spring.reduced <- neus_spring.clean[!cell %in% grid_cells_to_exclude]
+
+#107961 observations left, this should be great
+
+#how many tows (TOW) per cell in a given year
+
+haul_cell_unique <- unique(neus_spring.reduced[,.(haul_id, cell, year)])
+
+neus_spring_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
+
+neus_spring_cells_lessthan3 <- neus_spring_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(neus_spring_cells_lessthan3[,cell])
+
+neus_spring.reduced.again <- neus_spring.reduced[!cell %in% cells_to_delete]
+
+#down to 52851 observations
+
+saveRDS(neus_spring.reduced.again, "neus_spring.reduced.again.rds")
+
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells spring}
+#just need grid cell # and center lat lon for each grid cell 
+neus_spring_grid_cells <- unique(neus_spring.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+
+neus_spring_grid_cells <- setorder(neus_spring_grid_cells, cell)
+
+neus_spring_reg_distances <- distm(neus_spring_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(neus_spring_reg_distances) <- neus_spring_grid_cells$cell
+rownames(neus_spring_reg_distances) <- neus_spring_grid_cells$cell
+
+#reorient to long form 
+neus_spring_reg_distances.l <- melt(as.matrix(neus_spring_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+neus_spring_reg_distances.l <- data.table(neus_spring_reg_distances.l) #and then to data table
+neus_spring_reg_distances.l <- neus_spring_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+saveRDS(neus_spring_reg_distances.l, "neus_spring_reg_distances.l.rds")
+```
+
+CHECK CLAIM THAT #no years have way more tows than others, because this isn't true
+
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo for spring}
+#cell/year/region combos
+neus_spring_unique_tows_cell <- neus_spring.reduced[,.SD[1],.(year, cell, haul_id)]
+
+#no years have way more tows than others
+plot(neus_spring_unique_tows_cell[,.N,.(year,cell)]$year, neus_spring_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(neus_spring_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 17/544 cell/year combos  (3%%)
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows spring}
+neus_spring_counts <- neus_spring_unique_tows_cell[,.N,.(year,cell)]
+neus_spring_keep <- neus_spring_counts[N>2,][,N := NULL]
+
+neus_spring_grid.reduced_3plustows <- neus_spring.reduced[neus_spring_keep, on = .(cell, year)]
+
+
+```
+
+
+Save
+```{r save spring}
+saveRDS(neus_spring.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_spring.reduced.rds")
+
+
+saveRDS(neus_spring_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_spring_reg_distances.l.rds")
+
+saveRDS(neus_spring_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_spring_grid.reduced_3plustows.rds")
+
+
+```

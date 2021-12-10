@@ -21,6 +21,52 @@ dat_AI_grid.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad schoo
 
 ai_reg_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-AI/dat_ai_reg_distances.l.rds")
 ```
+
+Region Stats
+
+* Number of species in region
+* Length of study period
+* Number of years in which data was collected
+* Range of latitudes sampled
+* Mid latitude of region
+* Range of longitudes sampled
+* Overall area sampled
+* Depths sampled
+
+```{r region stats}
+ai_stats <- data.table(region = character() , season = character(), spp_num = numeric(), study_period = numeric(), study_duration = numeric(), lat_range = numeric(), mid_lat = numeric(), lon_range = numeric(), area = numeric(), depth_range = numeric(),  mid_depth = numeric())
+
+
+#maps
+####unique lat lon
+ai_lat_lon <- unique(dat_AI_grid.reduced_3plustows[,.(latitude, longitude)])
+
+ai_pts <- st_as_sf(ai_lat_lon, coords=c('longitude','latitude'), crs=4326 )
+
+ai_conc <- concaveman(ai_pts)
+
+ai_area <- st_area(ai_conc) #m2
+
+#row
+ai <- c("ai","NA",length(unique(dat_AI_grid.reduced_3plustows$accepted_name)),
+               max(dat_AI_grid.reduced_3plustows$year)-min(dat_AI_grid.reduced_3plustows$year),
+               length(unique(dat_AI_grid.reduced_3plustows$year)),
+               max(dat_AI_grid.reduced_3plustows$latitude)-min(dat_AI_grid.reduced_3plustows$latitude),
+               mean(dat_AI_grid.reduced_3plustows$latitude),
+               max(dat_AI_grid.reduced_3plustows$longitude)-min(dat_AI_grid.reduced_3plustows$longitude),
+               ai_area,
+               max(dat_AI_grid.reduced_3plustows$depth, na.rm = T)-min(dat_AI_grid.reduced_3plustows$depth, na.rm = T),
+               mean(dat_AI_grid.reduced_3plustows$depth, na.rm = T)
+               )
+
+
+
+ai_stats <- data.table(rbind(ai))
+
+colnames(ai_stats)<-c("region","season","spp_num","study_period","study_duration","lat_range","mid_lat","lon_range","area","depth_range","mid_depth")
+
+```
+
 Lists of Years
 ```{r year lists}
 dat_AI_grid.reduced_3plustows[,year:= as.numeric(year)] #make numeric

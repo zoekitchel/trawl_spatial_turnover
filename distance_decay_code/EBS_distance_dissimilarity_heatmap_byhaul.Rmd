@@ -16,12 +16,59 @@ library(cowplot)
 library(plyr)
 
 #load data
-dat_EBS_grid.reduced_3plustows <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/dat_EBS_grid.reduced_3plustows.rds")
+dat_EBS_grid.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/grid_EBS.reduced_3plustows.rds")
 
 #distance among grid cells
 
 ebs_reg_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/ebs_reg_distances.l.rds")
 ```
+
+Region Stats
+
+* Number of species in region
+* Length of study period
+* Number of years in which data was collected
+* Range of latitudes sampled
+* Mid latitude of region
+* Range of longitudes sampled
+* Overall area sampled
+* Depths sampled
+
+```{r region stats}
+ebs_stats <- data.table(region = character() , season = character(), spp_num = numeric(), study_period = numeric(), study_duration = numeric(), lat_range = numeric(), mid_lat = numeric(), lon_range = numeric(), area = numeric(), depth_range = numeric(),  mid_depth = numeric())
+
+
+#maps
+####unique lat lon
+ebs_lat_lon <- unique(dat_EBS_grid.reduced_3plustows[,.(latitude, longitude)])
+
+ebs_pts <- st_as_sf(ebs_lat_lon, coords=c('longitude','latitude'), crs=4326 )
+
+ebs_conc <- concaveman(ebs_pts)
+
+ebs_area <- st_area(ebs_conc) #m2
+
+#row
+ebs <- c("ebs","NA",length(unique(dat_EBS_grid.reduced_3plustows$accepted_name)),
+               max(dat_EBS_grid.reduced_3plustows$year)-min(dat_EBS_grid.reduced_3plustows$year),
+               length(unique(dat_EBS_grid.reduced_3plustows$year)),
+               max(dat_EBS_grid.reduced_3plustows$latitude)-min(dat_EBS_grid.reduced_3plustows$latitude),
+               mean(dat_EBS_grid.reduced_3plustows$latitude),
+               max(dat_EBS_grid.reduced_3plustows$longitude)-min(dat_EBS_grid.reduced_3plustows$longitude),
+               ebs_area,
+               max(dat_EBS_grid.reduced_3plustows$depth, na.rm = T)-min(dat_EBS_grid.reduced_3plustows$depth, na.rm = T),
+               mean(dat_EBS_grid.reduced_3plustows$depth, na.rm = T)
+               )
+
+
+
+ebs_stats <- data.table(rbind(ebs))
+
+colnames(ebs_stats)<-c("region","season","spp_num","study_period","study_duration","lat_range","mid_lat","lon_range","area","depth_range","mid_depth")
+
+```
+
+
 Lists of Years
 ```{r year lists}
 dat_EBS_grid.reduced_3plustows[,year:= as.numeric(year)] #make numeric
@@ -32,16 +79,16 @@ ebs_years <- unique(dat_EBS_grid.reduced_3plustows[,year])
 ```
 
 Haul ID keys
-```{r list of haulids}
-ebs_haulids <- unique(dat_EBS_grid.reduced_3plustows[,haulid])
-ebs_haulids_key <- data.table(haulid = ebs_haulids, key_ID = seq(1,length(ebs_haulids), by = 1))
+```{r list of haul_ids}
+ebs_haul_ids <- unique(dat_EBS_grid.reduced_3plustows[,haul_id])
+ebs_haul_ids_key <- data.table(haul_id = ebs_haul_ids, key_ID = seq(1,length(ebs_haul_ids), by = 1))
 
 ```
 
-Convert haulids to numeric key_IDs
+Convert haul_ids to numeric key_IDs
 ```{r}
 
-dat_EBS_grid.reduced_3plustows <- dat_EBS_grid.reduced_3plustows[ebs_haulids_key, on = "haulid"]
+dat_EBS_grid.reduced_3plustows <- dat_EBS_grid.reduced_3plustows[ebs_haul_ids_key, on = "haul_id"]
 
 ```
 
@@ -49,48 +96,55 @@ dat_EBS_grid.reduced_3plustows <- dat_EBS_grid.reduced_3plustows[ebs_haulids_key
 Dissimilarities across multiple years
 
 ```{r dissimilarities between cells across multiple years for spring}
-ebs_distances_dissimilarities_allyears <- data.table("haulid1" = integer(), "haulid2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity" = numeric(), year = integer(), "jaccard_dissimilarity" = numeric())
+library(betapart) 
+ebs_distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), "haul_id2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity_balanced" = numeric(), year = integer(), "jaccard_dissimilarity_turnover" = numeric())
 
 #Now loop through all years
 for (i in 1:length(ebs_years)) {
   reduced_year <- dat_EBS_grid.reduced_3plustows[year == ebs_years[i],]
   
+#cannot have wgt or num
+  reduced_year <- reduced_year[!is.na(wgt_cpue),]
+  
   #distances among cells
   setorder(reduced_year, key_ID)
   
-  lat_lon_haulid <- unique(reduced_year[,.(lat,lon,key_ID)])
-  ebs_distances <- distm(lat_lon_haulid[,.(lon,lat)])
-  key_IDs <- lat_lon_haulid[,key_ID]
+  latitude_longitude_haul_id <- unique(reduced_year[,.(latitude,longitude,key_ID)])
+  ebs_distances <- distm(latitude_longitude_haul_id[,.(longitude,latitude)])
+  key_IDs <- latitude_longitude_haul_id[,key_ID]
 
   colnames(ebs_distances) <- rownames(ebs_distances) <- key_IDs
 
-  #wide to long
-  haulid_distances.l <- reshape2::melt(ebs_distances,varnames = (c("haulid1", "haulid2")), value.name = "distance")
+  #wide to longitudeg
+  haul_id_distances.l <- reshape2::melt(ebs_distances,varnames = (c("haul_id1", "haul_id2")), value.name = "distance")
   
   #make into data table
-  haulid_distances.l <- data.table(haulid_distances.l)
+  haul_id_distances.l <- data.table(haul_id_distances.l)
 
   
-  reduced_year_wide <- dcast(reduced_year, key_ID + year ~ matched_name2, value.var = "wtcpue", fun.aggregate = sum) #long to wide data for community matrix, column names are cell then species
+  reduced_year_wide <- dcast(reduced_year, key_ID + year ~ accepted_name, value.var = "wgt_cpue", fun.aggregate = sum) #longitude to wide data for community matrix, column names are cell then species
+  
   
   ncols <- ncol(reduced_year_wide)
-  communitymatrix <- cbind(reduced_year_wide[,3:ncols], reduced_year_wide[,1:2]) #community matrix with year and cell on far right
+  communitymatrix <- reduced_year_wide[,3:ncols] #community matrix with year and cell on far right
+  communitymatrix.occurence <- communitymatrix
+  communitymatrix.occurence[communitymatrix.occurence > 0] <- 1
 
-  #list of haulid keys
-  key_IDs_subset <- communitymatrix$key_ID
+  #list of haul_id keys
+  key_IDs_subset <- reduced_year_wide$key_ID
 
-  dissimilarities_abundance <- vegdist(communitymatrix[,1:(ncols-2)], method = "bray", binary = F) #dissimilarity 
-  dissimilarities_occurrence <- vegdist(communitymatrix[,1:(ncols-2)], method = "jaccard", binary = T) #T binary performs presence absence standardization before using decostand
+  dissimilarities_abundance <- beta.pair.abund(communitymatrix, index.family = "bray") #dissimilarity 
+  dissimilarities_occurrence <- beta.pair(communitymatrix.occurence, index.family = "jaccard") #dissimilarity
 
   #make into matrix
-  dissimilarities_abundance.m <- as.matrix(dissimilarities_abundance, labels=TRUE)
-  dissimilarities_occurrence.m <- as.matrix(dissimilarities_occurrence, labels=TRUE)
+  dissimilarities_abundance.m <- as.matrix(dissimilarities_abundance$beta.bray.bal, labels=TRUE) #bal = balanced
+  dissimilarities_occurrence.m <- as.matrix(dissimilarities_occurrence$beta.jtu, labels=TRUE) #jtu = turnover
   colnames(dissimilarities_abundance.m) <- rownames(dissimilarities_abundance.m) <- key_IDs_subset
   colnames(dissimilarities_occurrence.m) <- rownames(dissimilarities_occurrence.m) <- key_IDs_subset
 
   #reshape dissimilarities
-  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haulid1", "haulid2"), value.name = "bray_curtis_dissimilarity")
-  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haulid1", "haulid2"), value.name = "jaccard_dissimilarity")
+  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haul_id1", "haul_id2"), value.name = "bray_curtis_dissimilarity_balanced")
+  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haul_id1", "haul_id2"), value.name = "jaccard_dissimilarity_turnover")
   dissimilarities_abundance.l <- data.table(dissimilarities_abundance.l) #and then to data table
   dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
 
@@ -99,22 +153,24 @@ for (i in 1:length(ebs_years)) {
   dissimilarities_occurrence.l[, "year" := ebs_years[i]]
 
   #merge distance with dissimilarity for this year with both metrics of dissimilarity
-  dissimilarities_full <- haulid_distances.l[dissimilarities_abundance.l, on = c("haulid1", "haulid2")]
-  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haulid1", "haulid2", "year")]
+  dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance.l, on = c("haul_id1", "haul_id2")]
+  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haul_id1", "haul_id2", "year")]
 
 
   #add to data table
   ebs_distances_dissimilarities_allyears <- rbind(ebs_distances_dissimilarities_allyears, dissimilarities_full)
+  
+  print(paste0(i,"/",length(ebs_years)))
   
 }
 
 summary(ebs_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
 
 #delete repeats
-ebs_distances_dissimilarities_allyears <- ebs_distances_dissimilarities_allyears[haulid1 >= haulid2,] #3165272 to 1588479 rows
+ebs_distances_dissimilarities_allyears <- ebs_distances_dissimilarities_allyears[haul_id1 >= haul_id2,]
 
 
-ebs_distances_dissimilarities_allyears[,bray_curtis_similarity := (1-bray_curtis_dissimilarity)][,jaccard_similarity := (1-jaccard_dissimilarity)]
+ebs_distances_dissimilarities_allyears[,bray_curtis_similarity_balanced := (1-bray_curtis_dissimilarity_balanced)][,jaccard_similarity_turnover := (1-jaccard_dissimilarity_turnover)]
 
 saveRDS(ebs_distances_dissimilarities_allyears, file = "ebs_distances_dissimilarities_allyears.rds")
 
@@ -126,82 +182,41 @@ ebs_distances_dissimilarities_allyears <- readRDS("ebs_distances_dissimilarities
 
 Subsample for plotting
 
-#try rounding to 50s this time!
+#try rounding to 10s and 1s this time!
 ```{r subsample}
 #jaccard only
-ebs_distances_dissimilarities_allyears_jaccard <- ebs_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity, bray_curtis_similarity)][,distance_km := distance/1000]
+ebs_distances_dissimilarities_allyears_jaccard <- ebs_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity_turnover, bray_curtis_similarity_balanced)][,distance_km := distance/1000]
 
 #new column with rounded distance
-ebs_distances_dissimilarities_allyears_jaccard[,distance_km_50s := round_any(distance_km,50)][,distance_km_10s := round_any(distance_km,10)] #round to nearest 10
+ebs_distances_dissimilarities_allyears_jaccard[,distance_km_10s := round_any(distance_km,10)][,distance_km_1s := round(distance_km,0)] #round to nearest 10, 1
 
-#new column with median jaccard similarity & bray similarity means
-ebs_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean_10s := mean(jaccard_similarity), .(year, distance_km_10s)][, bray_similarity_mean_10s := mean(bray_curtis_similarity), .(year, distance_km_10s)]
+#new column with median jaccard similarity & bray similarity meapt for 1 and 10 km
+ebs_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean_10s := 
+                                                       mean(jaccard_similarity_turnover), .(year, distance_km_10s)][, bray_similarity_mean_10s :=
+                                                      mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)][, jaccard_similarity_mean_1s := 
+                                                       mean(jaccard_similarity_turnover), .(year, distance_km_1s)][, bray_similarity_mean_1s :=
+                                                      mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)]
 
 #reduce to unique values
-ebs_distances_dissimilarities_allyears_jaccard_rounded <- unique(ebs_distances_dissimilarities_allyears_jaccard, by = c("year","distance_km_10s"))
+ebs_distances_dissimilarities_allyears_jaccard_rounded <- unique(ebs_distances_dissimilarities_allyears_jaccard, by = c("year","distance_km_10s","distance_km_1s"))
 ```
-
 
 All possible combos
 ```{r all combos}
+#all possible 1s
+seq_1 <- seq(0,max(ebs_distances_dissimilarities_allyears_jaccard_rounded$distance_km_1s), by = 1)
+
 #all possible 10s
 seq_10 <- seq(0,max(ebs_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10s), by = 10)
 
-#all possiblew 50s
-seq_50 <- seq(0,max(ebs_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10), by = 50)
-
 #datatable with all possible combos
-ebs_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = ebs_years, distance_km_10s = seq_10))
+ebs_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = ebs_years, distance_km_1s = seq_1))
 
 #combine
-ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- ebs_distances_dissimilarities_allyears_jaccard_allcombos[ebs_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_km_10s")]
-```
-
-
-Trying to use ggplot
-```{r}
-ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos, aes(year, distance_10s, fill = jaccard_similarity_mean)) +
-  geom_raster(interpolate = T) +
-  theme_classic() +
-  scale_fill_viridis(discrete = F)
-
-library(sp)
+ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- ebs_distances_dissimilarities_allyears_jaccard_allcombos[ebs_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_km_1s")]
 
 ```
 
-Convert to matrix
-```{r jaccard matrix}
-ebs_distances_dissimilarities_allyears_jaccard_wide <-
-data.table::dcast(ebs_distances_dissimilarities_allyears_jaccard_rounded[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
-
-setkey(ebs_distances_dissimilarities_allyears_jaccard_wide, distance_10s)
-
-#get rid of first column
-ebs_distances_dissimilarities_allyears_jaccard_wide.m <- ebs_distances_dissimilarities_allyears_jaccard_wide[,2:ncol(ebs_distances_dissimilarities_allyears_jaccard_wide)]
-
-ebs_distances_dissimilarities_allyears_jaccard_wide.m <- as.matrix(ebs_distances_dissimilarities_allyears_jaccard_wide.m)
-
-ebs_distances_dissimilarities_allyears_jaccard_wide.r <- as.raster (ebs_distances_dissimilarities_allyears_jaccard_wide.m)
-```
-
-Convert comprehensive table to matrix
-```{r}
-ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide <- data.table::dcast(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
-
-setkey(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide, distance_10s)
-
-#get rid of first column
-ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide[,2:ncol(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide)]
-
-ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- as.matrix(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
-
-ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.r <- as.raster (ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
-```
-
-Plot raster
-```{r}
-image(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.r)
-```
 From "Depth-Time visualization using R, the tidyverse, and ggplot2" tutorial
 
 ```{r plot heat maps}
@@ -210,9 +225,13 @@ From "Depth-Time visualization using R, the tidyverse, and ggplot2" tutorial
 setkey(ebs_distances_dissimilarities_allyears,year)
 ebs_distances_dissimilarities_allyears[,year.f := as.factor(year)]
 
+#save this data table
+saveRDS(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos, here::here("output","distance_decay","ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+
 #jaccard similarity
-(ebs_jaccard_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = jaccard_similarity_mean_10s)) +
-  geom_point(shape = "-", size = 9) +
+(ebs_jaccard_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = jaccard_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 1) +
   scale_color_gradientn(colors =
 c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
   ) +
@@ -225,8 +244,8 @@ ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "eb
 
 
 #bray curtis similarity
-(ebs_bray_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = bray_similarity_mean_10s)) +
-  geom_point(shape = "-", size = 9) +
+(ebs_bray_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = bray_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 1) +
   scale_color_gradientn(colors =
 c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
   ) +
@@ -241,7 +260,7 @@ Box plots
 ```{r spring box plots}
 
 #jaccard similarity
-(ebs_jaccard_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity)) +
+(ebs_jaccard_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity_turnover)) +
   geom_boxplot(outlier.shape = NA, lwd = 0.2) +
   labs(x="Year", y = "Jaccard Similarity") +
   scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
@@ -252,7 +271,7 @@ Box plots
   theme(axis.text.x = element_text(angle = 90)))
 
 #bray curtis similarity
-(ebs_bray_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,bray_curtis_similarity)) +
+(ebs_bray_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,bray_curtis_similarity_balanced)) +
   geom_boxplot(outlier.shape = NA, lwd = 0.2) +
   labs(x="Year", y = "Bray Curtis Similarity") +
   scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
@@ -263,9 +282,9 @@ Box plots
   theme(axis.text.x = element_text(angle = 90)))
 
 #corresponding models
-ebs_avg_jaccard_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = jaccard_similarity ~ as.numeric(year))
+ebs_avg_jaccard_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = jaccard_similarity_turnover ~ as.numeric(year))
 
-ebs_avg_bray_curtis_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = bray_curtis_similarity ~ as.numeric(year))
+ebs_avg_bray_curtis_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = bray_curtis_similarity_balanced ~ as.numeric(year))
 
 summary(ebs_avg_jaccard_mod)
 summary(ebs_avg_bray_curtis_mod)
@@ -283,10 +302,29 @@ ebs_merge <- plot_grid(ebs_jaccard_heatmap + theme(legend.position = "none", axi
 
 ebs_merge
 
-ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.jpg", width = 8, height = 5, unit = "in")
-ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.eps", width = 8, height = 5, unit = "in")
+ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.jpg", width = 6, height = 5, unit = "in")
+ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.eps", width = 6, height = 5, unit = "in")
 
 ```
+
+Add extra columns with coefficients
+```{r data summary with coef}
+
+ebs_stats[,jac_coef := 
+           ebs_avg_jaccard_mod$coefficients[[2]]][, jac_p := 
+          summary(ebs_avg_jaccard_mod)$coefficients[2,4]][,bray_coef :=
+          ebs_avg_bray_curtis_mod$coefficients[[2]]][,bray.p := 
+          summary(ebs_avg_bray_curtis_mod)$coefficients[2,4]]
+
+
+saveRDS(ebs_stats, here::here("output","region_stats","ebs_stats.rds"))
+```
+
+
+
+
+
+
 
 
 ###maybe i'll do this later? maybe not
@@ -366,5 +404,6 @@ c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
   ) +
   coord_cartesian(expand = FALSE)
 ```
+
 
                  

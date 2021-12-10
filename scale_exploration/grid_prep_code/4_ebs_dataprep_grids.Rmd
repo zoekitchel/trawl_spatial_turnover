@@ -22,7 +22,7 @@ library(googledrive)
 Moving forward, I plan to use data directly from FishGlob.
 
 November 21, 2021
-```{r pull in data from fishglob for Scotian Shelf from Google Drive}
+```{r pull in data from fishglob for Eastern Bering Sea from Google Drive}
 drive_download("EBS_clean.csv",
                overwrite = T)
 
@@ -55,7 +55,7 @@ saveRDS(unique_EBS_latlon, "unique_EBS_latlon.rds")
 #plot north america
 world <- ne_countries(scale = "medium", returnclass = "sp")
 
-world_ext <- extent(-180, -51.5,23, 67)
+world_ext <- extent(-180, -150,50, 67)
 
 north_america_spdf <- crop(world, world_ext)
 
@@ -69,7 +69,7 @@ north_america_df <- fortify(north_america_spdf)
   scale_x_continuous(expand = c(0,0)) +
   scale_y_continuous(expand = c(0,0)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
- geom_point(unique_EBS_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+ geom_point(unique_EBS_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, color = "red") +
   coord_equal())
 
 ```
@@ -180,7 +180,7 @@ ebs_cells_lessthan3 <- ebs_samplingevents_byyear[N<3,] #need three to build rare
 
 cells_to_delete <- unique(ebs_cells_lessthan3[,cell])
 
-ebs_full_1982onward.clean.reduced.again <- grid_EBS.reduced[!cell %in% cells_to_delete]
+ebs_full_1982onward.clean.reduced.again <- grid_EBS.reduced.again.again[!cell %in% cells_to_delete]
 
 #1299247 observations
 
@@ -236,10 +236,42 @@ grid_EBS.reduced_3plustows <- grid_EBS.reduced.again.again[ebs_keep, on = .(cell
 
 ```
 
+Summary of area sampled
+```{r sum area sampled}
+#distance between furthest north and furthest south point
+library(geosphere)
+max_north_south_km <- (distm(c(mean(grid_EBS.reduced_3plustows$longitude), min(grid_EBS.reduced_3plustows$latitude)), c(mean(grid_EBS.reduced_3plustows$longitude), max(grid_EBS.reduced_3plustows$latitude)), fun = distHaversine))/1000
+#distance between furthest east and furthest west point
+max_west_east_km <- (distm(c(min(grid_EBS.reduced_3plustows$longitude), mean(grid_EBS.reduced_3plustows$latitude)), c(max(grid_EBS.reduced_3plustows$longitude), mean(grid_EBS.reduced_3plustows$latitude)), fun = distHaversine))/1000
+
+max_north_south_km
+max_west_east_km
+
+summary(grid_EBS.reduced_3plustows$depth)
+
+length(unique(grid_EBS.reduced_3plustows$accepted_name))
+
+sort(unique(as.numeric(ebs$year)))
+length(unique(ebs$year))
+```
+
+Make a new map but with only points we actually use
+```{r new map points we use}
+(na_outline_2 <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique(grid_EBS.reduced_3plustows[,.(latitude, longitude)]), mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+```
 
 Save
 ```{r save}
-saveRDS(grid_EBS.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/grid_EBS.reduced.rds")
+#saveRDS(grid_EBS.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/grid_EBS.reduced.rds")
 
 
 saveRDS(ebs_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-EBS/ebs_reg_distances.l.rds")
