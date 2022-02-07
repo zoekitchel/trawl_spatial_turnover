@@ -1,0 +1,237 @@
+---
+title: "Prepping all Fish Glob Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
+library(here)
+```
+
+
+Pull in compiled and cleaned data from fishglob February 4, 2022
+
+```{r pull in data from fishglob for Eastern Bering Sea from Google Drive}
+drive_download(file = "FISHGLOB_v1.1_clean.csv",
+               path = here::here("data","FISHGLOB_v1.1_clean.csv"),
+               overwrite = T)
+
+FishGlob <- fread(here::here("data","FISHGLOB_v1.1_clean.csv"))
+
+file.remove(here::here("data","FISHGLOB_v1.1_clean.csv"))
+
+#save
+saveRDS(FishGlob, file = here::here("data", "FishGlob_1.1.clean.rds"))
+
+#load if already saved
+FishGlob <- readRDS(file = here::here("data", "FishGlob_1.1.clean.rds"))
+
+```
+
+Get rid of any survey x season combos not sampled for at least 10 years
+
+```{r summary by survey region}
+#new row for total number of years sampled
+FishGlob[,years_sampled := length(unique(year)),.(survey,season)]
+
+hist(FishGlob$years_sampled)
+
+#remove observations for any regions x season combinations sampled less than 10 times and observations not resolved to species
+FishGlob.10year <- FishGlob[years_sampled >= 10,][rank == "Species",]
+
+rm(FishGlob)
+
+```
+
+Survey specific changes (These have not actually been implemented as of February 6 2022)
+
+From Batt et al. 2017
+"In the Eastern Bering Sea, sampling years prior to 1984 (data begin in 1982) were excluded from analysis due to large apparent increases in the number of species recorded in the first two years."
+
+"In the Gulf of Mexico, we restricted our analysis to data from 1984 - 2000 (full range
+1982-2014); if all years had been used, the number of sites sampled in at least 85% of years would drop from 39 to 13."
+
+"In the Southeast U.S., data from 1989 (data begin in 1989) were excluded because several sites were not sampled in this year, and if this year had been used, the number of sites sampled in at least 85% of years would drop from 24 to 23 (with only 21 sites sampled in 1989)."
+
+"In the Northeast U.S., we excluded data from years prior to 1982 (data begin in 1968). Years prior to 1979 were excluded because strata in the southern tip of the region (between approximately 34.5o N and 35o N) were not regularly sampled during this time. A site in the Gulf of Maine (-69.25o E 43.25o N) was not sampled consistently between 1979 and 1981, and including these years in the analysis would have prevented this site from being included in the analysis (which would have reduced total sites from 100 to 99)."
+
+"In Newfoundland, years prior to 1996 (first year was 1992) were excluded because many sites were not sampled. If all years had been used (1992 onward), total number of sites sampled in at least 85% of years would have been decreased from 191 to 53; if data from 1995 onward had been included, number of sites would have been 179." 
+
+```{r}
+
+FishGlob.10year.r <- FishGlob.10year[!(survey == "EBS" & year < 1984),][!(survey == "SEUS" & year < 1990),][!(survey == "NEUS" & year < 1982),][!(survey == "DFO-NF" & year < 1996),]
+
+rm(FishGlob.10year)
+
+#add column with season and survey
+FishGlob.10year.r[,survey_season := as.factor(paste0(survey,"_",season))]
+
+all_survey_seasons <- levels(FishGlob.10year.r[,survey_season])
+```
+
+
+Loop to standardize observations for all regions
+
+```{r standardize observations all regions}
+
+#world map
+world <- data.table(map_data('world'))
+world[,long_s := ifelse(long > 150, (long-360),(long))]
+
+
+#if positive, subtract 360
+FishGlob.10year.r[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+
+#delete if NA for longitude or latitude
+FishGlob.10year.r <- FishGlob.10year.r[complete.cases(FishGlob.10year.r[,.(longitude, latitude)])]
+
+#set up grid
+dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least 3 observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
+
+map_points_plots <- list()
+
+FishGlob_cleaned <- data.table()
+
+for (i in 1:length(all_survey_seasons)) {
+  
+  #reduce to specific survey/season combination
+  reduced_FishGlob.10year <- FishGlob.10year.r[survey_season == all_survey_seasons[i],]
+  
+  #pull out unique lat lons
+  unique_latlon <- unique(reduced_FishGlob.10year[,.(latitude, longitude_s)])
+  
+  unique_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude_s, latitude)] #get corresponding grid cells for this region/survey combo
+
+  #find cell centers
+  cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell])
+
+  #linking cell centers to unique_EBS_latlon
+  unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
+
+    #link centers back to main data table
+  reduced_FishGlob.10year.gridded <- merge(reduced_FishGlob.10year, unique_latlon, by = c("latitude", "longitude_s"))
+
+  #number of tows in each cell
+  towcount <- unique_latlon[, .N, by = cell]
+
+  #get the grid cell boundary for cells which had trawls
+  grid <- dgcellstogrid(dggs, unique_latlon[,cell], frame = T, wrapcells = F)
+
+  #update grid properties to include # of trawls in each cell
+  grid <- merge(grid, unique_latlon, by = "cell")
+  
+  #Any years for AI where clearly fewer cells were sampled?
+  year_cells <- reduced_FishGlob.10year.gridded[,.(cell_count = length(unique(cell))),year]
+  
+  benchmark_70 <- 0.7 * max(year_cells[,cell_count])
+  
+  #only keep years where over 70% of cells are sampled
+  year_cells[,benchmark_70 := cell_count > benchmark_70]
+  
+  years_deleted <- year_cells[benchmark_70 == F]$year #which years are left out?
+  
+  years_kept <- year_cells[benchmark_70 ==T]$year #which years  to keep
+  
+  years_deleted_percent <- round(length(years_deleted)/nrow(year_cells)*100,1)
+  
+  #print  the years that are left out
+  print(ifelse(length(years_deleted) == 0, paste0(all_survey_seasons[i], " Years left out = 0"), paste0(all_survey_seasons[i], " Years left out = ", years_deleted, ", ",years_deleted_percent, "% of Years Excluded"))) #need to figure out how to list all years removed
+  
+  #reduce to years that are well sampled
+  reduced_FishGlob.10year.gridded.r <- reduced_FishGlob.10year.gridded[year %in% years_kept,]
+  
+  #identify any cells that in any years are sampled less than 3 times
+  reduced_FishGlob.10year.gridded.r[,year_cell_count := length(unique(haul_id)),.(year,cell)]
+  
+  #cell ids to remove and keep
+  #in any year, which cells are sampled less than 3 times, these need to go
+  cell_id_remove <- unique(reduced_FishGlob.10year.gridded.r[year_cell_count < 3]$cell)
+  cells_deleted_percent <- round(length(cell_id_remove)/length(unique(reduced_FishGlob.10year.gridded.r[,cell]))*100,1)
+  #this removes 40% of cells from Aleutian islands, seems like too much, I will return to this
+  
+  #reduce to cells that are well sampled
+  reduced_FishGlob.10year.gridded.r.cell <- reduced_FishGlob.10year.gridded.r[!cell %in% cell_id_remove,]
+  
+  #add to cleaned data table of all regions
+  FishGlob_cleaned  <- rbind(FishGlob_cleaned, reduced_FishGlob.10year.gridded.r.cell)
+  
+  #What percent of observations does this remove?
+  obs_removed <- round((nrow(reduced_FishGlob.10year.gridded.r)-nrow(reduced_FishGlob.10year.gridded.r.cell))/nrow(reduced_FishGlob.10year.gridded.r)*100,1) #we lose 13.4% of observations
+  
+    #print portion of cells that are left out
+  print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_seasons[i], " Cells left out = 0"), paste0(all_survey_seasons[i], " Cells left out = ", cell_id_remove, ", ",cells_deleted_percent, "% Cells Excluded, ",obs_removed, "% Observations Removed" ))) #need to figure out how to list all cells removed
+  
+  #make a map of these points
+  
+  #unique lat lon
+  unique_latlon_reduced <- unique(reduced_FishGlob.10year.gridded.r.cell[,.(longitude,  latitude)])
+  #if greater than 150, subtract 360
+  unique_latlon_reduced[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+
+    #set bounds of basemap using coordinates
+  reg <- world[long_s >= min(unique_latlon_reduced[,longitude_s]-2) & long_s <= max(unique_latlon_reduced[,longitude_s]+2) & lat >= min(unique_latlon_reduced[,latitude]-2) & lat <= max(unique_latlon_reduced[,latitude]+2)]
+  
+  if(max(unique_latlon_reduced[,longitude] > 150)) {
+  #make map
+  map_points_plots[[i]] <- ggplot() +
+geom_polygon(data = world, aes(x=long_s, y = lat, group = group), 
+                                 fill = "black", 
+                                 color="black") +
+  geom_point(data = unique_latlon_reduced,
+    aes(
+      x = longitude_s,
+      y = latitude),
+    color = "red", size = 0.05
+  ) +
+    labs(x = "Longitude", y = "Latitude") +
+    coord_equal(xlim = c(min(unique_latlon_reduced[,longitude_s]-2), max(unique_latlon_reduced[,longitude_s]+2)), 
+                ylim = c(min(unique_latlon_reduced[,latitude]-2), max(unique_latlon_reduced[,latitude]+2))) +
+  theme_classic()
+  
+  mapfilename <- paste0(all_survey_seasons[i], "_map_point_plot.jpg")
+
+ ggsave(map_points_plots[[i]], filename = mapfilename, path = here::here("figures","map_points_plots"))
+  } else {
+      #make map
+  map_points_plots[[i]] <- ggplot() +
+geom_polygon(data = world, aes(x=long, y = lat, group = group), 
+                                 fill = "black", 
+                                 color="black") +
+  geom_point(data = unique_latlon_reduced,
+    aes(
+      x = longitude,
+      y = latitude),
+    color = "red", size = 0.05
+  ) +
+    labs(x = "Longitude", y = "Latitude") +
+    coord_equal(xlim = c(min(unique_latlon_reduced[,longitude]-2), max(unique_latlon_reduced[,longitude]+2)), 
+                ylim = c(min(unique_latlon_reduced[,latitude]-2), max(unique_latlon_reduced[,latitude]+2))) +
+  theme_classic()
+  
+  mapfilename <- paste0(all_survey_seasons[i], "_map_point_plot.jpg")
+
+ ggsave(map_points_plots[[i]], filename = mapfilename, path = here::here("figures","map_points_plots"))
+  }
+ 
+}
+
+#now, check again to see if any are less than 10 years
+FishGlob_cleaned[,years_sampled_update := length(unique(year)),.(survey,season)]
+FishGlob_cleaned.10year <- FishGlob_cleaned[years_sampled_update >= 10,]
+
+saveRDS(FishGlob_cleaned.10year, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+
+```
+
+
