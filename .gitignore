@@ -11,3 +11,5 @@ neus_full_1982onward.clean.reduced.again.RData
 ebs_data_gridded.RData
 *.eps
 *distances_dissimilarities_allyears.rds
+FISHGLOB_v1.1_clean.csv
+FishGlob_1.1.clean.rds

@@ -1,5 +1,5 @@
 ---
-title: "Prepping AI Data"
+title: "Pulling and Prepping Aleutian Island Data"
 output: html_notebook
 ---
 
@@ -18,10 +18,9 @@ library(googledrive)
 ```
 
 
-Moving forward, I plan to use data directly from FishGlob.
+Pull Data from FishGlob
 
-November 21, 2021
-```{r pull in data from fishglob for West Coast Triennial from Google Drive}
+```{r pull in data from fishglob for Aleutian Island from Google Drive}
 drive_download("AI_clean.csv",
                overwrite = T)
 
@@ -30,6 +29,8 @@ ai <- fread("AI_clean.csv")
 file.remove("AI_clean.csv")
 
 ```
+
+Plot all points before any cleaning or trimming
 
 ```{r pull in AI}
 
@@ -41,45 +42,45 @@ unique_ai_latlon.sf <- unique_ai_latlon
 coordinates(unique_ai_latlon.sf) <- ~latitude + longitude
 unique_ai_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
-saveRDS(unique_ai_latlon, "unique_ai_latlon.RData")
-
+#world map
 world <- data.table(map_data('world'))
-north_america <- world[long >= -200 & long <= -130 & lat >= 50 & lat <= 80]
+north_america <- world[long >= -190 & long <= -130 & lat >= 50 & lat <= 80]
 #if positive, subtract 360
 unique_ai_latlon[,longitude_s := ifelse(longitude > 0,(longitude-360),(longitude))]
+
 # Fixed map
-ggplot() +
+ai_plot <- ggplot() +
 geom_polygon(data = north_america, 
                                  aes(x=long, y = lat, group = group), 
                                  fill = "white", 
                                  color="black") +
-    coord_fixed(xlim = c(-200, -140),  ylim = c(50, 80), ratio = 1.3) +
+    coord_fixed(xlim = c(-190, -140),  ylim = c(50, 80), ratio = 1.3) +
   geom_point(data = unique_ai_latlon,
     aes(
       x = longitude_s,
       y = latitude),
-    color = "red", size = 0.1
+    color = "red", size = 0.05
   ) +
   theme_bw()
 
-
+ai_plot
 ```
 
-Playing around with dggridR (package that makes grid cells)
+Make grid with dggridR that is 111 km apart (package that makes grid cells)
 ```{r learning dggridR}
 dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+dggs <- dgconstruct(res = 9, metric = T, resround = 'nearest')
 
-unique_ai_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for NEUS trawl
+unique_ai_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for AI trawl
 
-#centersof cells
+#centers of cells
 ai_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_ai_latlon[,cell])
 
 #linking cell centers to unique_ai_latlon
 unique_ai_latlon[,LON_CENTER := ai_cellcenters$lon_deg][,LAT_CENTER := ai_cellcenters$lat_deg]
 
 #link centers back to main data table
-
-ai <- merge(ai, unique_ai_latlon, by = c("latitude", "longitude"))
+ai_2 <- merge(ai, unique_ai_latlon, by = c("latitude", "longitude"))
 
 #number of tows in each cell
 towcount <- unique_ai_latlon[, .N, by = cell]
@@ -88,31 +89,27 @@ towcount <- unique_ai_latlon[, .N, by = cell]
 grid_ai <- dgcellstogrid(dggs, unique_ai_latlon[,cell], frame = T, wrapcells = F)
 
 #update grid properties to include # of trawls in each cell
-grid_ai <- merge(grid_ai, unique_ai_latlon, by= "cell")
 
-ggplot(data = grid_ai, aes(x = long, y = lat, group = cell)) +
+#spans pacific, so if longitiude is above 0, rotate
+grid_ai <- data.table(grid_ai)
+grid_ai[,long_shift := ifelse(long>0,long-360,long)][,cell:=as.numeric(cell)]
+ggplot(data = grid_ai, aes(x = long_shift, y = lat, group = cell)) +
   geom_polygon() +
   coord_quickmap()
-
-saveRDS(grid_ai, "grid_ai.rds")
 
 ```
 
 Trying to plot with grid overlaying
 ```{r grid overlaying}
 
-na_outline + 
-   geom_polygon(grid_ai, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
-
-ggsave(filename = "grid_AI_cells_spacing_111.pdf")
+ai_plot + 
+   geom_polygon(grid_ai, mapping = aes(x = long_shift,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
   
 ```
 Cleaning spp names (must be ID'd to species!)
 ```{r clean AI names}
 #unique species names
 ai.clean <- ai[rank == "Species",]
-
-
 
 
 ```
@@ -123,8 +120,8 @@ Now, we'll overlay grid cells onto this list of tows (dat_ai) using lat and lon 
 
 year_grid <- data.table(table(ai.clean$cell, ai.clean$year))
 
-#there are some grid cells with infrequent records, I will delete these
-grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+#there are some grid cells with fewer than 3 tows per year, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N < 3]$V1)
 
 #delete these grid cells from full data table
 dat_ai.reduced <- ai.clean[!cell %in% grid_cells_to_exclude]
