@@ -1,0 +1,20 @@
+---
+title: "Distance Decay All Surveys"
+output: html_notebook
+---
+
+
+
+```{r setup}
+library(data.table)
+library(vegan)
+
+```
+
+Loop through all regions
+```{r}
+for i in 1:length() {
+  
+}
+```
+
