@@ -11,6 +11,7 @@ library(vegan)
 library(sf)
 library(concaveman) #polygon around points
 library(betapart) #allows us to partition beta diversity
+library(geosphere)
 
 FishGlob_cleaned.10year<- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
@@ -50,7 +51,10 @@ neus_bad_hauls <- unique(FishGlob_cleaned.10year[(survey == "NEUS" & year < 2009
 #this removes 122 hauls from 16989 total hauls (0.7%)
 
 #calculate wgt_cpue (km^2 avg from sean Lucey) and wgt_h (all biomass values calibrated to standard pre 2009 30 minute tow)
-FishGlob_cleaned.10year[survey == "NEUS", wgt_h := ifelse(is.na(wgt),NA, wgt/0.5)][survey == "NEUS", wgt_cpue := ifelse(is.na(wgt),NA, wgt/0.0384)][survey == "NEUS", num_h := ifelse(is.na(num),NA, num/0.5)][survey == "NEUS", num_cpue := ifelse(is.na(num),NA, num/0.0384)]
+FishGlob_cleaned.10year[survey == "NEUS", wgt_h := ifelse(is.na(wgt),NA, wgt/0.5)][
+  survey == "NEUS", wgt_cpue := ifelse(is.na(wgt),NA, wgt/0.0384)][
+    survey == "NEUS", num_h := ifelse(is.na(num),NA, num/0.5)][
+      survey == "NEUS", num_cpue := ifelse(is.na(num),NA, num/0.0384)]
 
 # get haul-level data
 haul_info <- copy(FishGlob_cleaned.10year)[, .(survey, country, haul_id, year, month, latitude, longitude)] %>% unique() # lots of other useful data in here like depth, just trimming for speed 
@@ -67,18 +71,25 @@ rm(FishGlob_cleaned.10year)
 
 #now, delete any rows without cpue data, shouldn't be too many (don't do this! want to look at abundances for IS-MOAG and MEDITS)
 
+abundances_only <- c("IS_MOAG", "MEDITS")
+
 #FishGlob_cleaned.10year_final <- copy(FishGlob_cleaned.10year.r)[!is.na(wgt_cpue),]
 
 #This edit brings 2029697 down to 1716948 observations (Loss of 15% of observations)
 
 #check
 summary(FishGlob_cleaned.10year.r$wgt_cpue) #why inf? 13 observations from GSL-N, I will delete these
-FishGlob_cleaned.10year.r <- copy(FishGlob_cleaned.10year.r)[wgt_cpue < Inf,]
+FishGlob_cleaned.10year.r <- copy(FishGlob_cleaned.10year.r)[!is.infinite(wgt_cpue),]
+
+#for now, limit to years after 1981 (maybe use other dataset (SODA) for SCS?)
+FishGlob_cleaned.10year.r <- FishGlob_cleaned.10year.r[year >= 1981,]
+
+saveRDS(FishGlob_cleaned.10year.r, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.r.rds"))
 ```
 
 
 Loop through all regions
-```{r}
+```{r loop through all regions and years}
 survey_stats <- data.table(survey = character() , season = character(), survey_season = character(), spp_num = numeric(), study_period = numeric(), study_duration = numeric(), lat_range = numeric(), mid_lat = numeric(), lon_range = numeric(), area = numeric(), depth_range = numeric(),  mid_depth = numeric())
 
 distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), "haul_id2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity_balanced" = numeric(), survey = character(), season = character(), season_survey = character(), year = integer(), "jaccard_dissimilarity_turnover" = numeric(), abund_biomass  =  character())
@@ -93,7 +104,7 @@ for (i in 1:length(all_season_surveys)) {
 
   pts <- st_as_sf(lat_lon, coords=c('longitude_s','latitude'), crs=4326 )
 
-  conc <- concaveman(pts)
+  conc <- concaveman(pts, concavity = 5)
 
   area <- st_area(conc) #m2, check this later
 
@@ -138,13 +149,17 @@ for (i in 1:length(all_season_surveys)) {
           
             colnames(distances) <- rownames(distances) <- key_IDs
           
-            #wide to longitudeg
+            #wide to longitude
             haul_id_distances.l <- reshape2::melt(distances,varnames = (c("haul_id1", "haul_id2")), value.name = "distance")
             
             #make into data table
             haul_id_distances.l <- data.table(haul_id_distances.l)
           
-          if(all(complete.cases(reduced_year[,wgt_cpue])) == T) {
+          if(!(reduced_year[1,survey] %in% abundances_only)) {
+            
+            #if some rows have wgt_cpue missing, get rid of these rows
+            reduced_year <- reduced_year[complete.cases(reduced_year[,wgt_cpue]),]
+            
               reduced_year_wide <- dcast(reduced_year, key_ID + year ~ accepted_name, value.var = "wgt_cpue", fun.aggregate = sum) #longitude to wide data for community matrix, column names are cell then species
               
               
@@ -247,95 +262,12 @@ for (i in 1:length(all_season_surveys)) {
   
          } #closes year
   
+  print(paste0("We have cycled through ", i," of ",length(all_season_surveys), " total survey/season combos"))
+  
   } #closes survey/region
+
+
+saveRDS(distances_dissimilarities_allyears, here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
 ```
 
-
-
-Dissimilarities across multiple years
-
-```{r dissimilarities between cells across multiple years for spring}
-ebs_distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), "haul_id2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity_balanced" = numeric(), year = integer(), "jaccard_dissimilarity_turnover" = numeric())
-
-#Now loop through all years
-for (i in 1:length(ebs_years)) {
-  reduced_year <- dat_EBS_grid.reduced_3plustows[year == ebs_years[i],]
-  
-#cannot have wgt or num
-  reduced_year <- reduced_year[!is.na(wgt_cpue),]
-  
-  #distances among cells
-  setorder(reduced_year, key_ID)
-  
-  latitude_longitude_haul_id <- unique(reduced_year[,.(latitude,longitude,key_ID)])
-  ebs_distances <- distm(latitude_longitude_haul_id[,.(longitude,latitude)])
-  key_IDs <- latitude_longitude_haul_id[,key_ID]
-
-  colnames(ebs_distances) <- rownames(ebs_distances) <- key_IDs
-
-  #wide to longitudeg
-  haul_id_distances.l <- reshape2::melt(ebs_distances,varnames = (c("haul_id1", "haul_id2")), value.name = "distance")
-  
-  #make into data table
-  haul_id_distances.l <- data.table(haul_id_distances.l)
-
-  
-  reduced_year_wide <- dcast(reduced_year, key_ID + year ~ accepted_name, value.var = "wgt_cpue", fun.aggregate = sum) #longitude to wide data for community matrix, column names are cell then species
-  
-  
-  ncols <- ncol(reduced_year_wide)
-  communitymatrix <- reduced_year_wide[,3:ncols] #community matrix with year and cell on far right
-  communitymatrix.occurence <- communitymatrix
-  communitymatrix.occurence[communitymatrix.occurence > 0] <- 1
-
-  #list of haul_id keys
-  key_IDs_subset <- reduced_year_wide$key_ID
-
-  dissimilarities_abundance <- beta.pair.abund(communitymatrix, index.family = "bray") #dissimilarity 
-  dissimilarities_occurrence <- beta.pair(communitymatrix.occurence, index.family = "jaccard") #dissimilarity
-
-  #make into matrix
-  dissimilarities_abundance.m <- as.matrix(dissimilarities_abundance$beta.bray.bal, labels=TRUE) #bal = balanced
-  dissimilarities_occurrence.m <- as.matrix(dissimilarities_occurrence$beta.jtu, labels=TRUE) #jtu = turnover
-  colnames(dissimilarities_abundance.m) <- rownames(dissimilarities_abundance.m) <- key_IDs_subset
-  colnames(dissimilarities_occurrence.m) <- rownames(dissimilarities_occurrence.m) <- key_IDs_subset
-
-  #reshape dissimilarities
-  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haul_id1", "haul_id2"), value.name = "bray_curtis_dissimilarity_balanced")
-  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haul_id1", "haul_id2"), value.name = "jaccard_dissimilarity_turnover")
-  dissimilarities_abundance.l <- data.table(dissimilarities_abundance.l) #and then to data table
-  dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
-
-  #add year for these values
-  dissimilarities_abundance.l[, "year" := ebs_years[i]]
-  dissimilarities_occurrence.l[, "year" := ebs_years[i]]
-
-  #merge distance with dissimilarity for this year with both metrics of dissimilarity
-  dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance.l, on = c("haul_id1", "haul_id2")]
-  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haul_id1", "haul_id2", "year")]
-
-
-  #add to data table
-  ebs_distances_dissimilarities_allyears <- rbind(ebs_distances_dissimilarities_allyears, dissimilarities_full)
-  
-  print(paste0(i,"/",length(ebs_years)))
-  
-}
-
-summary(ebs_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
-
-#delete repeats
-ebs_distances_dissimilarities_allyears <- ebs_distances_dissimilarities_allyears[haul_id1 >= haul_id2,]
-
-
-ebs_distances_dissimilarities_allyears[,bray_curtis_similarity_balanced := (1-bray_curtis_dissimilarity_balanced)][,jaccard_similarity_turnover := (1-jaccard_dissimilarity_turnover)]
-
-saveRDS(ebs_distances_dissimilarities_allyears, file = "ebs_distances_dissimilarities_allyears.rds")
-
-ebs_distances_dissimilarities_allyears <- readRDS("ebs_distances_dissimilarities_allyears.rds")
-
-```
-  
-}
-```
 

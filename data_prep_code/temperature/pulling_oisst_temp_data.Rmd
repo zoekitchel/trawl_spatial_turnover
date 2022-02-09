@@ -1,0 +1,165 @@
+---
+title: "Pulling OISST Temp Data"
+output: html_notebook
+---
+
+Daily SST Temperature
+
+```{r setup}
+library(dplyr) # A staple for modern data management in R
+library(lubridate) # Useful functions for dealing with dates
+library(ggplot2) # The preferred library for data visualisation
+library(tidync) # For easily dealing with NetCDF data
+library(rerddap) # For easily downloading subsets of data
+library(doParallel) # For parallel processing
+
+#pull in data for year and lat lon restrictions
+FishGlob_cleaned.10year.r <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.r.rds"))
+all_season_surveys <- unique(FishGlob_cleaned.10year.r[,survey_season])
+```
+
+Unique Lat Lon Year for each Survey/season
+```{r unique lat lon}
+unique_lat_lon_year <- unique(FishGlob_cleaned.10year.r[,.(latitude, longitude, year, survey, season, survey_season)])
+
+#data range for this data is (-179.875, 179.875), so I will trim to this
+unique_lat_lon_year[,longitude_trim := ifelse(longitude < -179.875, -179.875, ifelse(longitude > 179.875, 179.875, longitude))]
+
+summary(unique_lat_lon_year[,longitude_trim])
+```
+
+
+```{r}
+# The information for the NOAA OISST data
+rerddap::info(datasetid = "ncdcOisst21Agg_LonPM180", url = "https://coastwatch.pfeg.noaa.gov/erddap/")
+
+# Note that there is also a version with lon values from 0 yo 360
+rerddap::info(datasetid = "ncdcOisst21Agg", url = "https://coastwatch.pfeg.noaa.gov/erddap/")
+```
+
+```{r}
+# This function downloads and prepares data based on user provided start and end dates
+OISST_sub_dl <- function(time_df, this_survey_season){
+  OISST_dat <- griddap(x = "ncdcOisst21Agg_LonPM180", 
+                       url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
+                       time = c(time_df$start, time_df$end), 
+                       zlev = c(0, 0),
+                       latitude = c(min(unique_lat_lon_year[survey_season == this_survey_season]$latitude),
+                                    max(unique_lat_lon_year[survey_season == this_survey_season]$latitude)),
+                       longitude = c(min(unique_lat_lon_year[survey_season == this_survey_season]$longitude_trim),
+                                    max(unique_lat_lon_year[survey_season == this_survey_season]$longitude_trim)),
+                       fields = "sst")$data %>% 
+    mutate(time = as.Date(stringr::str_remove(time, "T00:00:00Z"))) %>% 
+    dplyr::rename(t = time, temp = sst) %>% 
+    select(lon, lat, t, temp) %>% 
+    na.omit()
+}
+```
+
+```{r}
+    
+dl_years <- data.frame(date_index = 1:5,
+                           start = as.Date(c("1981-01-01", "1989-01-01", 
+                                             "1997-01-01", "2005-01-01", "2013-01-01")),
+                           end = as.Date(c("1988-12-31", "1996-12-31", 
+                                           "2004-12-31", "2012-12-31", "2019-12-31")))
+
+
+}
+```
+
+```{r}
+# Download all of the data with one nested request
+# The time this takes will vary greatly based on connection speed
+
+for (i in 1:all_season_surveys)
+    system.time(
+      OISST_data <- dl_years %>% 
+        group_by(date_index) %>% 
+        group_modify(~OISST_sub_dl(.x, all_season_surveys[i])) %>% 
+        ungroup() %>% 
+        select(lon, lat, t, temp)
+    ) # 38 seconds, ~8 seconds per batch
+
+    assign(paste0("OISST_data_",all_season_surveys[i]), OISST_data)
+
+OISST_data_AI <- as.data.table(OISST_data)
+
+AI_min_positive <- min(unique_lat_lon_year[longitude > 150 & survey == "AI"]$longitude)
+AI_max_negative <-max(unique_lat_lon_year[longitude < 0 & survey == "AI"]$longitude)
+
+OISST_data_AI <- OISST_data_AI[lon >= AI_min_positive | lon <= AI_max_negative,][,lon_s := ifelse(lon > 160, lon-360, lon)]
+
+#edit, because we don't actually need all of this data
+hist(FishGlob_cleaned.10year.r[survey == "AI", longitude])
+#for just AI 
+#2024.317  159.159 4585.945 
+```
+
+```{r}
+OISST_data_AI %>% 
+  filter(t == "2018-12-01") %>% 
+  ggplot(aes(x = lon_s, y = lat)) +
+  geom_tile(aes(fill = temp)) +
+  borders() + # Activate this line to see the global map
+  scale_fill_viridis_c() +
+  coord_quickmap(expand = F) +
+  labs(x = NULL, y = NULL, fill = "SST (°C)") +
+  theme(legend.position = "bottom")
+```
+Average Values
+
+```{r}
+#what time of year does AI trawl usually happen?
+plot(FishGlob_cleaned.10year.r[survey == "AI"]$year, FishGlob_cleaned.10year.r[survey == "AI"]$month)
+
+#we'll go with May
+```
+First go from daily temp to average monthly temp. We need mean temp 12 months before May, max temp 12 months before May, and min temp 12 months before June. At some time in the future, I may want to extract values at exact temp values, but not sure it matters much now. Instead, I'll take yearly:
+* mean
+* max
+* min
+* SD
+
+```{r}
+OISST_data_AI[,month := month(t)][,year := year(t)]
+
+OISST_data_AI[, year_for_avg := ifelse(month >= 6, year+1, year_for_avg)][, yearly_mean_bypoint := mean(temp), .(year_for_avg, lat, lon)][, montly_mean_bypoint := mean(temp),.(year_for_avg,lat,lon,month)]
+
+#for min, max, and mean, first temp is avg by month at each lat/lon, THEN we take mean, max, and min monthly temp per year (balances out any weird values)
+#for SD, we calculate a yearly mean by lat/lon, and then look at standard deviation
+OISST_data_AI[, sst_min := min(montly_mean_bypoint), year_for_avg][, sst_max := max(montly_mean_bypoint), year_for_avg][, sst_mean := mean(montly_mean_bypoint), year_for_avg][, sst_SD := sd(yearly_mean_bypoint), year_for_avg] #this doesn't take into consideration spatial component for sst min max or mean, I want to calculate mean at each point, and THEN take SD I think
+
+OISST_data_AI_temp_avgs <- unique(OISST_data_AI[,.(year_for_avg, sst_min, sst_max, sst_mean, sst_SD)])
+
+plot(OISST_data_AI_temp_avgs$year, OISST_data_AI_temp_avgs$sst_mean)
+abline()
+plot(OISST_data_AI_temp_avgs$year, OISST_data_AI_temp_avgs$sst_max)
+plot(OISST_data_AI_temp_avgs$year, OISST_data_AI_temp_avgs$sst_min)
+plot(OISST_data_AI_temp_avgs$year, OISST_data_AI_temp_avgs$sst_SD)
+
+#save to play with tomorrow
+saveRDS(OISST_data_AI, here::here("data","Temperature","OISST_data_AI.rds"))
+saveRDS(OISST_data_AI_temp_avgs, here::here("data","Temperature","OISST_data_AI_temp_avgs.rds"))
+```
+
+
+
+
+I'll delete any observations from october and november sometime in the future? Not now
+
+```{r}
+system.time(
+  OISST_data <- dl_years %>% 
+    group_by(date_index) %>% 
+    group_modify(~OISST_sub_dl(.x)) %>% 
+    ungroup() %>% 
+    select(lon, lat, t, temp)
+) # 38 seconds, ~8 seconds per batch
+```
+
+```{r}
+# Save the data as an .Rds file because it has a much better compression rate than .RData
+saveRDS(OISST_data, file = "~/Desktop/OISST_vignette.Rds")
+```
+
