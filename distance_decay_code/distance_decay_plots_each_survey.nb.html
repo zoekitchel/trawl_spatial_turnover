@@ -218,15 +218,14 @@ pre code {
 <p>Distance Decay Plots for Each Survey</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkYXRhLnRhYmxlKVxubGlicmFyeShnZ3Bsb3QyKVxuXG4jbG9hZCBkYXRhXG5kaXN0YW5jZXNfZGlzc2ltaWxhcml0aWVzX2FsbHllYXJzIDwtIHJlYWRSRFMoaGVyZTo6aGVyZShcIm91dHB1dFwiLFwiZGlzdGFuY2VfZGVjYXlcIixcImRpc3RhbmNlc19kaXNzaW1pbGFyaXRpZXNfYWxseWVhcnMucmRzXCIpKVxuXG5hbGxfc2Vhc29uX3N1cnZleXMgPC0gdW5pcXVlKGRpc3RhbmNlc19kaXNzaW1pbGFyaXRpZXNfYWxseWVhcnNbLHN1cnZleV9zZWFzb25dKVxuYGBgIn0= -->
-<pre class="r"><code>library(data.table)
-library(ggplot2)
-
-#load data
-distances_dissimilarities_allyears &lt;- readRDS(here::here(&quot;output&quot;,&quot;distance_decay&quot;,&quot;distances_dissimilarities_allyears.rds&quot;))
-
-all_season_surveys &lt;- unique(distances_dissimilarities_allyears[,survey_season])</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYWxsX3NlYXNvbl9zdXJ2ZXlzIDwtIHVuaXF1ZShkaXN0YW5jZXNfZGlzc2ltaWxhcml0aWVzX2FsbHllYXJzWyxzdXJ2ZXlfc2Vhc29uXSlcblxuYGBgIn0= -->
+<pre class="r"><code>all_season_surveys &lt;- unique(distances_dissimilarities_allyears[,survey_season])
+</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gYFsuZGF0YS50YWJsZWAoZGlzdGFuY2VzX2Rpc3NpbWlsYXJpdGllc19hbGx5ZWFycywgLCBzdXJ2ZXlfc2Vhc29uKSA6IFxuICBqICh0aGUgMm5kIGFyZ3VtZW50IGluc2lkZSBbLi4uXSkgaXMgYSBzaW5nbGUgc3ltYm9sIGJ1dCBjb2x1bW4gbmFtZSAnc3VydmV5X3NlYXNvbicgaXMgbm90IGZvdW5kLiBQZXJoYXBzIHlvdSBpbnRlbmRlZCBEVFssIC4uc3VydmV5X3NlYXNvbl0uIFRoaXMgZGlmZmVyZW5jZSB0byBkYXRhLmZyYW1lIGlzIGRlbGliZXJhdGUgYW5kIGV4cGxhaW5lZCBpbiBGQVEgMS4xLlxuIn0= -->
+<pre><code>Error in `[.data.table`(distances_dissimilarities_allyears, , survey_season) : 
+  j (the 2nd argument inside [...]) is a single symbol but column name &#39;survey_season&#39; is not found. Perhaps you intended DT[, ..survey_season]. This difference to data.frame is deliberate and explained in FAQ 1.1.</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>#Heat map</p>

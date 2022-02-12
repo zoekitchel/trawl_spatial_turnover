@@ -12,8 +12,10 @@ library(sf)
 library(concaveman) #polygon around points
 library(betapart) #allows us to partition beta diversity
 library(geosphere)
+library(ggpubr) #stat_regline_equation
 
-FishGlob_cleaned.10year<- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+#unhash typically
+#FishGlob_cleaned.10year<- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
 
 ```
@@ -71,7 +73,7 @@ rm(FishGlob_cleaned.10year)
 
 #now, delete any rows without cpue data, shouldn't be too many (don't do this! want to look at abundances for IS-MOAG and MEDITS)
 
-abundances_only <- c("IS_MOAG", "MEDITS")
+abundances_only <- c("IS-MOAG", "MEDITS")
 
 #FishGlob_cleaned.10year_final <- copy(FishGlob_cleaned.10year.r)[!is.na(wgt_cpue),]
 
@@ -105,7 +107,7 @@ for (i in 1:length(all_season_surveys)) {
   pts <- st_as_sf(lat_lon, coords=c('longitude_s','latitude'), crs=4326 )
 
   conc <- concaveman(pts, concavity = 5)
-
+  sf::sf_use_s2(FALSE) #turn off the s2 processing; GEOS treats projected coordinates as planar (i.e. two points lie on a line of infinite max lenght) while s2 is more "correct" (two points lie on a great circle of circumference of 40 075 kilometers)
   area <- st_area(conc) #m2, check this later
 
   #fill row
@@ -270,4 +272,123 @@ for (i in 1:length(all_season_surveys)) {
 saveRDS(distances_dissimilarities_allyears, here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
 ```
 
+Box plot for each region
+```{r box plot each region}
+box_plots_jaccard <- list()
+box_plots_bray <- list()
+
+bray_model_outputs <- data.table()
+
+bray_model_outputs <- as.data.table(matrix(nrow = length(all_season_surveys)))
+bray_model_outputs[, survey:=as.character(V1)][, season:=as.character(V1)][, season_survey:=as.character(V1)][, bray_coef:=as.numeric(V1)][, bray_intercept := as.numeric(V1)][,bray_coef_pvalue := as.numeric(V1)][,bray_r_squared := as.numeric(V1)]
+bray_model_outputs[, V1 := NULL]
+
+jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_season_surveys)))
+
+jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_season_surveys)))
+jaccard_model_outputs[, survey:=as.character(V1)][, season:=as.character(V1)][, season_survey:=as.character(V1)][, jaccard_coef:=as.numeric(V1)][, jaccard_intercept := as.numeric(V1)][,jaccard_coef_pvalue := as.numeric(V1)][,jaccard_r_squared := as.numeric(V1)]
+jaccard_model_outputs[, V1 := NULL]
+
+
+distances_dissimilarities_allyears[,year_f := as.factor(year)]
+
+#in case you didn't make it earlier
+all_season_surveys <- unique(distances_dissimilarities_allyears[,season_survey])
+
+for (i in 1:length(all_season_surveys)) {
+      distances_dissimilarities_allyears_subset <- distances_dissimilarities_allyears[season_survey == all_season_surveys[i]]
+      
+    #jaccard similarity
+#    box_plots_jaccard[[i]] <- ggplot(distances_dissimilarities_allyears_subset,aes(year_f, #jaccard_dissimilarity_turnover)) +
+#      geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+#      labs(x="Year", y = "Jaccard Dissimilarity") +
+#      geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+#      stat_regline_equation() +
+#      theme_classic() +
+#      theme(axis.text.x = element_text(angle = 90))
+#    
+#    #bray curtis similarity
+#    box_plots_bray[[i]] <- ggplot(distances_dissimilarities_allyears_subset,aes(year_f,bray_curtis_dissimilari#ty_balanced)) +
+#      geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+#      labs(x="Year", y = "Bray Curtis Dissimilarity") +
+#      geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+#      stat_regline_equation() +
+#      theme_classic() +
+#      theme(axis.text.x = element_text(angle = 90))
+    #START HERE GET THESE TO ACTUALLY SAVE
+    #corresponding models
+    avg_jaccard_mod <- lm(data = distances_dissimilarities_allyears_subset, formula = jaccard_dissimilarity_turnover ~ as.numeric(year))
+    
+    jaccard_model_outputs[i, "survey"] <- distances_dissimilarities_allyears_subset[1, survey]
+    jaccard_model_outputs[i, "season"] <- distances_dissimilarities_allyears_subset[1, season]
+    jaccard_model_outputs[i, "season_survey"] <- distances_dissimilarities_allyears_subset[1, season_survey]
+    
+    #coef
+    
+    jaccard_model_outputs[i,"jaccard_coef"] <- avg_jaccard_mod$coefficients[[2]]
+    
+    #intercept
+    jaccard_model_outputs[i,"jaccard_intercept"] <- avg_jaccard_mod$coefficients[[1]]
+    
+    #p-value
+     jaccard_model_outputs[i,"jaccard_coef_pvalue"] <- summary(avg_jaccard_mod)$coefficients[2,4]  
+    
+    #R^2
+    jaccard_model_outputs[i,"jaccard_r_squared"] <- summary(avg_jaccard_mod)$r.squared
+    
+    #bray
+    
+    avg_bray_mod <- lm(data = distances_dissimilarities_allyears_subset, formula = bray_curtis_dissimilarity_balanced ~ as.numeric(year))
+    
+    bray_model_outputs[i, "survey"] <- distances_dissimilarities_allyears_subset[1, survey]
+    bray_model_outputs[i, "season"] <- distances_dissimilarities_allyears_subset[1, season]
+    bray_model_outputs[i, "season_survey"] <- distances_dissimilarities_allyears_subset[1, season_survey]
+    
+    #coef
+    
+    bray_model_outputs[i,"bray_coef"] <- avg_bray_mod$coefficients[[2]]
+    #intercept
+    bray_model_outputs[i,"bray_intercept"] <- avg_bray_mod$coefficients[[1]]
+    
+    #p-value
+    bray_model_outputs[i,"bray_coef_pvalue"] <- summary(avg_bray_mod)$coefficients[2,4]  
+    
+    #R^2
+    bray_model_outputs[i,"bray_r_squared"] <- summary(avg_bray_mod)$r.squared
+    
+
+
+}
+
+
+
+#save plots and models as objects
+saveRDS(jaccard_model_outputs, here::here("output","distance_decay","jaccard_model_outputs.rds"))
+saveRDS(bray_model_outputs, here::here("output","distance_decay","bray_model_outputs.rds"))
+
+saveRDS(box_plots_jaccard, here::here("output","distance_decay","box_plots_jaccard.rds"))
+saveRDS(box_plots_bray, here::here("output","distance_decay","box_plots_bray.rds"))
+
+#save plots as images
+
+for (i in 1:length(all_season_surveys)) {
+  filename_jaccard <- paste0(all_season_surveys[i], "_jaccard_box_plot.jpg")
+  ggsave(box_plots_jaccard[[i]], path = here::here("figures", "distance_decay"), filename = filename_jaccard)
+  
+  filename_bray <- paste0(all_season_surveys[i], "_bray_box_plot.jpg")
+  ggsave(box_plots_bray[[i]], path = here::here("figures", "distance_decay"), filename = filename_bray)
+}
+```
+
+
+
+
+Averages for each survey_season
+```{r}
+colnames(distances_dissimilarities_allyears)
+
+
+distances_dissimilarities_allyears[,mean_jaccard := mean(jaccard_dissimilarity_turnover), .(survey, season, year)]
+distances_dissimilarities_allyears[,mean_bray := mean(bray_curtis_dissimilarity_balanced), .(survey, season, year)]
+```
 

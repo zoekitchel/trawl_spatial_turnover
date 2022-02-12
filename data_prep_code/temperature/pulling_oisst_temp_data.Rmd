@@ -11,7 +11,7 @@ library(lubridate) # Useful functions for dealing with dates
 library(ggplot2) # The preferred library for data visualisation
 library(tidync) # For easily dealing with NetCDF data
 library(rerddap) # For easily downloading subsets of data
-library(doParallel) # For parallel processing
+library(stringr)
 
 #pull in data for year and lat lon restrictions
 FishGlob_cleaned.10year.r <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.r.rds"))
@@ -28,16 +28,16 @@ unique_lat_lon_year[,longitude_trim := ifelse(longitude < -179.875, -179.875, if
 summary(unique_lat_lon_year[,longitude_trim])
 ```
 
-
-```{r}
+Visualize what data loook olike
+```{r viz data}
 # The information for the NOAA OISST data
 rerddap::info(datasetid = "ncdcOisst21Agg_LonPM180", url = "https://coastwatch.pfeg.noaa.gov/erddap/")
 
 # Note that there is also a version with lon values from 0 yo 360
 rerddap::info(datasetid = "ncdcOisst21Agg", url = "https://coastwatch.pfeg.noaa.gov/erddap/")
 ```
-
-```{r}
+Write function to prep data based on start and end dates and provided lat long
+```{r function to prep data}
 # This function downloads and prepares data based on user provided start and end dates
 OISST_sub_dl <- function(time_df, this_survey_season){
   OISST_dat <- griddap(x = "ncdcOisst21Agg_LonPM180", 
@@ -56,32 +56,33 @@ OISST_sub_dl <- function(time_df, this_survey_season){
 }
 ```
 
-```{r}
+Setup dates we will pull data for. For ease, I'm going to pull entire time period
+```{r setup dates in dl_year}
     
 dl_years <- data.frame(date_index = 1:5,
-                           start = as.Date(c("1981-01-01", "1989-01-01", 
+                           start = as.Date(c("1981-09-01", "1989-01-01", 
                                              "1997-01-01", "2005-01-01", "2013-01-01")),
                            end = as.Date(c("1988-12-31", "1996-12-31", 
                                            "2004-12-31", "2012-12-31", "2019-12-31")))
 
 
-}
+
 ```
 
-```{r}
+I am running AI separately because it spans dateline, and I need to do some eidts
+
+```{r AI alone}
 # Download all of the data with one nested request
 # The time this takes will vary greatly based on connection speed
 
-for (i in 1:all_season_surveys)
     system.time(
       OISST_data <- dl_years %>% 
         group_by(date_index) %>% 
-        group_modify(~OISST_sub_dl(.x, all_season_surveys[i])) %>% 
+        group_modify(~OISST_sub_dl(.x, "AI_NA")) %>% 
         ungroup() %>% 
         select(lon, lat, t, temp)
     ) # 38 seconds, ~8 seconds per batch
 
-    assign(paste0("OISST_data_",all_season_surveys[i]), OISST_data)
 
 OISST_data_AI <- as.data.table(OISST_data)
 
@@ -96,7 +97,10 @@ hist(FishGlob_cleaned.10year.r[survey == "AI", longitude])
 #2024.317  159.159 4585.945 
 ```
 
-```{r}
+
+Plot temp for one period in AI just to make sure it looks right
+
+```{r test plot AI}
 OISST_data_AI %>% 
   filter(t == "2018-12-01") %>% 
   ggplot(aes(x = lon_s, y = lat)) +
@@ -107,20 +111,33 @@ OISST_data_AI %>%
   labs(x = NULL, y = NULL, fill = "SST (°C)") +
   theme(legend.position = "bottom")
 ```
+Loop to pull data for all regions (works best on remote server, takes quite a bit of time)
+```{r loop to pull in all regions past AI}
+for (i in 2:length(all_season_surveys)) { #skip AI, pull separately because it spans dateline
+    system.time(
+      OISST_data <- dl_years %>% 
+        group_by(date_index) %>% 
+        group_modify(~OISST_sub_dl(.x, all_season_surveys[i])) %>% 
+        ungroup() %>% 
+        select(lon, lat, t, temp)
+    ) # 38 seconds, ~8 seconds per batch
+
+    assign(paste0("OISST_data_",all_season_surveys[i]), OISST_data) #check this
+    
+    saveRDS(get(paste0("OISST_data_",all_season_surveys[i])), here::here("data","Temperature",paste0("OISST_data_",all_season_surveys[i],".rds")))
+    
+}
+```
+
 Average Values
 
-```{r}
-#what time of year does AI trawl usually happen?
-plot(FishGlob_cleaned.10year.r[survey == "AI"]$year, FishGlob_cleaned.10year.r[survey == "AI"]$month)
-
-#we'll go with May
-```
 First go from daily temp to average monthly temp. We need mean temp 12 months before May, max temp 12 months before May, and min temp 12 months before June. At some time in the future, I may want to extract values at exact temp values, but not sure it matters much now. Instead, I'll take yearly:
 * mean
 * max
 * min
 * SD
 
+Again, just for ease I'll do AI separately 
 ```{r}
 OISST_data_AI[,month := month(t)][,year := year(t)]
 
@@ -138,28 +155,71 @@ plot(OISST_data_AI_temp_avgs$year, OISST_data_AI_temp_avgs$sst_max)
 plot(OISST_data_AI_temp_avgs$year, OISST_data_AI_temp_avgs$sst_min)
 plot(OISST_data_AI_temp_avgs$year, OISST_data_AI_temp_avgs$sst_SD)
 
+#add extra columns to merge with larger dataset
+OISST_data_AI_temp_avgs[, survey_season := "AI_NA"]
+OISST_data_AI_temp_avgs[, season := "NA"]
+OISST_data_AI_temp_avgs[, survey := "AI"]
+
 #save to play with tomorrow
 saveRDS(OISST_data_AI, here::here("data","Temperature","OISST_data_AI.rds"))
 saveRDS(OISST_data_AI_temp_avgs, here::here("data","Temperature","OISST_data_AI_temp_avgs.rds"))
 ```
 
+And now all other regions
+```{r loop for average values}
+
+OISST_data_temp_avgs_full <- data.table()
+
+for (i in 2:length(all_season_surveys)) {
+  min_month <- min(FishGlob_cleaned.10year.r[survey_season == all_season_surveys[i]]$month)
+  
+  #pull in data from rds files if not already in console
+  
+  assign(paste0("OISST_data_",all_season_surveys[i]), readRDS(here::here("data","Temperature",paste0("OISST_data_",all_season_surveys[i],".rds"))))
+  
+  OISST_data <- data.table(get(paste0("OISST_data_",all_season_surveys[i])))
+  
+  OISST_data[,month := month(t)][,year := year(t)]
+
+  OISST_data[, year_for_avg := ifelse(month >= 6, year+1, year)][, yearly_mean_bypoint := mean(temp), .(year_for_avg, lat, lon)][, montly_mean_bypoint := mean(temp),.(year_for_avg,lat,lon,month)]
+  
+  #for min, max, and mean, first temp is avg by month at each lat/lon, THEN we take mean, max, and min monthly temp per year (balances out any weird values)
+  #for SD, we calculate a yearly mean by lat/lon, and then look at standard deviation
+  OISST_data[, sst_min := min(montly_mean_bypoint), year_for_avg][, sst_max := max(montly_mean_bypoint), year_for_avg][, sst_mean := mean(montly_mean_bypoint), year_for_avg][, sst_SD := sd(yearly_mean_bypoint), year_for_avg] #this doesn't take into consideration spatial component for sst min max or mean, I want to calculate mean at each point, and THEN take SD I think
+  
+  OISST_data_temp_avgs <- unique(OISST_data[,.(year_for_avg, sst_min, sst_max, sst_mean, sst_SD)])
+  
+  OISST_data_temp_avgs[, survey_season := all_season_surveys[i]]
+  OISST_data_temp_avgs[, season := word(all_season_surveys[i],2, sep = "_")]
+  OISST_data_temp_avgs[, survey := word(all_season_surveys[i],1, sep = "_")]
+  
+  OISST_data_temp_avgs_full <- rbind(OISST_data_temp_avgs_full, OISST_data_temp_avgs)
+  
+#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_mean)
+#  abline()
+#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_max)
+#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_min)
+#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_SD)
+
+}
+
+#with AI (in case it's not loaded)
+OISST_data_AI_temp_avgs <- readRDS("~/Documents/grad_school/Rutgers/Repositories/trawl_spatial_turnover_git/data/Temperature/OISST_data_AI_temp_avgs.rds")
+
+OISST_data_temp_avgs_full <- rbind(OISST_data_temp_avgs_full, OISST_data_AI_temp_avgs)
 
 
+#save summary table!!!
+saveRDS(OISST_data_temp_avgs_full, here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
 
-I'll delete any observations from october and november sometime in the future? Not now
-
-```{r}
-system.time(
-  OISST_data <- dl_years %>% 
-    group_by(date_index) %>% 
-    group_modify(~OISST_sub_dl(.x)) %>% 
-    ungroup() %>% 
-    select(lon, lat, t, temp)
-) # 38 seconds, ~8 seconds per batch
 ```
 
-```{r}
-# Save the data as an .Rds file because it has a much better compression rate than .RData
-saveRDS(OISST_data, file = "~/Desktop/OISST_vignette.Rds")
-```
+TO DO: 
+
+* I'll delete any observations from October and November for AI sometime in the future? Not now
+    * Make sure each survey is roughly 1 season (See how Alexa deals with this)
+* Be more intentional about which temperature values I'm extracting (use polygons from line 108 in distance_decay_all_surveys)
+* Should Mediterranean be one reg, or multiple regs?
+* Shuffle years for each region to build confidence interval
+
 
