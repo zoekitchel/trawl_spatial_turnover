@@ -10,11 +10,11 @@ library(data.table)
 library(ggplot2)
 
 #load models as objects (doesn't work right now)
-#jaccard_model_outputs <-readRDS(here::here("output","distance_decay","jaccard_model_outputs.rds"))
-#bray_model_outputs <- readRDS(here::here("output","distance_decay","bray_model_outputs.rds"))
+jaccard_model_outputs <-readRDS(here::here("output","distance_decay","jaccard_model_outputs.rds"))
+bray_model_outputs <- readRDS(here::here("output","distance_decay","bray_model_outputs.rds"))
 #
 ##load full dissimilarity 
-#distances_dissimilarities_allyears <- #readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
+distances_dissimilarities_allyears <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
 ```
 
 
@@ -140,6 +140,8 @@ mean_annual_jaccard_dissimilarity_full_plot_homogdiffer <- ggplot(distances_diss
   labs(y = "Mean Annual Jaccard Dissimilarity", x = "Year") +
   theme_classic()
 
+mean_annual_jaccard_dissimilarity_full_plot_homogdiffer
+
 ggsave(mean_annual_jaccard_dissimilarity_full_plot_homogdiffer, path = here::here("figures","distance_decay"), filename =   "mean_annual_jaccard_dissimilarity_full_plot_homogdiffer.jpg",  width = 8, height = 4, unit = "in")
 
 #nolegend
@@ -155,6 +157,8 @@ mean_annual_bray_dissimilarity_full_plot_homogdiffer <- ggplot(distances_dissimi
   theme_classic()
 #+
 #  theme(legend.position = "none")
+
+mean_annual_bray_dissimilarity_full_plot_homogdiffer
 
 ggsave(mean_annual_bray_dissimilarity_full_plot_homogdiffer, path = here::here("figures","distance_decay"), filename =   "mean_annual_bray_dissimilarity_full_plot_homogdiffer.jpg",  width = 8, height = 4, unit = "in")
 
