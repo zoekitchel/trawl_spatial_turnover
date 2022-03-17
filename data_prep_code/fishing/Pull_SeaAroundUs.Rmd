@@ -1,0 +1,103 @@
+---
+title: "Pull together sea around us data"
+output: html_notebook
+---
+
+Pull together sea around us data
+
+```{r setup}
+library(data.table)
+library(ggplot2)
+library(here)
+
+#key
+SAU_survey_key <- fread(here::here("data_prep_code","fishing","Survey_SOU_Key.csv"))
+```
+
+Use the key to pull in all the csvs
+```{r}
+SAU_names <- SAU_survey_key[, Survey]
+SAU_files <- SAU_survey_key[, FileName]
+
+SAU_full <- data.table()
+
+for (i in 1:length(SAU_names)) {
+  SAU_data <- fread(SAU_files[i]) #pull in data for region[i]
+  SAU_data.r <- SAU_data[,.(area_name, area_type, year, scientific_name, common_name, functional_group, commercial_group, fishing_entity, fishing_sector, catch_type, reporting_status, gear_type, end_use_type, tonnes, landed_value)]
+  #link back to survey
+  SAU_data.r[,Survey := SAU_names[i]]
+  
+  SAU_full <- rbind(SAU_full, SAU_data.r) #bind all regions together
+  print(paste0(i,":",SAU_names[i],", Number of Columns: ",ncol(SAU_data)))
+}
+
+
+
+```
+Cleaning SAU data
+
+1. Limit to scientific names that are associated with fish by limiting with functional_group
+
+```{r cleaning SAU data fish only}
+#what functional groups are in this dataset
+levels(as.factor(SAU_full[,functional_group]))
+
+#get rid of 
+function_groups_exclude <- c("Cephalopods","Krill","Lobsters, crabs","Shrimps","Jellyfish","Other demersal invertebrates")
+
+SAU_full.r <- SAU_full[!(functional_group %in% function_groups_exclude)]
+
+#check if it worked
+levels(as.factor(SAU_full.r[,common_name])) #looks good
+
+```
+
+2. Limit to landings (exclude discards)
+
+```{r cleaning SAU data no discards}
+#what functional groups are in this dataset
+levels(as.factor(SAU_full.r[,catch_type]))
+
+#
+SAU_full.landings <- SAU_full.r[catch_type == "Landings"]
+
+#check if it worked
+levels(as.factor(SAU_full.r[,common_name])) #looks good
+
+```
+
+3. Limit to identified fish? not sure this is necessary, may skip
+
+```{r cleaning SAU data fish have to be IDed}
+#what functional groups are in this dataset
+levels(as.factor(SAU_full.landings[,scientific_name]))
+
+#delete any observations not ID'd
+SAU_full.landings.ided <- SAU_full.landings[scientific_name != "Marine fishes not identified"]
+
+
+```
+
+Now, we will sum tonnes across each year for each region (should I do year before, or year of?)**
+```{r sum tonnes}
+SAU_summed_tonnes <- SAU_full.landings.ided[,summed_tonnes := sum(tonnes, na.rm = T),.(year, area_name, area_type, Survey)][ #key to include Survey because a few SAU data sets are in here multiple times
+    , summed_tonnes_scaled_byreg := scale(summed_tonnes),.(Survey)]
+
+#reduce to unique values we need
+SAU_summed_tonnes.r <- unique(SAU_summed_tonnes[,.(year, Survey, summed_tonnes, summed_tonnes_scaled_byreg)])
+
+
+#plot to visualizee
+ggplot(SAU_summed_tonnes.r) +
+  geom_line(aes(x = year, y = summed_tonnes_scaled_byreg)) +
+  facet_wrap(~Survey) +
+  theme_classic()
+
+ggplot(SAU_summed_tonnes.r) +
+  geom_line(aes(x = year, y = summed_tonnes, color = Survey)) +
+  theme_classic()
+
+#save
+saveRDS(SAU_summed_tonnes.r, here::here("data","sea_around_us","SAU_summed_tonnes.r"))
+```
+

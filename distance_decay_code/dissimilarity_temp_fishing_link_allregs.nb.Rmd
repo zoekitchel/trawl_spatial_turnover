@@ -1,11 +1,10 @@
 ---
-title: "Dissimilarity Temperature Regression for All Regions"
+title: "Dissimilarity Temperature & Fishing Regression for All Regions"
 output: html_notebook
 ---
 
-Here we will finally link temperature to dissimilarity
+Here we will finally link temperature and fishing to dissimilarity
 
-NEXT STEP: Instead of absolute temperature, look at temperature anomolies 
 
 ```{r setup}
 
