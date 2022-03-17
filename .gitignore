@@ -21,3 +21,5 @@ OISST_data_AI.rds
 OISST_data*
 box_plots_bray.rds
 box_plots_jaccard.rds
+*.csv
+*.pdf
