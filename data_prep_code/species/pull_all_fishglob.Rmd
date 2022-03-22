@@ -17,6 +17,7 @@ library(taxize) #standardizing names
 library(geosphere)  #to calculate distance between lat lon of grid cells
 library(googledrive)
 library(here)
+library(sf)
 ```
 
 
@@ -47,8 +48,12 @@ FishGlob[,years_sampled := length(unique(year)),.(survey,season)]
 
 hist(FishGlob$years_sampled)
 
+length(unique(FishGlob[,survey]))
+
 #remove observations for any regions x season combinations sampled less than 10 times and observations not resolved to species
 FishGlob.10year <- FishGlob[years_sampled >= 10,][rank == "Species",]
+
+length(unique(FishGlob.10year[,survey]))
 
 rm(FishGlob)
 
@@ -64,9 +69,11 @@ From Batt et al. 2017
 
 "In the Southeast U.S., data from 1989 (data begin in 1989) were excluded because several sites were not sampled in this year, and if this year had been used, the number of sites sampled in at least 85% of years would drop from 24 to 23 (with only 21 sites sampled in 1989)."
 
-"In the Northeast U.S., we excluded data from years prior to 1982 (data begin in 1968). Years prior to 1979 were excluded because strata in the southern tip of the region (between approximately 34.5o N and 35o N) were not regularly sampled during this time. A site in the Gulf of Maine (-69.25o E 43.25o N) was not sampled consistently between 1979 and 1981, and including these years in the analysis would have prevented this site from being included in the analysis (which would have reduced total sites from 100 to 99)."
+"In the Northeast U.S., we excluded data from years prior to 1982 (data begin in 1968). Years prior to 1979 were excluded because strata in the southern tip of the region (between approximately 34.5o N and 35o N) were not regularly sampled during this time. A site in the Gulf of Maine (-69.25o E 43.25o N) was not sampled consistently between 1979 and 1981, and including these years in the analysis would have prevented this site from being included in the analysis (which would have reduced total sites from 100 to 99)." #Alexa says start in 1968/1972
 
 "In Newfoundland, years prior to 1996 (first year was 1992) were excluded because many sites were not sampled. If all years had been used (1992 onward), total number of sites sampled in at least 85% of years would have been decreased from 191 to 53; if data from 1995 onward had been included, number of sites would have been 179." 
+
+Maybe throw out last year of riannual survey for West Coast US
 
 ```{r}
 
@@ -116,7 +123,7 @@ for (i in 1:length(all_survey_seasons)) {
   #find cell centers
   cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell])
 
-  #linking cell centers to unique_EBS_latlon
+  #linking cell centers to unique_latlon
   unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
 
     #link centers back to main data table
@@ -131,10 +138,10 @@ for (i in 1:length(all_survey_seasons)) {
   #update grid properties to include # of trawls in each cell
   grid <- merge(grid, unique_latlon, by = "cell")
   
-  #Any years for AI where clearly fewer cells were sampled?
+  #Any years where clearly fewer cells were sampled?
   year_cells <- reduced_FishGlob.10year.gridded[,.(cell_count = length(unique(cell))),year]
   
-  benchmark_70 <- 0.7 * max(year_cells[,cell_count])
+  benchmark_70 <- 0.7 * max(year_cells[,cell_count]) # of cells/ year to cut off below
   
   #only keep years where over 70% of cells are sampled
   year_cells[,benchmark_70 := cell_count > benchmark_70]
@@ -169,8 +176,11 @@ for (i in 1:length(all_survey_seasons)) {
   #What percent of observations does this remove?
   obs_removed <- round((nrow(reduced_FishGlob.10year.gridded.r)-nrow(reduced_FishGlob.10year.gridded.r.cell))/nrow(reduced_FishGlob.10year.gridded.r)*100,1) #we lose 13.4% of observations
   
+  cell_id_remove.string <- paste(cell_id_remove, collapse = ", ")
+  obs_removed.string <- paste(obs_removed, collapse = ", ")
+  
     #print portion of cells that are left out
-  print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_seasons[i], " Cells left out = 0"), paste0(all_survey_seasons[i], " Cells left out = ", cell_id_remove, ", ",cells_deleted_percent, "% Cells Excluded, ",obs_removed, "% Observations Removed" ))) #need to figure out how to list all cells removed
+  print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_seasons[i], " Cells left out = 0"), paste0(all_survey_seasons[i], " Cells left out = ", cell_id_remove.string, ", ",cells_deleted_percent, "% Cells Excluded, ",obs_removed, "% Observations Removed")))
   
   #make a map of these points
   
@@ -232,6 +242,48 @@ FishGlob_cleaned.10year <- FishGlob_cleaned[years_sampled_update >= 10,]
 
 saveRDS(FishGlob_cleaned.10year, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
+FishGlob_cleaned.10year <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+
+length(unique(FishGlob_cleaned.10year[,survey]))
+
 ```
 
+Plot unique trawl areas
+```{r plot glob with points}
+#pull points
+FishGlob_cleaned.10year.lat.lon <- unique(FishGlob_cleaned.10year[,.(longitude,latitude,survey)])
+
+FishGlob_cleaned.10year.lat.lon.spdf <- SpatialPointsDataFrame(coords = FishGlob_cleaned.10year.lat.lon[,1:2], data = FishGlob_cleaned.10year.lat.lon,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+#ddgrdr grid for all points of tows that are used
+FishGlob_cleaned.10year.lat.lon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells
+
+#centersof cells
+FishGlob_cleaned.10year.lat.lon_cellcenters <- dgSEQNUM_to_GEO(dggs, FishGlob_cleaned.10year.lat.lon[,cell])
+
+#linking cell centers to unique_EBS_latlon
+FishGlob_cleaned.10year.lat.lon[,LON_CENTER := FishGlob_cleaned.10year.lat.lon_cellcenters$lon_deg][,LAT_CENTER := FishGlob_cleaned.10year.lat.lon_cellcenters$lat_deg]
+
+#get the grid cell boundary for cells which had trawls
+grid_FishGlob_cleaned.10year.lat.lon <- dgcellstogrid(dggs, FishGlob_cleaned.10year.lat.lon[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_FishGlob_cleaned.10year.lat.lon <- merge(grid_FishGlob_cleaned.10year.lat.lon, FishGlob_cleaned.10year.lat.lon, by = "cell")
+
+world <- ne_countries(scale = "medium", returnclass = "sf") #set up for world map
+class(world)
+
+global_grids <- ggplot(data = world) +
+    geom_sf(fill = "black", color = NA) +
+  geom_point(data = FishGlob_cleaned.10year.lat.lon, aes(x = longitude, y = latitude, color = survey), shape = 20, size = 0.000000001) + 
+#  geom_polygon(grid_FishGlob_cleaned.10year.lat.lon, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, fill = NA, color = "darkgrey", size = 0.1) +
+  theme_classic() +  theme(legend.position = "none")
+
+
+
+
+#save global map
+ggsave(global_grids, path = here::here("figures","map_points_plots"), filename = "global_grids.jpg", height = 8, width = 12)
+```
 
