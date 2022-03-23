@@ -61,6 +61,33 @@ unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_lati
 FishGlob.dg <- merge(FishGlob, unique_latlon, by = c("latitude", "longitude_s"), all.x = TRUE)
 ```
 
+### Plot num hauls per cell and year
+```{r}
+# make a list of all unique year x cell x survey
+year_cell_count.dt <- as.data.table(expand.grid(cell = unique(FishGlob.dg$cell), 
+                                                year = unique(FishGlob.dg$year), 
+                                                survey_season = unique(FishGlob.dg$survey_season))) 
+
+# calc num hauls per year x cell x survey, then merge to full list
+temp <- FishGlob.dg[, .(nhaul = length(unique(haul_id))), by = .(cell, year, survey_season)]
+year_cell_count.dt <- merge(year_cell_count.dt, temp, all.x = TRUE)
+year_cell_count.dt[is.na(nhaul), nhaul := 0] # fill in for year x cell x survey that aren't present
+
+year_order <- year_cell_count.dt[, .(avehaul = mean(nhaul)), by = year][order(avehaul),]$year
+cell_order <- year_cell_count.dt[, .(avehaul = mean(nhaul)), by = cell][order(avehaul),]$cell
+
+year_cell_count.dt[, year := factor(year, levels = year_order)]
+year_cell_count.dt[, cell := factor(cell, levels = cell_order)]
+
+ggplot(year_cell_count.dt[nhaul > 0,], aes(year, cell, color = nhaul)) +
+  geom_point()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.text.y = element_text(size = 4)) 
+  
+  
+
+```
+
 ### Trim out years with <70% cells in a survey
 yearkeep70 column == FALSE for years to trim out
 ```{r trim years}
@@ -156,6 +183,35 @@ unique_latlon7[,cell_center_longitude_s := cellcenters7$lon_deg][,cell_center_la
 #link centers back to main data table
 FishGlob.dg7 <- merge(FishGlob, unique_latlon7, by = c("latitude", "longitude_s"), all.x = TRUE)
 ```
+
+
+### Plot num hauls per cell and year
+```{r}
+# make a list of all unique year x cell x survey
+year_cell_count.dt7 <- as.data.table(expand.grid(cell = unique(FishGlob.dg7$cell), 
+                                                year = unique(FishGlob.dg7$year), 
+                                                survey_season = unique(FishGlob.dg7$survey_season))) 
+
+# calc num hauls per year x cell x survey, then merge to full list
+temp7 <- FishGlob.dg7[, .(nhaul = length(unique(haul_id))), by = .(cell, year, survey_season)]
+year_cell_count.dt7 <- merge(year_cell_count.dt7, temp7, all.x = TRUE)
+year_cell_count.dt7[is.na(nhaul), nhaul := 0] # fill in for year x cell x survey that aren't present
+
+# calculate the most to least sampled cells and years
+year_order7 <- year_cell_count.dt7[, .(avehaul = mean(nhaul)), by = year][order(avehaul),]$year
+cell_order7 <- year_cell_count.dt7[, .(avehaul = mean(nhaul)), by = cell][order(avehaul),]$cell
+
+# set the factor order by ave number of hauls
+year_cell_count.dt7[, year := factor(year, levels = year_order7)]
+year_cell_count.dt7[, cell := factor(cell, levels = cell_order7)]
+
+ggplot(year_cell_count.dt7[nhaul > 0,], aes(year, cell, color = nhaul)) +
+  geom_point()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.text.y = element_text(size = 4)) 
+```  
+  
+
 
 ### Trim out years with <70% cells in a survey
 yearkeep70 column == FALSE for years to trim out

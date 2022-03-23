@@ -4,12 +4,16 @@ Exploring North Sea data trimming
   - [Load data](#load-data)
   - [Standardize trawl footprint](#standardize-trawl-footprint)
       - [Hex size 8](#hex-size-8)
+          - [Plot num hauls per cell and
+            year](#plot-num-hauls-per-cell-and-year)
           - [Trim out years with \<70% cells in a
             survey](#trim-out-years-with-70-cells-in-a-survey)
           - [Plot num years by cell](#plot-num-years-by-cell)
           - [Mark cells sampled \>=3x each remaining
             year](#mark-cells-sampled-3x-each-remaining-year)
       - [Hex size 7](#hex-size-7)
+          - [Plot num hauls per cell and
+            year](#plot-num-hauls-per-cell-and-year-1)
           - [Trim out years with \<70% cells in a
             survey](#trim-out-years-with-70-cells-in-a-survey-1)
           - [Plot num years by cell](#plot-num-years-by-cell-1)
@@ -157,6 +161,33 @@ unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_lati
 FishGlob.dg <- merge(FishGlob, unique_latlon, by = c("latitude", "longitude_s"), all.x = TRUE)
 ```
 
+### Plot num hauls per cell and year
+
+``` r
+# make a list of all unique year x cell x survey
+year_cell_count.dt <- as.data.table(expand.grid(cell = unique(FishGlob.dg$cell), 
+                                                year = unique(FishGlob.dg$year), 
+                                                survey_season = unique(FishGlob.dg$survey_season))) 
+
+# calc num hauls per year x cell x survey, then merge to full list
+temp <- FishGlob.dg[, .(nhaul = length(unique(haul_id))), by = .(cell, year, survey_season)]
+year_cell_count.dt <- merge(year_cell_count.dt, temp, all.x = TRUE)
+year_cell_count.dt[is.na(nhaul), nhaul := 0] # fill in for year x cell x survey that aren't present
+
+year_order <- year_cell_count.dt[, .(avehaul = mean(nhaul)), by = year][order(avehaul),]$year
+cell_order <- year_cell_count.dt[, .(avehaul = mean(nhaul)), by = cell][order(avehaul),]$cell
+
+year_cell_count.dt[, year := factor(year, levels = year_order)]
+year_cell_count.dt[, cell := factor(cell, levels = cell_order)]
+
+ggplot(year_cell_count.dt[nhaul > 0,], aes(year, cell, color = nhaul)) +
+  geom_point()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.text.y = element_text(size = 4)) 
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
 ### Trim out years with \<70% cells in a survey
 
 yearkeep70 column == FALSE for years to trim out
@@ -187,7 +218,7 @@ ggplot(yearcell_table, aes(year, cell_center_latitude, color = nhaul)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 ``` r
 # color by keep or not at 70% threshold
@@ -196,7 +227,7 @@ ggplot(yearcell_table, aes(year, cell_center_latitude, color = yearkeep70)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
 
 ### Plot num years by cell
 
@@ -213,7 +244,7 @@ ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = ny
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ``` r
 ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = allyrs)) +
@@ -221,7 +252,7 @@ ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = al
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
 
 ### Mark cells sampled \>=3x each remaining year
 
@@ -250,7 +281,7 @@ ggplot(FishGlob.cell[yearkeep70 == TRUE][!duplicated(cbind(cell, survey_season))
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ## Hex size 7
 
@@ -271,6 +302,35 @@ unique_latlon7[,cell_center_longitude_s := cellcenters7$lon_deg][,cell_center_la
 #link centers back to main data table
 FishGlob.dg7 <- merge(FishGlob, unique_latlon7, by = c("latitude", "longitude_s"), all.x = TRUE)
 ```
+
+### Plot num hauls per cell and year
+
+``` r
+# make a list of all unique year x cell x survey
+year_cell_count.dt7 <- as.data.table(expand.grid(cell = unique(FishGlob.dg7$cell), 
+                                                year = unique(FishGlob.dg7$year), 
+                                                survey_season = unique(FishGlob.dg7$survey_season))) 
+
+# calc num hauls per year x cell x survey, then merge to full list
+temp7 <- FishGlob.dg7[, .(nhaul = length(unique(haul_id))), by = .(cell, year, survey_season)]
+year_cell_count.dt7 <- merge(year_cell_count.dt7, temp7, all.x = TRUE)
+year_cell_count.dt7[is.na(nhaul), nhaul := 0] # fill in for year x cell x survey that aren't present
+
+# calculate the most to least sampled cells and years
+year_order7 <- year_cell_count.dt7[, .(avehaul = mean(nhaul)), by = year][order(avehaul),]$year
+cell_order7 <- year_cell_count.dt7[, .(avehaul = mean(nhaul)), by = cell][order(avehaul),]$cell
+
+# set the factor order by ave number of hauls
+year_cell_count.dt7[, year := factor(year, levels = year_order7)]
+year_cell_count.dt7[, cell := factor(cell, levels = cell_order7)]
+
+ggplot(year_cell_count.dt7[nhaul > 0,], aes(year, cell, color = nhaul)) +
+  geom_point()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.text.y = element_text(size = 4)) 
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ### Trim out years with \<70% cells in a survey
 
@@ -302,7 +362,7 @@ ggplot(yearcell_table7, aes(year, cell_center_latitude, color = nhaul)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
 # color by keep or not at 70% threshold
@@ -311,7 +371,7 @@ ggplot(yearcell_table7, aes(year, cell_center_latitude, color = yearkeep70)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
 
 ### Plot num years by cell
 
@@ -328,7 +388,7 @@ ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = n
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = allyrs)) +
@@ -336,7 +396,7 @@ ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = a
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
 ### Mark cells sampled \>=3x each remaining year
 
@@ -365,4 +425,4 @@ ggplot(FishGlob.cell7[yearkeep70 == TRUE][!duplicated(cbind(cell, survey_season)
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
