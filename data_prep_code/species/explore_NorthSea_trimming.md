@@ -108,7 +108,15 @@ library(here)
 ``` r
 library(sf)
 library(ggplot2) # for plotting
+library(gridExtra) # for arranging plots
 ```
+
+    ## 
+    ## Attaching package: 'gridExtra'
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     combine
 
 # Load data
 
@@ -163,6 +171,9 @@ FishGlob.dg <- merge(FishGlob, unique_latlon, by = c("latitude", "longitude_s"),
 
 ### Plot num hauls per cell and year
 
+Red lines maximize the number of cell x years without any missing.  
+Purple lines maximize the number of cell x years with \<5% missing.
+
 ``` r
 # make a list of all unique year x cell x survey
 year_cell_count.dt <- as.data.table(expand.grid(cell = unique(FishGlob.dg$cell), 
@@ -174,19 +185,60 @@ temp <- FishGlob.dg[, .(nhaul = length(unique(haul_id))), by = .(cell, year, sur
 year_cell_count.dt <- merge(year_cell_count.dt, temp, all.x = TRUE)
 year_cell_count.dt[is.na(nhaul), nhaul := 0] # fill in for year x cell x survey that aren't present
 
-year_order <- year_cell_count.dt[, .(avehaul = mean(nhaul)), by = year][order(avehaul),]$year
-cell_order <- year_cell_count.dt[, .(avehaul = mean(nhaul)), by = cell][order(avehaul),]$cell
+# loop through each survey x season. Couldn't figure out how to do this without a loop.
+survseas <- FishGlob.dg[, unique(survey_season)]
+plots <- vector('list', length(survseas))
+for(i in 1:length(survseas)){
+  # trim to this survey
+  thisyearcellcount <- year_cell_count.dt[survey_season == survseas[i],]
+  
+  # calculate the most to least sampled cells and years
+  year_order <- thisyearcellcount[nhaul >0, .(ncell = length(unique(cell))), 
+                                     by = year][ncell >0,][order(ncell),]
+  cell_order <- thisyearcellcount[nhaul > 0, .(nyear = length(unique(year))), 
+                                     by = cell][nyear >0,][order(nyear),]
+  
+  # set the factor order by ave number of hauls
+  thisyearcellcount[, year := factor(year, levels = year_order$year)]
+  thisyearcellcount[, cell := factor(cell, levels = cell_order$cell)]
+  
+  # calculate num missing cells x years for different thresholds. slow.
+  cutoffs <- data.table(expand.grid(year = levels(thisyearcellcount$year), cell = levels(thisyearcellcount$cell)))
+  cutoffs[, ':='(ntot = NA_integer_, nmiss = NA_integer_, nkeep = NA_integer_)]
+  nyr <- length(unique(cutoffs$year))
+  ncl <- length(unique(cutoffs$cell))
+  for(j in 1:nyr){
+    for(k in 1:ncl){
+      thisntot <- thisyearcellcount[cell %in% levels(cell)[k:ncl] & year %in% levels(year)[j:nyr], .N]
+      thisnmiss <- thisyearcellcount[cell %in% levels(cell)[k:ncl] & year %in% levels(year)[j:nyr], sum(nhaul == 0)]
+      thisnkeep <- thisyearcellcount[cell %in% levels(cell)[k:ncl] & year %in% levels(year)[j:nyr], sum(nhaul > 0)]
+      cutoffs[cell == thisyearcellcount[, levels(cell)[k]] &
+                year == thisyearcellcount[,levels(year)[j]],
+              ':='(ntot = thisntot, nmiss = thisnmiss, nkeep = thisnkeep)]
+    }
+  }
+  
+  # choose a threshold 
+  chosencutoffs0 <- cutoffs[nmiss==0,][nkeep == max(nkeep),] # based on nothing missing
+  chosencutoffs02 <- cutoffs[nmiss/ntot < 0.02,][nkeep == max(nkeep),] # based on <2% missing
+  
+  # make plot
+  plots[[i]] <- ggplot(thisyearcellcount[nhaul > 0,], aes(year, cell, color = nhaul)) +
+    geom_point() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 4),
+          axis.text.y = element_text(size = 5)) +
+    labs(title = survseas[i]) +
+    geom_vline(xintercept = chosencutoffs0[, as.numeric(year)], color = 'red') +
+    geom_hline(yintercept = chosencutoffs0[, as.numeric(cell)], color = 'red') +
+    geom_vline(xintercept = chosencutoffs02[, as.numeric(year)], color = 'purple') +
+    geom_hline(yintercept = chosencutoffs02[, as.numeric(cell)], color = 'purple')
+}
 
-year_cell_count.dt[, year := factor(year, levels = year_order)]
-year_cell_count.dt[, cell := factor(cell, levels = cell_order)]
-
-ggplot(year_cell_count.dt[nhaul > 0,], aes(year, cell, color = nhaul)) +
-  geom_point()+ 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        axis.text.y = element_text(size = 4)) 
+# plots
+do.call("grid.arrange", c(plots, ncol=2))
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/plot%20num%20hauls%20per%20cell%20and%20year%20hex%208-1.png)<!-- -->
 
 ### Trim out years with \<70% cells in a survey
 
@@ -218,7 +270,7 @@ ggplot(yearcell_table, aes(year, cell_center_latitude, color = nhaul)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
 
 ``` r
 # color by keep or not at 70% threshold
@@ -227,7 +279,7 @@ ggplot(yearcell_table, aes(year, cell_center_latitude, color = yearkeep70)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-2.png)<!-- -->
 
 ### Plot num years by cell
 
@@ -244,7 +296,7 @@ ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = ny
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 ``` r
 ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = allyrs)) +
@@ -252,7 +304,7 @@ ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = al
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
 
 ### Mark cells sampled \>=3x each remaining year
 
@@ -281,7 +333,7 @@ ggplot(FishGlob.cell[yearkeep70 == TRUE][!duplicated(cbind(cell, survey_season))
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ## Hex size 7
 
@@ -305,6 +357,9 @@ FishGlob.dg7 <- merge(FishGlob, unique_latlon7, by = c("latitude", "longitude_s"
 
 ### Plot num hauls per cell and year
 
+Red lines maximize the number of cell x years without any missing.  
+Purple lines maximize the number of cell x years with \<5% missing.
+
 ``` r
 # make a list of all unique year x cell x survey
 year_cell_count.dt7 <- as.data.table(expand.grid(cell = unique(FishGlob.dg7$cell), 
@@ -316,21 +371,60 @@ temp7 <- FishGlob.dg7[, .(nhaul = length(unique(haul_id))), by = .(cell, year, s
 year_cell_count.dt7 <- merge(year_cell_count.dt7, temp7, all.x = TRUE)
 year_cell_count.dt7[is.na(nhaul), nhaul := 0] # fill in for year x cell x survey that aren't present
 
-# calculate the most to least sampled cells and years
-year_order7 <- year_cell_count.dt7[, .(avehaul = mean(nhaul)), by = year][order(avehaul),]$year
-cell_order7 <- year_cell_count.dt7[, .(avehaul = mean(nhaul)), by = cell][order(avehaul),]$cell
+# loop through each survey x season
+survseas <- FishGlob.dg7[, unique(survey_season)]
+plots <- vector('list', length(survseas))
+for(i in 1:length(survseas)){
+  # trim to this survey
+  thisyearcellcount <- year_cell_count.dt7[survey_season == survseas[i],]
+  
+  # calculate the most to least sampled cells and years
+  year_order <- thisyearcellcount[nhaul >0, .(ncell = length(unique(cell))), 
+                                     by = year][ncell >0,][order(ncell),]
+  cell_order <- thisyearcellcount[nhaul > 0, .(nyear = length(unique(year))), 
+                                     by = cell][nyear >0,][order(nyear),]
+  
+  # set the factor order by ave number of hauls
+  thisyearcellcount[, year := factor(year, levels = year_order$year)]
+  thisyearcellcount[, cell := factor(cell, levels = cell_order$cell)]
+  
+  # calculate num missing cells x years for different thresholds. slow.
+  cutoffs <- data.table(expand.grid(year = levels(thisyearcellcount$year), cell = levels(thisyearcellcount$cell)))
+  cutoffs[, ':='(ntot = NA_integer_, nmiss = NA_integer_, nkeep = NA_integer_)]
+  nyr <- length(unique(cutoffs$year))
+  ncl <- length(unique(cutoffs$cell))
+  for(j in 1:nyr){
+    for(k in 1:ncl){
+      thisntot <- thisyearcellcount[cell %in% levels(cell)[k:ncl] & year %in% levels(year)[j:nyr], .N]
+      thisnmiss <- thisyearcellcount[cell %in% levels(cell)[k:ncl] & year %in% levels(year)[j:nyr], sum(nhaul == 0)]
+      thisnkeep <- thisyearcellcount[cell %in% levels(cell)[k:ncl] & year %in% levels(year)[j:nyr], sum(nhaul > 0)]
+      cutoffs[cell == thisyearcellcount[, levels(cell)[k]] &
+                year == thisyearcellcount[,levels(year)[j]],
+              ':='(ntot = thisntot, nmiss = thisnmiss, nkeep = thisnkeep)]
+    }
+  }
+  
+  # choose a threshold 
+  chosencutoffs0 <- cutoffs[nmiss==0,][nkeep == max(nkeep),] # based on nothing missing
+  chosencutoffs02 <- cutoffs[nmiss/ntot < 0.02,][nkeep == max(nkeep),] # based on <2% missing
+  
+  # make plot
+  plots[[i]] <- ggplot(thisyearcellcount[nhaul > 0,], aes(year, cell, color = nhaul)) +
+    geom_point() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 4),
+          axis.text.y = element_text(size = 5)) +
+    labs(title = survseas[i]) +
+    geom_vline(xintercept = chosencutoffs0[, as.numeric(year)], color = 'red') +
+    geom_hline(yintercept = chosencutoffs0[, as.numeric(cell)], color = 'red') +
+    geom_vline(xintercept = chosencutoffs02[, as.numeric(year)], color = 'purple') +
+    geom_hline(yintercept = chosencutoffs02[, as.numeric(cell)], color = 'purple')
+}
 
-# set the factor order by ave number of hauls
-year_cell_count.dt7[, year := factor(year, levels = year_order7)]
-year_cell_count.dt7[, cell := factor(cell, levels = cell_order7)]
-
-ggplot(year_cell_count.dt7[nhaul > 0,], aes(year, cell, color = nhaul)) +
-  geom_point()+ 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        axis.text.y = element_text(size = 4)) 
+# plots
+do.call("grid.arrange", c(plots, ncol=2))
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/plot%20num%20hauls%20per%20cell%20and%20year%20hex%207-1.png)<!-- -->
 
 ### Trim out years with \<70% cells in a survey
 
@@ -362,7 +456,7 @@ ggplot(yearcell_table7, aes(year, cell_center_latitude, color = nhaul)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 # color by keep or not at 70% threshold
@@ -371,7 +465,7 @@ ggplot(yearcell_table7, aes(year, cell_center_latitude, color = yearkeep70)) +
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
 
 ### Plot num years by cell
 
@@ -388,7 +482,7 @@ ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = n
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
 ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = allyrs)) +
@@ -396,7 +490,7 @@ ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = a
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
 
 ### Mark cells sampled \>=3x each remaining year
 
@@ -425,4 +519,4 @@ ggplot(FishGlob.cell7[yearkeep70 == TRUE][!duplicated(cbind(cell, survey_season)
   facet_grid(~survey_season)
 ```
 
-![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
