@@ -1,6 +1,21 @@
 Exploring North Sea data trimming
 ================
 
+  - [Load data](#load-data)
+  - [Standardize trawl footprint](#standardize-trawl-footprint)
+      - [Hex size 8](#hex-size-8)
+          - [Trim out years with \<70% cells in a
+            survey](#trim-out-years-with-70-cells-in-a-survey)
+          - [Plot num years by cell](#plot-num-years-by-cell)
+          - [Mark cells sampled \>=3x each remaining
+            year](#mark-cells-sampled-3x-each-remaining-year)
+      - [Hex size 7](#hex-size-7)
+          - [Trim out years with \<70% cells in a
+            survey](#trim-out-years-with-70-cells-in-a-survey-1)
+          - [Plot num years by cell](#plot-num-years-by-cell-1)
+          - [Mark cells sampled \>=3x each remaining
+            year](#mark-cells-sampled-3x-each-remaining-year-1)
+
 ``` r
 library(dggridR)
 ```
@@ -81,12 +96,6 @@ library(raster)
 
 ``` r
 library(sp)
-#library(rnaturalearth)
-#library(rnaturalearthdata)
-#library(rgeos)
-#library(taxize) #standardizing names
-#library(geosphere)  #to calculate distance between lat lon of grid cells
-#library(googledrive)
 library(here)
 ```
 
@@ -97,232 +106,263 @@ library(sf)
 library(ggplot2) # for plotting
 ```
 
-Pull in compiled and cleaned data from fishglob February 4, 2022
+# Load data
+
+Pull in compiled and cleaned data from fishglob February 4, 2022  
+Trim to North Sea and divide into quarters 1 and 3
 
 ``` r
-#load if already saved
 FishGlob <- fread(file = here::here("temp", "FISHGLOB_v1.1_clean.csv"))
+FishGlob <- FishGlob[survey == "NS-IBTS",]
+FishGlob[,survey_season := as.factor(paste0(survey,"_",quarter))] # quarter indicates season
+FishGlob[, summary(survey_season)]
 ```
 
-Get rid of any survey x season combos not sampled for at least 10 years
+    ## NS-IBTS_1 NS-IBTS_3 
+    ##    228975    135189
 
 ``` r
-#new row for total number of years sampled
-nyrs <- FishGlob[,.(years_sampled = length(unique(year))),.(survey,season)]
-nyrs[order(years_sampled),]
-```
-
-    ##       survey season years_sampled
-    ##  1:  ICE-GFS      2             2
-    ##  2:  DFO-SOG   <NA>             2
-    ##  3:      MRT     SC             5
-    ##  4:     WBLS   <NA>             6
-    ##  5:      MRT     CF             7
-    ##  6:   DFO-HS   <NA>             8
-    ##  7:   IS-TAU   <NA>             8
-    ##  8:      MRT     SF             8
-    ##  9:      SCS   FALL             8
-    ## 10: DFO-WCHG   <NA>             8
-    ## 11: DFO-WCVI   <NA>             8
-    ## 12:      COL   <NA>             9
-    ## 13:  DFO-QCS   <NA>            10
-    ## 14:    WCTRI   <NA>            10
-    ## 15:      GIN      1            12
-    ## 16:       AI   <NA>            14
-    ## 17:  PT-IBTS   <NA>            14
-    ## 18:    NIGFS   <NA>            16
-    ## 19:      GOA   <NA>            16
-    ## 20:    WCANN   <NA>            16
-    ## 21:      CHL      2            17
-    ## 22:  IS-MOAG   <NA>            17
-    ## 23:  IE-IGFS   <NA>            18
-    ## 24:      GIN      2            18
-    ## 25:  ROCKALL   <NA>            19
-    ## 26:     FALK   <NA>            19
-    ## 27:      NAM   <NA>            21
-    ## 28:  S-GEORG   <NA>            21
-    ## 29:      ZAF      1            22
-    ## 30:  FR-CGFS   <NA>            23
-    ## 31:    EVHOE   <NA>            24
-    ## 32:      ZAF      2            24
-    ## 33:   DFO-NF   Fall            25
-    ## 34:  ICE-GFS      1            26
-    ## 35:   MEDITS   <NA>            26
-    ## 36:     BITS   <NA>            29
-    ## 37:       NZ   <NA>            30
-    ## 38:     SEUS spring            31
-    ## 39:     SEUS summer            31
-    ## 40:     SEUS   fall            31
-    ## 41:     GMEX   Fall            33
-    ## 42:     GMEX Summer            33
-    ## 43: SWC-IBTS   <NA>            36
-    ## 44:   GRL-DE   <NA>            37
-    ## 45:      EBS   <NA>            38
-    ## 46:  Nor-BTS   <NA>            38
-    ## 47:    GSL-N   <NA>            39
-    ## 48:      SCS SPRING            42
-    ## 49:    GSL-S   <NA>            49
-    ## 50:      SCS SUMMER            51
-    ## 51:  NS-IBTS   <NA>            53
-    ## 52:     NEUS Spring            53
-    ## 53:     NEUS   Fall            57
-    ##       survey season years_sampled
-
-``` r
-hist(nyrs$years_sampled)
-```
-
-![](explore_NorthSea_trimming_files/figure-gfm/summary%20by%20survey%20region-1.png)<!-- -->
-
-``` r
-length(unique(FishGlob[,survey])) # 42 survey x season
-```
-
-    ## [1] 42
-
-``` r
-#remove observations for any regions x season combinations sampled less than 10 times and observations not resolved to species
-FishGlob[, years_sampled := length(unique(year)),.(survey,season)]
-FishGlob.10year <- FishGlob[years_sampled >= 10,][rank == "Species",]
-
-length(unique(FishGlob.10year[,survey]))
-```
-
-    ## [1] 34
-
-``` r
-rm(FishGlob)
-```
-
-Trim to North Sea
-
-``` r
-FishGlob.10year.r <- FishGlob.10year[survey == "NS-IBTS",]
-
-rm(FishGlob.10year)
-
-#add column with season and survey
-FishGlob.10year.r[,survey_season := as.factor(paste0(survey,"_",season))]
-
-all_survey_seasons <- levels(FishGlob.10year.r[,survey_season])
-```
-
-Loop to standardize observations for all regions
-
-``` r
-#world map
-world <- data.table(map_data('world'))
-world[,long_s := ifelse(long > 150, (long-360),(long))]
-
-
 #if positive, subtract 360
-FishGlob.10year.r[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+FishGlob[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
 
 #delete if NA for longitude or latitude
-FishGlob.10year.r <- FishGlob.10year.r[complete.cases(FishGlob.10year.r[,.(longitude, latitude)])]
+FishGlob <- FishGlob[complete.cases(FishGlob[,.(longitude, latitude)])]
+```
+
+# Standardize trawl footprint
+
+## Hex size 8
+
+``` r
+#if positive, subtract 360
+FishGlob[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+
+#delete if NA for longitude or latitude
+FishGlob <- FishGlob[complete.cases(FishGlob[,.(longitude, latitude)])]
 
 #set up grid
 dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least 3 observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
 
-map_points_plots <- list()
+#pull out unique lat lons and get grid cells
+unique_latlon <- unique(FishGlob[,.(latitude, longitude_s)])
+unique_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude_s, latitude)] #get corresponding grid cells for this region/survey combo
 
-FishGlob_cleaned <- data.table()
+#find cell centers
+cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell])
 
-  #pull out unique lat lons
-  unique_latlon <- unique(FishGlob.10year.r[,.(latitude, longitude_s)])
-  
-  unique_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude_s, latitude)] #get corresponding grid cells for this region/survey combo
+#linking cell centers to unique_latlon
+unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
 
-  #find cell centers
-  cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell])
-
-  #linking cell centers to unique_latlon
-  unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
-
-    #link centers back to main data table
-  FishGlob.10year.r <- merge(FishGlob.10year.r, unique_latlon, by = c("latitude", "longitude_s"), all.x = TRUE)
-
-  #number of tows in each cell
-  #towcount <- unique_latlon[, .N, by = cell]
-  #towcount <- FishGlob.10year.r[, .(ntow = length(unique(haul_id))), by = cell]
-
-  #get the grid cell boundary for cells which had trawls
-  #grid <- dgcellstogrid(dggs, unique_latlon[,cell])
-
-  #update grid properties to include # of trawls in each cell
-  #grid <- merge(grid, unique_latlon, by = "cell")
-  #grid <- merge(grid, towcount, by.x = "seqnum", by.y = "cell")
-  
-  #Any years where clearly fewer cells were sampled?
-  year_cells <- FishGlob.10year.r[,.(cell_count = length(unique(cell))), by = .(year)]
-  
-  benchmark_70 <- 0.7 * max(year_cells[,cell_count]) # of cells/ year to cut off below
-  
-  #only keep years where over 70% of cells are sampled
-  year_cells[,benchmark_70 := cell_count > benchmark_70]
-  
-  years_deleted <- year_cells[benchmark_70 == F]$year #which years are left out?
-  
-  years_kept <- year_cells[benchmark_70 ==T]$year #which years  to keep
-  
-  years_deleted_percent <- round(length(years_deleted)/nrow(year_cells)*100,1)
-  
-  # mark in FishGlob
-  FishGlob.10year.r[year %in% years_deleted, yearkeep70 := FALSE]
-  FishGlob.10year.r[year %in% years_kept, yearkeep70 := TRUE]
-  
-  #print  the years that are left out
-  print(ifelse(length(years_deleted) == 0, paste0(all_survey_seasons, " Years left out = 0"), paste0(all_survey_seasons, " Years left out = ", paste(years_deleted, collapse=','), ", ",years_deleted_percent, "% of Years Excluded"))) #need to figure out how to list all years removed
+#link centers back to main data table
+FishGlob.dg <- merge(FishGlob, unique_latlon, by = c("latitude", "longitude_s"), all.x = TRUE)
 ```
 
-    ## [1] "NS-IBTS_NA Years left out = 1979,1978,1968,1971,1967,1975,1976,1972,1973,1977,1970,1974, 22.6% of Years Excluded"
+### Trim out years with \<70% cells in a survey
 
-Plot \#hauls by cell and year. Second plot shows whether year is kept or
-not.
+yearkeep70 column == FALSE for years to trim out
 
 ``` r
-  # table of years by cells, count is # hauls
-  yearcell_table <- FishGlob.10year.r[, .(nhaul = length(unique(haul_id))), by = .(cell, year, cell_center_latitude, cell_center_longitude_s, yearkeep70)]
+# Find max num cells in each survey, calc 70% treshold
+year_cells <- FishGlob.dg[,.(cell_count = length(unique(cell))), by = .(year, survey_season)]
+year_cells[,thresh := 0.7*(max(cell_count)), by = survey_season] # of cells/ year to cut off below
+  
+#only keep years where over 70% of cells are sampled
+year_cells[,yearkeep70 := cell_count > thresh]
+  
+# mark years to keep in FishGlob (yearkeep70 colum)
+FishGlob.yr <- merge(FishGlob.dg, year_cells[, .(year, survey_season, yearkeep70)], all.x = TRUE, by = c('year', 'survey_season'))
+```
+
+#### Plot num. hauls by cell latitude and year.
+
+Second plot shows whether year is kept or not.
+
+``` r
+# table of years by cells, count is # hauls
+yearcell_table <- FishGlob.yr[, .(nhaul = length(unique(haul_id))), by = .(cell, year, cell_center_latitude, cell_center_longitude_s, yearkeep70, survey_season)]
 
 # color by #hauls
-  ggplot(yearcell_table, aes(year, cell_center_latitude, color = nhaul)) +
-    geom_point()
+ggplot(yearcell_table, aes(year, cell_center_latitude, color = nhaul)) +
+  geom_point() +
+  facet_grid(~survey_season)
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+``` r
+# color by keep or not at 70% threshold
+ggplot(yearcell_table, aes(year, cell_center_latitude, color = yearkeep70)) +
+  geom_point() +
+  facet_grid(~survey_season)
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-1-2.png)<!-- -->
+
+### Plot num years by cell
+
+Only count years from those remaining after the previous trim Second
+plot shows whether a cell is sampled in all years
+
+``` r
+# table of years by cells, count is # hauls
+cell_table <- FishGlob.yr[yearkeep70 == TRUE, .(nyear = length(unique(year))), by = .(cell, cell_center_latitude, cell_center_longitude_s, survey_season)]
+cell_table[, allyrs := nyear == max(nyear), by = survey_season]
+
+ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = nyear)) +
+  geom_point() +
+  facet_grid(~survey_season)
 ```
 
 ![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 ``` r
-# color by keep or not at 70% threshold
-  ggplot(yearcell_table, aes(year, cell_center_latitude, color = yearkeep70)) +
-    geom_point()
+ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = allyrs)) +
+  geom_point() +
+  facet_grid(~survey_season)
 ```
 
 ![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
 
-Plot \#years by cell
+### Mark cells sampled \>=3x each remaining year
 
 ``` r
-  # table of years by cells, count is # hauls
-  cell_table <- FishGlob.10year.r[, .(nyear = length(unique(year))), by = .(cell, cell_center_latitude, cell_center_longitude_s)]
-  ggplot(cell_table, aes(cell_center_longitude_s, cell_center_latitude, color = nyear)) +
-    geom_point()
+#identify num hauls per cells x year
+FishGlob.yr[,year_cell_count := length(unique(haul_id)),.(year,cell, survey_season)]
+
+#num years in which cells are sampled at least X times in any remaining year
+# use X=1 as a test: should match plot of cells sampled in all years
+nyrs_by_cell1dt <- FishGlob.yr[year_cell_count >= 1 & yearkeep70, .(nyrs_by_cell1 = length(unique(year))), by = .(cell, survey_season)] # number of years in which this cell has >= 1 haul
+nyrs_by_cell3dt <- FishGlob.yr[year_cell_count >= 3 & yearkeep70, .(nyrs_by_cell3 = length(unique(year))), by = .(cell, survey_season)] # number of years in which this cell has >= 1 haul
+
+FishGlob.cell <- merge(FishGlob.yr, nyrs_by_cell1dt, all.x = TRUE, by = c('survey_season', 'cell'))
+FishGlob.cell[is.na(nyrs_by_cell1)==TRUE, nyrs_by_cell1 := 0] # fill missing values
+FishGlob.cell <- merge(FishGlob.cell, nyrs_by_cell3dt, all.x = TRUE, by = c('survey_season', 'cell'))
+FishGlob.cell[is.na(nyrs_by_cell3), nyrs_by_cell3 := 0] # fill missing values
+
+# mark cells sampled the max years
+FishGlob.cell[, cellkeep1 := (nyrs_by_cell1 == length(unique(year))) & yearkeep70, by = .(survey_season, yearkeep70)] # TRUE if all remaining years met the min num hauls threshold (1 in this case)
+FishGlob.cell[, cellkeep3 := (nyrs_by_cell3 == length(unique(year))) & yearkeep70, by = .(survey_season, yearkeep70)]
+
+#make a map of these points
+ggplot(FishGlob.cell[yearkeep70 == TRUE][!duplicated(cbind(cell, survey_season)), ], 
+       aes(cell_center_longitude_s, cell_center_latitude, color = cellkeep3)) +
+  geom_point() +
+  facet_grid(~survey_season)
 ```
 
 ![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
-\#
+
+## Hex size 7
 
 ``` r
-  #identify any cells that in any remaining years are sampled less than 3 times
-  FishGlob.10year.r[,year_cell_count := length(unique(haul_id)),.(year,cell)]
+#set up grid
+dggs7 <- dgconstruct(res = 7, metric = T) # larger than res 8
+
+#pull out unique lat lons and get grid cells
+unique_latlon7 <- unique(FishGlob[,.(latitude, longitude_s)])
+unique_latlon7[,cell := dgGEO_to_SEQNUM(dggs7, longitude_s, latitude)] #get corresponding grid cells for this region/survey combo
+
+#find cell centers
+cellcenters7 <- dgSEQNUM_to_GEO(dggs7, unique_latlon7[,cell])
+
+#linking cell centers to unique_latlon
+unique_latlon7[,cell_center_longitude_s := cellcenters7$lon_deg][,cell_center_latitude:= cellcenters7$lat_deg]
+
+#link centers back to main data table
+FishGlob.dg7 <- merge(FishGlob, unique_latlon7, by = c("latitude", "longitude_s"), all.x = TRUE)
+```
+
+### Trim out years with \<70% cells in a survey
+
+yearkeep70 column == FALSE for years to trim out
+
+``` r
+# Find max num cells in each survey, calc 70% treshold
+year_cells7 <- FishGlob.dg7[,.(cell_count = length(unique(cell))), by = .(year, survey_season)]
+year_cells7[,thresh := 0.7*(max(cell_count)), by = survey_season] # of cells/ year to cut off below
   
-  #cell ids to remove and keep
-  #which cells are sampled less than 3 times in any remaining year: these need to go
-  FishGlob.10year.r[, yearcellkeep3 := year_cell_count > 3] # TRUE if >3 hauls in a year x cell
-  FishGlob.10year.r[yearkeep70 == TRUE, cellkeep3 := !any(!yearcellkeep3), by = cell] # TRUE if any remaining years fail the yearcellkeep3 threshold
+#only keep years where over 70% of cells are sampled
+year_cells7[,yearkeep70 := cell_count > thresh]
   
-  #make a map of these points
-  ggplot(FishGlob.10year.r, aes(cell_center_longitude_s, cell_center_latitude, color = cellkeep3)) +
-    geom_point()
+# mark years to keep in FishGlob (yearkeep70 colum)
+FishGlob.yr7 <- merge(FishGlob.dg7, year_cells7[, .(year, survey_season, yearkeep70)], all.x = TRUE, by = c('year', 'survey_season'))
+```
+
+#### Plot num. hauls by cell latitude and year.
+
+Second plot shows whether year is kept or not.
+
+``` r
+# table of years by cells, count is # hauls
+yearcell_table7 <- FishGlob.yr7[, .(nhaul = length(unique(haul_id))), by = .(cell, year, cell_center_latitude, cell_center_longitude_s, yearkeep70, survey_season)]
+
+# color by #hauls
+ggplot(yearcell_table7, aes(year, cell_center_latitude, color = nhaul)) +
+  geom_point() +
+  facet_grid(~survey_season)
 ```
 
 ![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+``` r
+# color by keep or not at 70% threshold
+ggplot(yearcell_table7, aes(year, cell_center_latitude, color = yearkeep70)) +
+  geom_point() +
+  facet_grid(~survey_season)
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+
+### Plot num years by cell
+
+Only count years from those remaining after the previous trim Second
+plot shows whether a cell is sampled in all years
+
+``` r
+# table of years by cells, count is # hauls
+cell_table7 <- FishGlob.yr7[yearkeep70 == TRUE, .(nyear = length(unique(year))), by = .(cell, cell_center_latitude, cell_center_longitude_s, survey_season)]
+cell_table7[, allyrs := nyear == max(nyear), by = survey_season]
+
+ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = nyear)) +
+  geom_point() +
+  facet_grid(~survey_season)
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+``` r
+ggplot(cell_table7, aes(cell_center_longitude_s, cell_center_latitude, color = allyrs)) +
+  geom_point() +
+  facet_grid(~survey_season)
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
+
+### Mark cells sampled \>=3x each remaining year
+
+``` r
+#identify num hauls per cells x year
+FishGlob.yr7[,year_cell_count := length(unique(haul_id)),.(year,cell, survey_season)]
+
+#num years in which cells are sampled at least X times in any remaining year
+# use X=1 as a test: should match plot of cells sampled in all years
+nyrs_by_cell1dt7 <- FishGlob.yr7[year_cell_count >= 1 & yearkeep70, .(nyrs_by_cell1 = length(unique(year))), by = .(cell, survey_season)] # number of years in which this cell has >= 1 haul
+nyrs_by_cell3dt7 <- FishGlob.yr7[year_cell_count >= 3 & yearkeep70, .(nyrs_by_cell3 = length(unique(year))), by = .(cell, survey_season)] # number of years in which this cell has >= 1 haul
+
+FishGlob.cell7 <- merge(FishGlob.yr7, nyrs_by_cell1dt7, all.x = TRUE, by = c('survey_season', 'cell'))
+FishGlob.cell7[is.na(nyrs_by_cell1)==TRUE, nyrs_by_cell1 := 0] # fill missing values
+FishGlob.cell7 <- merge(FishGlob.cell7, nyrs_by_cell3dt7, all.x = TRUE, by = c('survey_season', 'cell'))
+FishGlob.cell7[is.na(nyrs_by_cell3), nyrs_by_cell3 := 0] # fill missing values
+
+# mark cells sampled the max years
+FishGlob.cell7[, cellkeep1 := (nyrs_by_cell1 == length(unique(year))) & yearkeep70, by = .(survey_season, yearkeep70)] # TRUE if all remaining years met the min num hauls threshold (1 in this case)
+FishGlob.cell7[, cellkeep3 := (nyrs_by_cell3 == length(unique(year))) & yearkeep70, by = .(survey_season, yearkeep70)]
+
+#make a map of these points
+ggplot(FishGlob.cell7[yearkeep70 == TRUE][!duplicated(cbind(cell, survey_season)), ], 
+       aes(cell_center_longitude_s, cell_center_latitude, color = cellkeep3)) +
+  geom_point() +
+  facet_grid(~survey_season)
+```
+
+![](explore_NorthSea_trimming_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
