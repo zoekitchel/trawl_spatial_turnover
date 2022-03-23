@@ -10,11 +10,11 @@ output:
 ```{r setup}
 library(dggridR)
 library(data.table)
-library(rgdal)
-library(raster)
-library(sp)
+#library(rgdal)
+#library(raster)
+#library(sp)
 library(here)
-library(sf)
+#library(sf)
 library(ggplot2) # for plotting
 library(gridExtra) # for arranging plots
 ```
@@ -112,6 +112,27 @@ for(i in 1:length(survseas)){
   # choose a threshold 
   chosencutoffs0 <- cutoffs[nmiss==0,][nkeep == max(nkeep),] # based on nothing missing
   chosencutoffs02 <- cutoffs[nmiss/ntot < 0.02,][nkeep == max(nkeep),] # based on <2% missing
+  
+  # print out the cells and years to keep
+  print(paste0('For ', survseas[i], ' 0% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs0$year):nyr]], collapse=',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs0$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs0$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs0$cell)]], collapse = ',')))
+  
+  print(paste0('For ', survseas[i], ' 2% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs02$year):nyr]], collapse = ',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs02$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs02$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs02$cell)]], collapse = ',')))
   
   # make plot
   plots[[i]] <- ggplot(thisyearcellcount[nhaul > 0,], aes(year, cell, color = nhaul)) +
@@ -276,6 +297,27 @@ for(i in 1:length(survseas)){
   # choose a threshold 
   chosencutoffs0 <- cutoffs[nmiss==0,][nkeep == max(nkeep),] # based on nothing missing
   chosencutoffs02 <- cutoffs[nmiss/ntot < 0.02,][nkeep == max(nkeep),] # based on <2% missing
+  
+  # print out the cells and years to keep
+  print(paste0('For ', survseas[i], ' 0% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs0$year):nyr]], collapse=',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs0$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs0$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs0$cell)]], collapse = ',')))
+  
+  print(paste0('For ', survseas[i], ' 2% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs02$year):nyr]], collapse = ',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs02$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs02$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs02$cell)]], collapse = ',')))
   
   # make plot
   plots[[i]] <- ggplot(thisyearcellcount[nhaul > 0,], aes(year, cell, color = nhaul)) +

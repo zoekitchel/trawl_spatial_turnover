@@ -67,46 +67,16 @@ library(data.table)
     ##     between, first, last
 
 ``` r
-library(rgdal)
-```
-
-    ## rgdal: version: 1.5-23, (SVN revision 1121)
-    ## Geospatial Data Abstraction Library extensions to R successfully loaded
-    ## Loaded GDAL runtime: GDAL 3.2.1, released 2020/12/29
-    ## Path to GDAL shared files: /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rgdal/gdal
-    ## GDAL binary built with GEOS: TRUE 
-    ## Loaded PROJ runtime: Rel. 7.2.1, January 1st, 2021, [PJ_VERSION: 721]
-    ## Path to PROJ shared files: /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rgdal/proj
-    ## PROJ CDN enabled: FALSE
-    ## Linking to sp version:1.4-5
-    ## To mute warnings of possible GDAL/OSR exportToProj4() degradation,
-    ## use options("rgdal_show_exportToProj4_warnings"="none") before loading rgdal.
-    ## Overwritten PROJ_LIB was /Library/Frameworks/R.framework/Versions/4.0/Resources/library/rgdal/proj
-
-``` r
-library(raster)
-```
-
-    ## 
-    ## Attaching package: 'raster'
-
-    ## The following object is masked from 'package:data.table':
-    ## 
-    ##     shift
-
-    ## The following object is masked from 'package:dplyr':
-    ## 
-    ##     select
-
-``` r
-library(sp)
+#library(rgdal)
+#library(raster)
+#library(sp)
 library(here)
 ```
 
     ## here() starts at /Users/mpinsky/Documents/Rutgers/Community_and_climate/trawl_spatial_turnover
 
 ``` r
-library(sf)
+#library(sf)
 library(ggplot2) # for plotting
 library(gridExtra) # for arranging plots
 ```
@@ -222,6 +192,27 @@ for(i in 1:length(survseas)){
   chosencutoffs0 <- cutoffs[nmiss==0,][nkeep == max(nkeep),] # based on nothing missing
   chosencutoffs02 <- cutoffs[nmiss/ntot < 0.02,][nkeep == max(nkeep),] # based on <2% missing
   
+  # print out the cells and years to keep
+  print(paste0('For ', survseas[i], ' 0% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs0$year):nyr]], collapse=',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs0$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs0$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs0$cell)]], collapse = ',')))
+  
+  print(paste0('For ', survseas[i], ' 2% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs02$year):nyr]], collapse = ',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs02$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs02$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs02$cell)]], collapse = ',')))
+  
   # make plot
   plots[[i]] <- ggplot(thisyearcellcount[nhaul > 0,], aes(year, cell, color = nhaul)) +
     geom_point() + 
@@ -233,7 +224,30 @@ for(i in 1:length(survseas)){
     geom_vline(xintercept = chosencutoffs02[, as.numeric(year)], color = 'purple') +
     geom_hline(yintercept = chosencutoffs02[, as.numeric(cell)], color = 'purple')
 }
+```
 
+    ## [1] "For NS-IBTS_1 0% missing"
+    ## [1] "Keep these years:1997,1998,1999,2006,1987,1988,1990,1994,2000,2001,2003,2004,1989,1993,1996,2002,2007,2015,1991,2008,2014,2009,2013,2016,2017,2012,2018,2019,2011,2010,2020"
+    ## [1] "Keep these cells:648,649,6637,13285,13366,19765,6717,6724,7048,7372,13196,13204,13280,567,6636,6797,6798,6800,6882,7290,13198,13199,13200,13281,568,6716,6718,6719,6799,6802,6881,6883,6886,6962,6963,6964,7126,7127,7208,6638,6721,6801,6803,6805,6885,6961,6967,7044,7045,7047,7129,7291,6720,6804,6880,6884,6966,7046,6965,7128,7209,7210"
+    ## [1] "Drop these years:1974,1970,1967,1973,1968,1976,1975,1977,1971,1972,1978,1979,1981,1982,1980,1984,1983,1995,2005,1985,1986,1992,1997"
+    ## [1] "Drop these cells:7613,13362,566,647,7776,13203,13447,7695,6879,7777,13194,82,7614,7615,7696,13282,7043,7125,13197,6634,6722,6715,13201,811,7452,13284,6643,729,7207,730,7371,7453,7534,13195,6635,7289,19764,487,1,486,648"
+    ## [1] "For NS-IBTS_1 2% missing"
+    ## [1] "Keep these years:1981,1982,1980,1984,1983,1995,2005,1985,1986,1992,1997,1998,1999,2006,1987,1988,1990,1994,2000,2001,2003,2004,1989,1993,1996,2002,2007,2015,1991,2008,2014,2009,2013,2016,2017,2012,2018,2019,2011,2010,2020"
+    ## [1] "Keep these cells:6643,729,7207,730,7371,7453,7534,13195,6635,7289,19764,487,1,486,648,649,6637,13285,13366,19765,6717,6724,7048,7372,13196,13204,13280,567,6636,6797,6798,6800,6882,7290,13198,13199,13200,13281,568,6716,6718,6719,6799,6802,6881,6883,6886,6962,6963,6964,7126,7127,7208,6638,6721,6801,6803,6805,6885,6961,6967,7044,7045,7047,7129,7291,6720,6804,6880,6884,6966,7046,6965,7128,7209,7210"
+    ## [1] "Drop these years:1974,1970,1967,1973,1968,1976,1975,1977,1971,1972,1978,1979,1981"
+    ## [1] "Drop these cells:7613,13362,566,647,7776,13203,13447,7695,6879,7777,13194,82,7614,7615,7696,13282,7043,7125,13197,6634,6722,6715,13201,811,7452,13284,6643"
+    ## [1] "For NS-IBTS_3 0% missing"
+    ## [1] "Keep these years:1998,1994,1992,2002,2004,2011,1999,2003,2005,2016,2001,2009,2013,2014,2018,2019,2020,2007,2010,2015,2017,2006,2012,2008"
+    ## [1] "Keep these cells:7045,13284,1,486,487,648,649,6636,6637,6638,6716,6717,6721,6724,6880,7044,7046,7126,7127,7128,13204,13285,13366,19764,19765,6719,6720,6799,6800,6801,6802,6803,6881,6882,6883,6884,6885,6886,6962,6963,6964,6965,6966,6967,7047,7048,7129,7208,7209,7210,7290,7291,7372,7453,13195,13196,13198,13199,13200"
+    ## [1] "Drop these years:1991,1997,1995,1996,1993,2000,1998"
+    ## [1] "Drop these cells:892,6639,7125,13362,13201,13282,7043,13447,647,7371,13280,566,82,6722,6715,6634,13281,7534,13203,811,730,6635,6797,6961,7289,729,7207,567,568,6643,6718,6804,7452,6798,6805,7045"
+    ## [1] "For NS-IBTS_3 2% missing"
+    ## [1] "Keep these years:1997,1995,1996,1993,2000,1998,1994,1992,2002,2004,2011,1999,2003,2005,2016,2001,2009,2013,2014,2018,2019,2020,2007,2010,2015,2017,2006,2012,2008"
+    ## [1] "Keep these cells:7289,729,7207,567,568,6643,6718,6804,7452,6798,6805,7045,13284,1,486,487,648,649,6636,6637,6638,6716,6717,6721,6724,6880,7044,7046,7126,7127,7128,13204,13285,13366,19764,19765,6719,6720,6799,6800,6801,6802,6803,6881,6882,6883,6884,6885,6886,6962,6963,6964,6965,6966,6967,7047,7048,7129,7208,7209,7210,7290,7291,7372,7453,13195,13196,13198,13199,13200"
+    ## [1] "Drop these years:1991,1997"
+    ## [1] "Drop these cells:892,6639,7125,13362,13201,13282,7043,13447,647,7371,13280,566,82,6722,6715,6634,13281,7534,13203,811,730,6635,6797,6961,7289"
+
+``` r
 # plots
 do.call("grid.arrange", c(plots, ncol=2))
 ```
@@ -408,6 +422,27 @@ for(i in 1:length(survseas)){
   chosencutoffs0 <- cutoffs[nmiss==0,][nkeep == max(nkeep),] # based on nothing missing
   chosencutoffs02 <- cutoffs[nmiss/ntot < 0.02,][nkeep == max(nkeep),] # based on <2% missing
   
+  # print out the cells and years to keep
+  print(paste0('For ', survseas[i], ' 0% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs0$year):nyr]], collapse=',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs0$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs0$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs0$cell)]], collapse = ',')))
+  
+  print(paste0('For ', survseas[i], ' 2% missing'))
+  print(paste0('Keep these years:', 
+               paste0(thisyearcellcount[, levels(year)[as.numeric(chosencutoffs02$year):nyr]], collapse = ',')))
+  print(paste0('Keep these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[as.numeric(chosencutoffs02$cell):ncl]], collapse = ',')))
+  print(paste0('Drop these years:', 
+               paste0(thisyearcellcount[, levels(year)[1:as.numeric(chosencutoffs02$year)]], collapse=',')))
+  print(paste0('Drop these cells:', 
+               paste0(thisyearcellcount[, levels(cell)[1:as.numeric(chosencutoffs02$cell)]], collapse = ',')))
+  
   # make plot
   plots[[i]] <- ggplot(thisyearcellcount[nhaul > 0,], aes(year, cell, color = nhaul)) +
     geom_point() + 
@@ -419,7 +454,30 @@ for(i in 1:length(survseas)){
     geom_vline(xintercept = chosencutoffs02[, as.numeric(year)], color = 'purple') +
     geom_hline(yintercept = chosencutoffs02[, as.numeric(cell)], color = 'purple')
 }
+```
 
+    ## [1] "For NS-IBTS_1 0% missing"
+    ## [1] "Keep these years:1999,1983,1993,1982,1986,1987,1996,2000,2003,2004,1980,1985,1988,1989,1991,1995,2001,2002,2008,1984,1992,1994,1997,1998,2005,2006,1990,2009,2016,2018,2019,2020,2015,2007,2014,2011,2012,2013,2017,2010"
+    ## [1] "Keep these cells:2213,4429,6589,1,4400,4428,2242,2403,217,2267,163,2240,4401,2321,2323,2431,2241,2268,2269,2295,2349,2214,2296,2350,2377,2404,2322"
+    ## [1] "Drop these years:1974,1970,1967,1973,1968,1976,1975,1977,1972,1971,1978,1981,1979,1999"
+    ## [1] "Drop these cells:4456,2593,2539,2294,2458,298,2566,4402,2512,2239,4455,4399,190,244,4427,2485,2213"
+    ## [1] "For NS-IBTS_1 2% missing"
+    ## [1] "Keep these years:1979,1999,1983,1993,1982,1986,1987,1996,2000,2003,2004,1980,1985,1988,1989,1991,1995,2001,2002,2008,1984,1992,1994,1997,1998,2005,2006,1990,2009,2016,2018,2019,2020,2015,2007,2014,2011,2012,2013,2017,2010"
+    ## [1] "Keep these cells:4399,190,244,4427,2485,2213,4429,6589,1,4400,4428,2242,2403,217,2267,163,2240,4401,2321,2323,2431,2241,2268,2269,2295,2349,2214,2296,2350,2377,2404,2322"
+    ## [1] "Drop these years:1974,1970,1967,1973,1968,1976,1975,1977,1972,1971,1978,1981,1979"
+    ## [1] "Drop these cells:4456,2593,2539,2294,2458,298,2566,4402,2512,2239,4455,4399"
+    ## [1] "For NS-IBTS_3 0% missing"
+    ## [1] "Keep these years:1992,1997,2001,2003,2007,1994,1996,1998,2002,2004,2015,1993,1999,2006,2009,2014,2017,2008,2010,2012,2013,2016,2019,2020,2005,2011,2018"
+    ## [1] "Keep these cells:1,163,190,217,244,2213,2403,4429,6589,2214,2240,2241,2242,2267,2268,2269,2295,2296,2321,2322,2323,2349,2350,2377,2404,2431,2485,4400,4401"
+    ## [1] "Drop these years:1991,1995,2000,1992"
+    ## [1] "Drop these cells:4399,2294,4455,55,2239,4427,4402,298,4428,1"
+    ## [1] "For NS-IBTS_3 2% missing"
+    ## [1] "Keep these years:1991,1995,2000,1992,1997,2001,2003,2007,1994,1996,1998,2002,2004,2015,1993,1999,2006,2009,2014,2017,2008,2010,2012,2013,2016,2019,2020,2005,2011,2018"
+    ## [1] "Keep these cells:4428,1,163,190,217,244,2213,2403,4429,6589,2214,2240,2241,2242,2267,2268,2269,2295,2296,2321,2322,2323,2349,2350,2377,2404,2431,2485,4400,4401"
+    ## [1] "Drop these years:1991"
+    ## [1] "Drop these cells:4399,2294,4455,55,2239,4427,4402,298,4428"
+
+``` r
 # plots
 do.call("grid.arrange", c(plots, ncol=2))
 ```
