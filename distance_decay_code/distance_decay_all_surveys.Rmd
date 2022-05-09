@@ -1,8 +1,9 @@
 ---
-title: "Distance Decay All Surveys"
+title: "Dissimilarity versus Time All Surveys"
 output: html_notebook
 ---
 
+At some point,  I will need to pull in updated data using updated data cleaning procedure. I will also have to  think more critically about seasons. 
 
 
 ```{r setup}
@@ -13,14 +14,15 @@ library(concaveman) #polygon around points
 library(betapart) #allows us to partition beta diversity
 library(geosphere)
 library(ggpubr) #stat_regline_equation
+library(nlme)
 
 #unhash typically
-#FishGlob_cleaned.10year<- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+FishGlob_cleaned.10year<- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
 
 ```
 
-Set up to look at distance decay for all survey x season combinations
+Set up to look at dissimilarity over time for all survey x season combinations
 ```{r}
 all_season_surveys <- unique(FishGlob_cleaned.10year[,survey_season])
 ```
@@ -83,8 +85,8 @@ abundances_only <- c("IS-MOAG", "MEDITS")
 summary(FishGlob_cleaned.10year.r$wgt_cpue) #why inf? 13 observations from GSL-N, I will delete these
 FishGlob_cleaned.10year.r <- copy(FishGlob_cleaned.10year.r)[!is.infinite(wgt_cpue),]
 
-#for now, limit to years after 1981 (maybe use other dataset (SODA) for SCS?)
-FishGlob_cleaned.10year.r <- FishGlob_cleaned.10year.r[year >= 1981,]
+#for now, limit to years after 1981 (maybe use other dataset (SODA) for SCS?) skip for now
+#FishGlob_cleaned.10year.r <- FishGlob_cleaned.10year.r[year >= 1981,]
 
 saveRDS(FishGlob_cleaned.10year.r, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.r.rds"))
 ```
@@ -380,6 +382,26 @@ for (i in 1:length(all_season_surveys)) {
 }
 ```
 
+Overall slope
+
+Dornelas 2014: "To estimate the global long-term trends in diversity, to each of the 14 metrics (10 community structure and 4 composition turnover metrics), 
+
+- we first fit a linear model with a single slope but a different intercept and a residual variance for each time series, by using generalized least squares (GLS). Additionally, 
+
+- we fit a linear model to each time series allowing a different slope and an intercept, by using ordinary least squares (OLS). 
+
+The R squared value and the p-value of each slope coefficient (the OLS estimate) are also calculated. However, the provided p-value may be overly confident due to the unknown correlated structure so a careful interpretation is required. These statistics are included to provide intuitive information of the fitted linear trend of each time series, rather than in a classical hypothesis-testing context."
+
+GLS: John Fox & Sanford Weisberg 2019
+https://socialsciences.mcmaster.ca/jfox/Books/Companion/appendices/Appendix-Timeseries-Regression.pdf
+- The gls() function in the nlme package (Pinheiro et al., 2018),
+
+Linear model with single slope but different interceept and residual variance for each time series
+
+First, just linear model 
+```{r}
+overall_mod <- gls(bray_curtis_dissimilarity_balanced ~ year + season_survey, data = distances_dissimilarities_allyears)
+```
 
 
 

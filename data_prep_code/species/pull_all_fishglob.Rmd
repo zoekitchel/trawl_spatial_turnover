@@ -22,22 +22,22 @@ library(cowplot)
 ```
 
 
-Pull in compiled and cleaned data from fishglob February 4, 2022
+Pull in compiled and cleaned data from fishglob May 9, 2022. Aurore and Laura have added a new column to help with season issues: survey_unit
 
-```{r pull in data from fishglob for Eastern Bering Sea from Google Drive}
-drive_download(file = "FISHGLOB_v1.1_clean.csv",
-               path = here::here("data","FISHGLOB_v1.1_clean.csv"),
+```{r pull in data from fishglob for all regions Sea from Google Drive}
+drive_download(file = "FISHGLOB_v1.2_clean.csv",
+               path = here::here("data","FISHGLOB_v1.2_clean.csv"),
                overwrite = T)
 
-FishGlob <- fread(here::here("data","FISHGLOB_v1.1_clean.csv"))
+FishGlob <- fread(here::here("data","FISHGLOB_v1.2_clean.csv"))
 
-file.remove(here::here("data","FISHGLOB_v1.1_clean.csv"))
+file.remove(here::here("data","FISHGLOB_v1.2_clean.csv"))
 
 #save
-saveRDS(FishGlob, file = here::here("data", "FishGlob_1.1.clean.rds"))
+#saveRDS(FishGlob, file = here::here("data", "FishGlob_1.2.clean.rds"))
 
 #load if already saved
-FishGlob <- readRDS(file = here::here("data", "FishGlob_1.1.clean.rds"))
+#FishGlob <- readRDS(file = here::here("data", "FishGlob_1.2.clean.rds"))
 
 ```
 
@@ -46,7 +46,7 @@ Get rid of any survey x season combos not sampled for at least 10 years
 *NS_IBTS is best examined only for 1st and 3rd quarter
 ```{r summary by survey region}
 #new row for total number of years sampled
-FishGlob[,years_sampled := length(unique(year)),.(survey, season, quarter)]
+FishGlob[,years_sampled := length(unique(year)),.(survey_unit)]
 
 hist(FishGlob$years_sampled)
 
@@ -55,14 +55,12 @@ length(unique(FishGlob[,survey]))
 #remove observations for any regions x season combinations sampled less than 10 times and observations not resolved to species
 FishGlob.10year <- FishGlob[years_sampled >= 10,][rank == "Species",]
 
-#add column with season and survey (I need to fix this... for some regions, dividing by season  makes sense, for others it does not)
-FishGlob.10year[,survey_season := ifelse(!is.na(season),paste0(survey,"_",season),paste0(survey,"_",quarter))]
 
-length(unique(FishGlob.10year[,survey_season]))
+length(unique(FishGlob.10year[,survey_unit]))
 
 rm(FishGlob)
 
-all_survey_seasons <- sort(unique(FishGlob.10year[,survey_season]))
+all_survey_seasons <- sort(unique(FishGlob.10year[,survey_unit]))
 
 ```
 
@@ -86,7 +84,7 @@ Maybe throw out last year of triannual survey for West Coast US (overlaps with f
 (Skipping for now, hopefully our cleaning procedure will cover our bases here)
 ```{r}
 
-FishGlob.10year.r <- FishGlob.10year[!(survey == "EBS" & year < 1984),][!(survey == "SEUS" & year < 1990),][!(survey == "NEUS" & year < 1982),][!(survey == "DFO-NF" & year < 1996),]
+#FishGlob.10year.r <- FishGlob.10year[!(survey == "EBS" & year < 1984),][!(survey == "SEUS" & year < 1990),][!(survey == "NEUS" & year < 1982),][!(survey == "DFO-NF" & year < 1996),]
 
 #rm(FishGlob.10year)
 ```
@@ -94,7 +92,9 @@ FishGlob.10year.r <- FishGlob.10year[!(survey == "EBS" & year < 1984),][!(survey
 
 Loop to standardize observations for all regions
 
-(This is preliminary code where we use threshold of 70% spatial coverage for getting rid of years and n = 3/year for keeping cells)
+(This is preliminary code where we use threshold of 70% observation coverage for getting rid of years and n = 1/year for keeping cells)
+
+At some point in the near future, I will just use Laura's code here, or perhaps her final data product where we eliminate observations that don't match consistent spatial footprint but limit whether this happens in years  or locations by # of observations lost. 
 
 ```{r standardize observations all regions}
 
@@ -105,25 +105,23 @@ world[,long_s := ifelse(long > 150, (long-360),(long))]
 
 
 #if positive, subtract 360
-FishGlob.10year.r[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+FishGlob.10year[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
 
 #delete if NA for longitude or latitude
-FishGlob.10year.r <- FishGlob.10year.r[complete.cases(FishGlob.10year.r[,.(longitude, latitude)])]
+FishGlob.10year <- FishGlob.10year[complete.cases(FishGlob.10year[,.(longitude, latitude)])]
 
 #set up grid
-dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least 3 observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
+dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least 1 observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
 
 map_points_plots <- list()
 
 FishGlob_cleaned <- data.table()
 
-#sensitivity (what portion years left out, what portion cells left out)
-year_threshold_sensitivity_full <- year_threshold_sensitivity
 
 for (i in 1:length(all_survey_seasons)) {
       
       #reduce to specific survey/season combination
-      reduced_FishGlob.10year <- FishGlob.10year.r[survey_season == all_survey_seasons[i],]
+      reduced_FishGlob.10year <- FishGlob.10year[survey_unit == all_survey_seasons[i],]
       
       #pull out unique lat lons
       unique_latlon <- unique(reduced_FishGlob.10year[,.(latitude, longitude_s)])
@@ -148,40 +146,35 @@ for (i in 1:length(all_survey_seasons)) {
       #update grid properties to include # of trawls in each cell
       grid <- merge(grid, unique_latlon, by = "cell")
       
-      #Any years where clearly fewer cells were sampled?
-      year_cells <- reduced_FishGlob.10year.gridded[,.(cell_count = length(unique(cell))),year]
+      #Any years where clearly fewer haulids were sampled?
+      year_haulids <- reduced_FishGlob.10year.gridded[,.(haulid_count = length(unique(haul_id))),year]
       
-      for(j in 1:length(percent_thresholds)) {
+      #we'll make benchmark 85% just for now
+      benchmark_value <- 0.7*max(year_haulids[,haulid_count])
+      #only keep years where over 85% of cells are sampled
+      year_haulids[,benchmark := haulid_count >= benchmark_value]
       
-      benchmark <- percent_thresholds[j] * max(year_cells[,cell_count]) # of cells/ year to cut off below
+      years_deleted <- year_haulids[benchmark == F]$year #which years are left out?
       
-      assign(paste0("benchmark_",percent_thresholds[j]*100,"%"), benchmark)
+      years_kept <- year_haulids[benchmark ==T]$year #which years  to keep
       
-      #only keep years where over x% of cells are sampled
-      year_cells[,benchmark := cell_count > benchmark]
+      years_deleted_percent <- round(length(years_deleted)/nrow(year_haulids)*100,1)
       
-      years_deleted <- year_cells[benchmark == F]$year #which years are left out?
-      
-      years_kept <- year_cells[benchmark ==T]$year #which years  to keep
-      
-      years_deleted_percent <- round(length(years_deleted)/nrow(year_cells)*100,1)
-      
-      year_threshold_sensitivity <- c(all_survey_seasons[i], percent_thresholds[j],years_deleted_percent)
-      
-      year_threshold_sensitivity_full <- rbind(year_threshold_sensitivity_full, year_threshold_sensitivity)
-      }
+
        #print the years that are left out
-#      print(ifelse(length(years_deleted) == 0, paste0(all_survey_seasons[i], " Years left out = 0"), paste0(all_survey_seasons[i], " Years left out = ", years_deleted, ", ",years_deleted_percent, "% of Years Excluded"))) #need to figure out how to list all years removed
+      print(ifelse(length(years_deleted) == 0, paste0(all_survey_seasons[i], " Years left out = 0"), paste0(all_survey_seasons[i], " Years left out = ", years_deleted, collapse = ",")))
+     
+     print(paste0(years_deleted_percent, "% of Years Excluded"))
       
       #reduce to years that are well sampled
       reduced_FishGlob.10year.gridded.r <- reduced_FishGlob.10year.gridded[year %in% years_kept,]
       
-      #identify any cells that in any years are sampled less than 3 times
+      #identify any cells that in any years are sampled less than 1 times
       reduced_FishGlob.10year.gridded.r[,year_cell_count := length(unique(haul_id)),.(year,cell)]
       
       #cell ids to remove and keep
-      #in any year, which cells are sampled less than 3 times, these need to go
-      cell_id_remove <- unique(reduced_FishGlob.10year.gridded.r[year_cell_count < 3]$cell)
+      #in any year, which cells are sampled less than 1 times, these need to go
+      cell_id_remove <- unique(reduced_FishGlob.10year.gridded.r[year_cell_count < 1]$cell)
       cells_deleted_percent <- round(length(cell_id_remove)/length(unique(reduced_FishGlob.10year.gridded.r[,cell]))*100,1)
       #this removes 40% of cells from Aleutian islands, seems like too much, I will return to this
       
@@ -258,9 +251,9 @@ for (i in 1:length(all_survey_seasons)) {
 FishGlob_cleaned[,years_sampled_update := length(unique(year)),.(survey,season)]
 FishGlob_cleaned.10year <- FishGlob_cleaned[years_sampled_update >= 10,]
 
-saveRDS(FishGlob_cleaned.10year, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+#saveRDS(FishGlob_cleaned.10year, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
-FishGlob_cleaned.10year <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+#FishGlob_cleaned.10year <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
 length(unique(FishGlob_cleaned.10year[,survey]))
 

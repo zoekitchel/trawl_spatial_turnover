@@ -1,0 +1,22 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Are our data autocorrelated?
+
+```{r setup}
+library(data.table)
+```
+
+Load Data
+```{r}
+distances_dissimilarities_allyears <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
+```
+
+
+Plot data
+```{r}
+plot(distances_dissimilarities_allyears$year, distances_dissimilarities_allyears$bray_curtis_dissimilarity_balanced)
+```
+

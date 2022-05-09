@@ -13,6 +13,8 @@ ebs_data_gridded.RData
 *distances_dissimilarities_allyears.rds
 FISHGLOB_v1.1_clean.csv
 FishGlob_1.1.clean.rds
+FISHGLOB_v1.2_clean.csv
+FishGlob_1.2.clean.rds
 FishGlob_cleaned.10year.rds
 data/FishGlob_1.1.clean.rds
 output/region_season_cleaned_data/FishGlob_cleaned.10year.rds
