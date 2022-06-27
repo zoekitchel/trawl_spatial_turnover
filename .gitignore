@@ -25,3 +25,6 @@ box_plots_bray.rds
 box_plots_jaccard.rds
 *.csv
 *.pdf
+intercept_slope_varies.rds
+intercept_varies.rds
+simple_mod.rds
