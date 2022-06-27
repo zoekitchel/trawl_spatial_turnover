@@ -5,18 +5,189 @@ output: html_notebook
 
 Are our data autocorrelated?
 
+Maybe, avg residual per year and region?
+
 ```{r setup}
 library(data.table)
+library(ggplot2)
+library(nlme)
+library(here)
+library(lme4)
 ```
 
 Load Data
 ```{r}
 distances_dissimilarities_allyears <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
+
+#season_survey = factor
+distances_dissimilarities_allyears[,season_survey := factor(season_survey)]
+
+#add new variable for year in sequence per region
+distances_dissimilarities_allyears[,first_year := min(year),.(season_survey)]
+distances_dissimilarities_allyears[,last_year := max(year),.(season_survey)]
+
+distances_dissimilarities_allyears[,year_in_seq := year-first_year+1]
+
+distances_dissimilarities_allyears[,years_sampled := last_year-first_year+1]
+
+survey_season_sampling_years <- unique(distances_dissimilarities_allyears[,.(season_survey, years_sampled)])
+```
+
+Linear Model
+```{r}
+simple_mod <- lm(bray_curtis_dissimilarity_balanced ~ year, data = distances_dissimilarities_allyears)
+summary(simple_mod)
+
+saveRDS(simple_mod, here::here("output","distance_dissimilarity","simple_mod.rds"))
+
+```
+Mod Summary
+
+Call:
+lm(formula = bray_curtis_dissimilarity_balanced ~ year, data = distances_dissimilarities_allyears)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.70248 -0.21083  0.07723  0.25982  0.37456 
+
+Coefficients:
+              Estimate Std. Error t value Pr(>|t|)    
+(Intercept) -2.757e+00  6.832e-03  -403.6   <2e-16 ***
+year         1.712e-03  3.406e-06   502.7   <2e-16 *** (Dissimilarity increases through time)
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.2905 on 83992391 degrees of freedom
+  (14770 observations deleted due to missingness)
+Multiple R-squared:  0.002999,	Adjusted R-squared:  0.002999 (Very small R^2 value)
+F-statistic: 2.527e+05 on 1 and 83992391 DF,  p-value: < 2.2e-16
+
+Now, add autocorrelation for time
+
+```{r}
+ac_mod <- gls(bray_curtis_dissimilarity_balanced ~ year, data=distances_dissimilarities_allyears, 
+              correlation = corAR1(form=~year),
+              na.action=na.omit)
+summary(ac_mod)
+
+saveRDS(ac_mod, here::here("output","distance_dissimilarity","ac_mod.rds"))
+
+```
+
+Compare the two models
+```{r}
+AIC(simple_mod, ac_mod)
+```
+
+I should now include mixed effect which allows the intercept to vary across survey
+```{r}
+intercept_varies <- lmer(bray_curtis_dissimilarity_balanced ~ year + (1|season_survey), data = distances_dissimilarities_allyears)
+
+summary(intercept_varies)
+
+saveRDS(intercept_varies, here::here("output","distance_dissimilarity","intercept_varies.rds"))
+```
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  unable to evaluate scaled gradient
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model failed to converge: degenerate  Hessian with 1 negative eigenvalues
+
+
+Confidence intervals
+```{r}
+confint(intercept_varies)
+```
+
+See cofficients
+```{r}
+# see group coefficients
+intercept_varies_model_coefs <- coef(intercept_varies)$Group %>% 
+  rename(Intercept = `(Intercept)`, Slope = Days) %>% 
+  rownames_to_column("Group")
+
+# see coefficients
+intercept_varies_model_coefs
+
+#join  with OG data
+sleep_groups_rani <- left_join(sleep_groups, model_coefs, by = "Group")
+```
+
+Plot
+```{r}
+
 ```
 
 
-Plot data
+Predict
 ```{r}
-plot(distances_dissimilarities_allyears$year, distances_dissimilarities_allyears$bray_curtis_dissimilarity_balanced)
+predict_with_random_intercept <- predict(intercept_varies)
+```
+
+
+Finally, I will allow mixed effects which allow the intercept and the slope to vary across survey
+```{r}
+system.time(intercept_slope_varies <- lmer(bray_curtis_dissimilarity_balanced ~ year_in_seq + (1 + year_in_seq|season_survey), data = distances_dissimilarities_allyears))
+
+saveRDS(intercept_slope_varies, here::here("output","distance_dissimilarity","intercept_slope_varies.rds"))
+
+```
+NB:
+
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model failed to converge with max|grad| = 0.0367592 (tol = 0.002, component 1)
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model is nearly unidentifiable: very large eigenvalue
+ - Rescale variables?
+ 
+ 
+Plot average residuals for each year/region over time? Per Malin's recommendation: https://goodekat.github.io/redres/
+```{r}
+install.packages("redres")
+library(redres)
+
+
+```
+
+Plot models
+```{r}
+library(sjPlot)
+library(sjmisc)
+
+install.packages("sjPlot")
+install.packages("sjmisc")
+```
+
+Plot
+```{r}
+model_coefs <- coef(intercept_slope_varies)$season_survey
+model_coefs$season_survey <- rownames(model_coefs)
+
+model_coefs <- data.table(model_coefs)
+
+#merge with duration of survey
+model_coefs_length <- model_coefs[survey_season_sampling_years, on = season_survey]
+```
+
+```{r}
+
+
+ggplot2(data = model_coefs, aes(x = season_survey, y = year_in_seq, label = season_survey)) +
+  geom_point(stat = 'identity', aes(year_)) +
+  scale_size(range = c(2, 8), breaks = 5)
+  scale_size_manual
+  
+  
+  # Plot
+ggplot(mtcars, aes(x=`car name`, y=mpg_z, label=mpg_z)) + 
+  geom_point(stat='identity', aes(col=mpg_type), size=6)  +
+  scale_color_manual(name="Mileage", 
+                     labels = c("Above Average", "Below Average"), 
+                     values = c("above"="#00ba38", "below"="#f8766d")) + 
+  geom_text(color="white", size=2) +
+  labs(title="Diverging Dot Plot", 
+       subtitle="Normalized mileage from 'mtcars': Dotplot") + 
+  ylim(-2.5, 2.5) +
+  coord_flip()
+  
 ```
 

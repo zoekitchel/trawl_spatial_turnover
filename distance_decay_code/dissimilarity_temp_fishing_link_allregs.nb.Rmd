@@ -134,12 +134,26 @@ AIC(allreg_dissimilarity_fishing_temp_mod,allreg_dissimilarity_fishing_maxtemp_m
 ```
 Mean Dissimilarity = 0.52 - 0.09 * scaled tonnes + 0.06 * sst_SD +  
 
+What about r^2 value
+```{r}
+r.squaredGLMM(allreg_dissimilarity_fishing_temp_mod_SDonly)
+
+#marginal GLMM (variance explained by fixed effects)
+#conditional GLMM (variance explained by entire model)
+
+#           R2m       R2c
+#[1,] 0.2771024 0.8441032
+```
+
+
 Plot this model with interaction
 ```{r}
 library(interactions)
 sim_slopes(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD, modx = summed_tonnes_scaled, johnson_neyman = FALSE)
 
-interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD, modx = summed_tonnes_scaled, plot.points = T, colors = c("#3283FE","#FEAF16","#B00068")) + theme_classic()
+interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD, modx = summed_tonnes_scaled, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Spatial Standard Deviation\nof Sea Surface Temperature", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
+
+ggsave(filename = "interaction_fish_temp.png" ,height = 4, width = 8)
 
 interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD, modx = summed_tonnes_scaled, linearity.check = TRUE, 
               plot.points = TRUE) #check linearity 
