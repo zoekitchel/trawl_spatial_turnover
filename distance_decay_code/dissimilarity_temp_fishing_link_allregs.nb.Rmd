@@ -69,7 +69,7 @@ summary(ebs_dissimilarity_fishing_mod)
 How does this trend hold up for all regions?
 ```{r temp all regions}
 #for all regions
-allreg_dissimilarity_fishing_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp.fishing) +
+(allreg_dissimilarity_fishing_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp.fishing) +
   labs(x = "Scaled Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes_scaled, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
   geom_line(aes(x = summed_tonnes_scaled, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
@@ -82,13 +82,27 @@ allreg_dissimilarity_fishing_mean <- ggplot(data = distances_dissimilarities_all
   "#C075A6","#782AB6","#AAF400","#BDCDFF", 
   "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
   "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
+  geom_abline(aes(slope = -0.033079, intercept = 0.597743), method = "lm", se = F, color  = "black", size = 1) +
+  theme_classic() +
+    theme(legend.position = "none"))
+
+#all one color points
+(allreg_dissimilarity_fishing_mean_SIMPLIFIED <- ggplot(data = distances_dissimilarities_allyears.year.models.temp.fishing) +
+  labs(x = "Scaled Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled, y = mean_yearly_bray), alpha = 0.3) +
   geom_smooth(aes(x = summed_tonnes_scaled, y = mean_yearly_bray), method = "lm", se = F, color  = "black") +
   theme_classic() +
-    theme(legend.position = "none")
+    theme(legend.position = "none"))
 
 ggsave(allreg_dissimilarity_fishing_mean, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_fishing_mean.jpg", height = 4, width = 9, unit = "in") 
 
+#random effect for survey
 allreg_dissimilarity_fishing_mean_mod <- lmer(mean_yearly_bray ~ summed_tonnes_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+
+#no random effect for survey
+allreg_dissimilarity_fishing_mean_mod_lm <- lm(mean_yearly_bray ~ summed_tonnes_scaled, data = distances_dissimilarities_allyears.year.models.temp.fishing)
+
+#In years of higher than average fishing pressure, dissimilarity is lower (homogenization)
 
 summary(allreg_dissimilarity_fishing_mean_mod)
 
@@ -115,12 +129,25 @@ summed_tonnes_scaled_byreg: sst_SD (relationship between sst_SD and dissimilarit
 Let's remove some variables and compare the models
 ```{r compare mods}
 #compare max, min, mean
-allreg_dissimilarity_fishing_maxtemp_mod <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_max_scaled*sst_SD + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+allreg_dissimilarity_fishing_maxtemp_mod <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_max_scaled*sst_SD_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
 
-allreg_dissimilarity_fishing_mintemp_mod <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_min_scaled*sst_SD + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+allreg_dissimilarity_fishing_mintemp_mod <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_min_scaled*sst_SD_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+
+#mean only
+allreg_dissimilarity_fishing_temp_mod_meanonly <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_mean_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+
+summary(allreg_dissimilarity_fishing_temp_mod_meanonly)
+
+allreg_dissimilarity_fishing_temp_mod_meanonly_slope_and_intercept <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_mean_scaled + (1+sst_mean_scaled|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+
+AICc(allreg_dissimilarity_fishing_temp_mod_meanonly, allreg_dissimilarity_fishing_temp_mod_meanonly_slope_and_intercept)
 
 #remove mean
-allreg_dissimilarity_fishing_temp_mod_SDonly <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_SD + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+allreg_dissimilarity_fishing_temp_mod_SDonly <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_SD_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
+
+summary(allreg_dissimilarity_fishing_temp_mod_SDonly)
+
+allreg_dissimilarity_fishing_temp_mod_SDonly_slope_and_intercept <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_SD_scaled + (1+sst_SD_scaled|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
 
 summary(allreg_dissimilarity_fishing_temp_mod_SDonly)
 
@@ -128,11 +155,11 @@ summary(allreg_dissimilarity_fishing_temp_mod_SDonly)
 allreg_dissimilarity_fishing_mintemp_mod_only <- lmer(mean_yearly_bray ~ summed_tonnes_scaled*sst_min_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing)
 
 #no interaction
-allreg_dissimilarity_fishing_temp_mod_SDonly_nointeraction <- lmer(mean_yearly_bray ~ summed_tonnes_scaled + sst_SD + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing) #this is clearly the best model, 
+allreg_dissimilarity_fishing_temp_mod_SDonly_nointeraction <- lmer(mean_yearly_bray ~ summed_tonnes_scaled + sst_SD_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp.fishing) #this is clearly the best model, 
 
 AIC(allreg_dissimilarity_fishing_temp_mod,allreg_dissimilarity_fishing_maxtemp_mod, allreg_dissimilarity_fishing_mintemp_mod, allreg_dissimilarity_fishing_temp_mod_SDonly, allreg_dissimilarity_fishing_temp_mod_SDonly_nointeraction, allreg_dissimilarity_fishing_mintemp_mod_only)
 ```
-Mean Dissimilarity = 0.52 - 0.09 * scaled tonnes + 0.06 * sst_SD +  
+Mean Dissimilarity = 0.51 - 0.11 * scaled tonnes + 0.23 * sst_SD_scaled +  
 
 What about r^2 value
 ```{r}
@@ -142,20 +169,20 @@ r.squaredGLMM(allreg_dissimilarity_fishing_temp_mod_SDonly)
 #conditional GLMM (variance explained by entire model)
 
 #           R2m       R2c
-#[1,] 0.2771024 0.8441032
+#[1,] 0.257385 0.8626593
 ```
 
 
 Plot this model with interaction
 ```{r}
 library(interactions)
-sim_slopes(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD, modx = summed_tonnes_scaled, johnson_neyman = FALSE)
+sim_slopes(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD_scaled, modx = summed_tonnes_scaled, johnson_neyman = FALSE)
 
-interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD, modx = summed_tonnes_scaled, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Spatial Standard Deviation\nof Sea Surface Temperature", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
+interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD_scaled, modx = summed_tonnes_scaled, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Spatial Standard Deviation\nof Sea Surface Temperature \n Scaled within Region", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
 
-ggsave(filename = "interaction_fish_temp.png" ,height = 4, width = 8)
+ggsave(filename = "interaction_fish_temp.png" ,height = 4, width = 10)
 
-interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD, modx = summed_tonnes_scaled, linearity.check = TRUE, 
+interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD_scaled, modx = summed_tonnes_scaled, linearity.check = TRUE, 
               plot.points = TRUE) #check linearity 
 
 ```

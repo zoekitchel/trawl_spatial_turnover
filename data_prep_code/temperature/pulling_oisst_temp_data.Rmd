@@ -161,15 +161,15 @@ for (i in 1:length(all_season_surveys)) {
   #for each region, how does temp compare to avg temp for that region
   OISST_data[,temp_scaled := scale(temp)]
 
-  OISST_data[, year_for_avg := ifelse(month >= min_month, year+1, year)][, yearly_mean_bypoint := mean(temp), .(year_for_avg, lat, lon)][, montly_mean_bypoint := mean(temp),.(year_for_avg,lat,lon,month)][, yearly_mean_bypoint_scaled := mean(temp_scaled), .(year_for_avg, lat, lon)][, montly_mean_bypoint_scaled := mean(temp_scaled),.(year_for_avg,lat,lon,month)]
+  OISST_data[, year_for_avg := ifelse(month >= min_month, year+1, year)][, yearly_mean_bypoint := mean(temp), .(year_for_avg, lat, lon)][, yearly_max_bypoint := max(temp), .(year_for_avg, lat, lon)][, yearly_min_bypoint := min(temp), .(year_for_avg, lat, lon)][, montly_mean_bypoint := mean(temp),.(year_for_avg,lat,lon,month)][, yearly_mean_bypoint_scaled := mean(temp_scaled), .(year_for_avg, lat, lon)][, montly_mean_bypoint_scaled := mean(temp_scaled),.(year_for_avg,lat,lon,month)]
   
   #for min, max, and mean, first temp is avg by month at each lat/lon, THEN we take mean, max, and min monthly temp per year (balances out any weird values)
   #for SD, we calculate a yearly mean by lat/lon, and then look at standard deviation
-  OISST_data[, sst_min := min(montly_mean_bypoint), year_for_avg][, sst_max := max(montly_mean_bypoint), year_for_avg][, sst_mean := mean(montly_mean_bypoint), year_for_avg][, sst_SD := sd(yearly_mean_bypoint), year_for_avg] #this doesn't take into consideration spatial component for sst min max or mean, I want to calculate mean at each point, and THEN take SD I think
+  OISST_data[, sst_min := min(montly_mean_bypoint), year_for_avg][, sst_max := max(montly_mean_bypoint), year_for_avg][, sst_mean := mean(montly_mean_bypoint), year_for_avg][, sst_SD_mean := sd(yearly_mean_bypoint), year_for_avg][, sst_SD_max := sd(yearly_max_bypoint), year_for_avg][, sst_SD_min := sd(yearly_min_bypoint), year_for_avg] #this doesn't take into consideration spatial component for sst min max or mean, I want to calculate mean at each point, and THEN take SD I think
    
   #scaled versions
      #for min, max, and mean, first temp is avg by month at each lat/lon, THEN we take mean, max, and min monthly temp per year (balances out any weird values)
-  #for SD, we calculate a yearly mean by lat/lon, and then look at standard deviation
+  #for SD, we calculate a yearly mean by lat/lon, calculate standard deviation, and then scale standard deviation
   OISST_data[, sst_min_scaled := min(montly_mean_bypoint_scaled), year_for_avg][, sst_max_scaled := max(montly_mean_bypoint_scaled), year_for_avg][, sst_mean_scaled := mean(montly_mean_bypoint_scaled), year_for_avg][, sst_SD_scaled := sd(yearly_mean_bypoint_scaled), year_for_avg]
   
   #for difference to calculate with limited memory, I will need to first simplify datatable
