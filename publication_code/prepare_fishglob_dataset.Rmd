@@ -62,7 +62,7 @@ FishGlob_1.5[survey == "Nor-BTS" & month %in% c(1:6), survey_unit := "Nor-BTS-1"
 ZAF (South Africa) has distinct Atlantic and Indian surveys (split  at ~20.01˚ E, Cape Agulhas)
 
 ```{r add longitudinal region to ZAF}
-FishGlob_1.5[survey == "ZAF" & longitude <20.01, survey_unit := "ZAF-ATL"][survey == "ZAF" & longitue >= 20.01, survey_unit := "ZAF-IND"]
+FishGlob_1.5[survey == "ZAF" & longitude <20.01, survey_unit := "ZAF-ATL"][survey == "ZAF" & longitude >= 20.01, survey_unit := "ZAF-IND"]
 ```
 
 ##Preliminary Data Cuts
@@ -2987,63 +2987,138 @@ wctri_keep <- NULL
 
 ####ZAF
 
-
+ATL
 ```{r ZAF}
-ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "ZAF",]) +
+ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "ZAF-ATL",]) +
   geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
   scale_fill_viridis() +
   labs(x = "Month", y = "Season",fill = "Proportion of All Survey Hauls in FishGlob") +
   theme_classic()
 
-ggplot(FishGlob.10year.uniquehauls.quarter[survey_unit == "ZAF",]) +
+ggplot(FishGlob.10year.uniquehauls.quarter[survey_unit == "ZAF-ATL",]) +
   geom_tile(aes(x = factor(month), y = factor(quarter), fill = haul_proportion_survey_quarter),color = "white") +
   scale_fill_viridis() +
   labs(x = "Month", y = "Quarter",fill = "Proportion of All Survey Hauls in FishGlob") +
   theme_classic()
 
-ggplot(FishGlob.10year.uniquehauls.annual.month[survey_unit == "ZAF",]) +
+ggplot(FishGlob.10year.uniquehauls.annual.month[survey_unit == "ZAF-ATL",]) +
   geom_tile(aes(x = year, y = factor(month), fill = haul_proportion_month_yearly),color = "white") +
   scale_fill_viridis() +
   labs(x = "Year", y = "Month",fill = "Proportion of Annual Hauls") +
   theme_classic()
 
-ggplot(FishGlob.10year.uniquehauls.annual.quarter[survey_unit == "ZAF",]) +
+ggplot(FishGlob.10year.uniquehauls.annual.quarter[survey_unit == "ZAF-ATL",]) +
   geom_tile(aes(x = year, y = factor(quarter), fill = haul_proportion_quarter_yearly),color = "white") +
   scale_fill_viridis() +
   labs(x = "Year", y = "Quarter",fill = "Proportion of Annual Hauls") +
   theme_classic()
 
-ggplot(FishGlob.10year.uniquehauls[survey_unit == "ZAF",]) +
+ggplot(FishGlob.10year.uniquehauls[survey_unit == "ZAF-ATL",]) +
   geom_point(aes(x = longitude_adj, y = latitude, color = year), size = 0.3, alpha = 0.5) +
   scale_color_viridis() +
   theme_classic()
 
-ggplot(FishGlob.10year.uniquehauls[survey_unit == "ZAF",]) +
+ggplot(FishGlob.10year.uniquehauls[survey_unit == "ZAF-ATL",]) +
   geom_point(aes(x = longitude_adj, y = latitude, color = month), size = 0.3, alpha = 0.5) +
   scale_color_viridis(option = "plasma") +
-  geom_vline(xintercept = 20) +
   theme_classic()
 
 # # of species per year??
-ggplot(data = FishGlob.10year.spp_survey_year.r[survey_unit == "ZAF",], aes(x = year, y=spp_count_survey_year)) +
+ggplot(data = FishGlob.10year.spp_survey_year.r[survey_unit == "ZAF-ATL",], aes(x = year, y=spp_count_survey_year)) +
   geom_col() +
   theme_classic()
 
 # # of hauls per year
-ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "ZAF",], aes(x = year, y=haulid_count_survey_year)) +
+ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "ZAF-ATL",], aes(x = year, y=haulid_count_survey_year)) +
   geom_col() +
   theme_classic()
 
 ```
 
--Here, one exception, will use four months (6,7,8,9) because all sampled consistently, and lower latitude areas sampled later in the summer consistently
+-Include 1,2,3
 -Consistent spatial distribution through time
 -Richness consistent through time
--# Hauls consistent through time
+-# Hauls consistent through time after 1991
 
 
-```{r zaf processing}
-zaf_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "ZAF" & month %in% c(6:9), haul_id])
+```{r zaf atl processing}
+zaf_atl_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "ZAF-ATL" & month %in% c(1:3) & year >= 1991, haul_id])
+```
+
+
+IND
+```{r ZAF}
+ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "ZAF-IND",]) +
+  geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Month", y = "Season",fill = "Proportion of All Survey Hauls in FishGlob") +
+  theme_classic()
+
+ggplot(FishGlob.10year.uniquehauls.quarter[survey_unit == "ZAF-IND",]) +
+  geom_tile(aes(x = factor(month), y = factor(quarter), fill = haul_proportion_survey_quarter),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Month", y = "Quarter",fill = "Proportion of All Survey Hauls in FishGlob") +
+  theme_classic()
+
+ggplot(FishGlob.10year.uniquehauls.annual.month[survey_unit == "ZAF-IND",]) +
+  geom_tile(aes(x = year, y = factor(month), fill = haul_proportion_month_yearly),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Year", y = "Month",fill = "Proportion of Annual Hauls") +
+  theme_classic()
+
+ggplot(FishGlob.10year.uniquehauls.annual.quarter[survey_unit == "ZAF-IND",]) +
+  geom_tile(aes(x = year, y = factor(quarter), fill = haul_proportion_quarter_yearly),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Year", y = "Quarter",fill = "Proportion of Annual Hauls") +
+  theme_classic()
+
+ggplot(FishGlob.10year.uniquehauls[survey_unit == "ZAF-IND",]) +
+  geom_point(aes(x = longitude_adj, y = latitude, color = year), size = 0.3, alpha = 0.5) +
+  scale_color_viridis() +
+  theme_classic()
+
+ggplot(FishGlob.10year.uniquehauls[survey_unit == "ZAF-IND",]) +
+  geom_point(aes(x = longitude_adj, y = latitude, color = month), size = 0.3, alpha = 0.5) +
+  scale_color_viridis(option = "plasma") +
+  theme_classic()
+
+# # of species per year??
+ggplot(data = FishGlob.10year.spp_survey_year.r[survey_unit == "ZAF-IND",], aes(x = year, y=spp_count_survey_year)) +
+  geom_col() +
+  theme_classic()
+
+# # of hauls per year
+ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "ZAF-IND",], aes(x = year, y=haulid_count_survey_year)) +
+  geom_col() +
+  theme_classic()
+
+```
+
+-Include 4,5,6
+-Consistent spatial distribution through time
+-Richness consistent through time
+-# Hauls consistent before 2001, and then also in 2005 and 2009-2010
+
+
+```{r zaf ind processing}
+zaf_ind_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "ZAF-IND" & month %in% c(4:6) & year %in% c(1985:2001,2005, 2009,2010), haul_id])
+```
+
+
+####Combine all lists that have _keep
+```{r combine lists}
+#all objects with _keep
+list_obj <- ls(pattern = "_keep")
+
+#combine
+fishglob_haulids_to_keep <- unlist(lapply(list_obj, get)) #243539 hauls (Started with 296799)
+
+FishGlob.10year.spp_manualclean <- FishGlob.10year.spp[haul_id %in% fishglob_haulids_to_keep,]
+
+#save
+saveRDS(FishGlob.10year.spp_manualclean, file = here::here("data","cleaned","FishGlob.10year.spp_manualclean.rds"))
+
+
 ```
 
 
