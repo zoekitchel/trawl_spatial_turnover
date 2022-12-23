@@ -53,9 +53,8 @@ loaded via a namespace (and not attached):
 [73] ggplot2_3.3.6       xfun_0.34           e1071_1.7-12        class_7.3-20       
 [77] gargle_1.2.1        tibble_3.1.8        iterators_1.0.14    units_0.8-0 
 
-```{r}
-library(dplyr)
-library(tidyr)
+```{r setup}
+library(tidyverse)
 library(sp)
 library(raster)
 library(rgeos)
@@ -64,11 +63,13 @@ library(viridis)
 library(gridExtra)
 library(rasterVis)
 library(concaveman)
+library(sf)
+library(viridis)
 set.seed(1)
 ```
 
 
-```{r setup}
+```{r}
 #library(dggridR) #no longer works will find alternate method
 library(data.table)
 library(rgdal)
@@ -92,7 +93,145 @@ Pull in compiled and cleaned data from FishGlob, downloaded on November 28, 2022
 
 FishGlob_1.5 <- fread(here::here("data","FISHGLOB_v1.5_clean.csv"))
 
+#add new column for season/quarter because survey_unit does not always show season correctly (i.e. GMEX)
+
+#check first which survey_unit columns are okay and not
+View(unique(FishGlob_1.5[,.(survey, season, quarter, survey_unit)]))
+
+table(FishGlob_1.5$survey, FishGlob_1.5$quarter)
+
+#not completely dealing with this now, but will atleast add in season for GMEX to survey unit for now
+
+FishGlob_1.5[survey == "GMEX", survey_unit := paste0(survey,"-",season)]
+
 ```
+
+Specific Regional Fixes
+
+GSL
+North: we have data 1980-2019, but gear changes in 2004/2005, so let's use later portion (more consistent months of sampling; 2005-2019; 15 years)
+South: we have data 1970-2019, but gear/vessel changes in 1985 and again in 1992, so again let's use later portion (1992-2019; 27 years)
+
+```{r GSL fixes}
+#identify haul_ids of hauls we should remove
+haul_ids_to_remove_GSL <- unique(FishGlob_1.5[(survey == "GSL-N" & year < 2005)|(survey == "GSL-S" & year < 1992),haul_id])
+
+FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_GSL),] #remove hauls before consistent gear/vessel was used
+```
+
+##Spatial and Temporal Patterns in All Trawl Surveys
+Let's look at hauls per year/month and year/quarter and year/season visually
+```{r}
+#unique haul, survey, quarter, season, year
+
+FishGlob.uniquehauls <- unique(FishGlob_1.5[,.(survey, survey_unit, year,month,quarter,season,haul_id, latitude, longitude)])
+
+#add column with adjusted longitude for few regions that cross dateline (NZ and AI)
+FishGlob.uniquehauls[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
+
+FishGlob.uniquehauls[,haul_counts_per_survey_season_month :=uniqueN(haul_id),.(survey, month, season)][, #count # hauls per survey, season, and month
+                     haul_counts_per_survey_quarter_month :=uniqueN(haul_id),.(survey, month, quarter)][,#count # hauls per survey, month, and quarter
+                     total_hauls_survey :=uniqueN(haul_id),.(survey)][,#count # hauls per survey in all years
+                                                        
+              #proportion of hauls for each survey, season, and month divided by total # over all years
+                     haul_proportion_survey_season :=haul_counts_per_survey_season_month/total_hauls_survey][,
+              #proportion of hauls for each survey, quarter, and month divided by total # over all years
+                     haul_proportion_survey_quarter :=haul_counts_per_survey_quarter_month/total_hauls_survey][,
+                                                                                                               
+                     haul_count_per_survey_year_month :=uniqueN(haul_id),.(year, survey_unit, month)][, #count # hauls per survey unit, year, and month
+                     total_hauls_survey_year := uniqueN(haul_id),.(survey_unit,year)][, #count total # hauls per survey unit and year
+                     #proportion of hauls for each survey unit and month divided by total # hauls within a survey unit within a year
+                     haul_proportion_month_yearly := haul_count_per_survey_year_month/total_hauls_survey_year][, 
+
+                     haul_count_per_survey_year_quarter :=uniqueN(haul_id),.(year, survey_unit, quarter)][, #count # hauls per survey unit, year, and month
+                     #proportion of hauls for each survey unit and month divided by total # hauls within a survey unit within a year
+                     haul_proportion_quarter_yearly := haul_count_per_survey_year_quarter/total_hauls_survey_year] 
+
+FishGlob.uniquehauls.season <- unique(FishGlob.uniquehauls[,.(survey, month, season, haul_counts_per_survey_season_month,total_hauls_survey, haul_proportion_survey_season)]) #rel sampling by season across all years
+
+FishGlob.uniquehauls.quarter <- unique(FishGlob.uniquehauls[,.(survey, month, quarter, haul_counts_per_survey_quarter_month,total_hauls_survey, haul_proportion_survey_quarter)]) #reel sampling by quarter across all years
+
+FishGlob.uniquehauls.annual.month <- unique(FishGlob.uniquehauls[,.(survey, year, survey_unit, month, haul_count_per_survey_year_month,total_hauls_survey_year,haul_proportion_month_yearly)]) #relative sampling by month within years
+
+FishGlob.uniquehauls.annual.quarter <- unique(FishGlob.uniquehauls[,.(survey, year, survey_unit, quarter, haul_count_per_survey_year_quarter,total_hauls_survey_year,haul_proportion_quarter_yearly)]) #relative sampling by month within years
+
+#how does #hauls vary with season and month?
+survey_season_month_hauls <- ggplot(FishGlob.10year.spp.uniquehauls.season) +
+  geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Month", y = "Season",fill = "Proportion of All Survey Hauls in FishGlob") +
+  facet_wrap(~survey,scales = "free_y") +
+  theme_classic()
+
+ggsave(survey_season_month_hauls, filename = "survey_season_month_hauls.pdf",path = here::here("figures","view_data"), height = 5, width = 15, units = "in")
+
+#how does #hauls vary with quarter and month?
+survey_quarter_month_hauls <- ggplot(FishGlob.uniquehauls.quarter) +
+  geom_tile(aes(x = factor(month), y = factor(quarter), fill = haul_proportion_survey_quarter),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Month", y = "Quarter",fill = "Proportion of All Survey Hauls in FishGlob") +
+  facet_wrap(~survey,scales = "free_y") +
+  theme_classic()
+
+ggsave(survey_quarter_month_hauls, filename = "survey_quarter_month_hauls.pdf",path = here::here("figures","view_data"), height = 5, width = 15, units = "in")
+
+#how does #hauls vary with year and month?
+year_survey_month_hauls <- ggplot(FishGlob.uniquehauls.annual.month) +
+  geom_tile(aes(x = year, y = factor(month), fill = haul_proportion_month_yearly),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Year", y = "Month",fill = "Proportion of Annual Hauls") +
+  facet_wrap(~survey_unit,scales = "free_y") +
+  theme_classic()
+
+ggsave(year_survey_month_hauls, filename = "year_survey_month_hauls.pdf",path = here::here("figures","view_data"), height = 8, width = 16, units = "in")
+ggsave(year_survey_month_hauls, filename = "year_survey_month_hauls.pdf",path = here::here("figures","view_data"), height = 8, width = 16, units = "in")
+
+#how does #hauls vary with year and month?
+year_survey_quarter_hauls <- ggplot(FishGlob.uniquehauls.annual.quarter) +
+  geom_tile(aes(x = year, y = factor(quarter), fill = haul_proportion_quarter_yearly),color = "white") +
+  scale_fill_viridis() +
+  labs(x = "Year", y = "Quarter",fill = "Proportion of Annual Hauls") +
+  facet_wrap(~survey_unit,scales = "free_y") +
+  theme_classic()
+
+ggsave(year_survey_quarter_hauls, filename = "year_survey_quarter_hauls.pdf",path = here::here("figures","view_data"), height = 8, width = 16, units = "in")
+ggsave(year_survey_quarter_hauls, filename = "year_survey_quarter_hauls.pdf",path = here::here("figures","view_data"), height = 8, width = 16, units = "in")
+```
+
+Now, let's look at how location of sampling varies by month of sampling and year of sampling 
+
+
+```{r location by year plots}
+location_by_year <- ggplot(FishGlob.uniquehauls) +
+  geom_point(aes(x = longitude_adj, y = latitude, color = year), size = 0.3, alpha = 0.5) +
+  scale_color_viridis() +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(location_by_year, filename = "location_by_year.pdf",path = here::here("figures","view_data"), height = 8, width = 12, units = "in")
+
+ggsave(location_by_year, filename = "location_by_year.jpg",path = here::here("figures","view_data"), height = 8, width = 12, units = "in")
+
+ggsave(location_by_year, filename = "location_by_year.eps",path = here::here("figures","view_data"), height = 8, width = 12, units = "in")
+```
+
+
+```{r location by month plots}
+location_by_month <- ggplot(FishGlob.uniquehauls) +
+  geom_point(aes(x = longitude_adj, y = latitude, color = month), size = 0.3, alpha = 0.5) +
+  scale_color_viridis(option = "plasma") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(location_by_month, filename = "location_by_month.pdf",path = here::here("figures","view_data"), height = 8, width = 12, units = "in")
+
+ggsave(location_by_month, filename = "location_by_month.jpg",path = here::here("figures","view_data"), height = 8, width = 12, units = "in")
+
+ggsave(location_by_month, filename = "location_by_month.eps",path = here::here("figures","view_data"), height = 8, width = 12, units = "in")
+```
+
+
+
 
 ###Because time is an essential component of these analyses, we will get rid of any survey x season combinations that are not sampled for at least 10 years
 
@@ -108,7 +247,7 @@ summary(FishGlob_1.5$years_sampled) #ranges from 2 (DFO Straight of Georgia) to 
 #statistics about full dataset
 nrow(FishGlob_1.5) #4,448,187 total observations
 length(unique(FishGlob_1.5[,survey])) #45 regions
-length(unique(FishGlob_1.5[,survey_unit])) #53 unique survey/season combinations
+length(unique(FishGlob_1.5[,survey_unit])) #54 unique survey/season combinations
 
 #remove observations for any regions x season combinations sampled less than 10 times
 FishGlob.10year <- FishGlob_1.5[years_sampled >= 10,]
@@ -116,7 +255,7 @@ FishGlob.10year <- FishGlob_1.5[years_sampled >= 10,]
 #statistics about reduced 10 year dataset
 nrow(FishGlob.10year) #4,364,328 total observations (83,859 fewer)
 length(unique(FishGlob.10year[,survey])) #38 regions (7 fewer)
-length(unique(FishGlob.10year[,as.character(survey_unit)])) #45 unique survey/season (8 fewer) combinations
+length(unique(FishGlob.10year[,as.character(survey_unit)])) #46 unique survey/season (8 fewer) combinations
 
 #remove full database
 rm(FishGlob_1.5)
@@ -174,152 +313,171 @@ FishGlob.10year.spp <- FishGlob.10year.spp[complete.cases(FishGlob.10year.spp[,.
 
 ```
 
-Go region by region
-```{r}
+Match lat/lon sampling points to hexagonal cells, so that we can see how many cells to keep to maintain a lot of observation points
+
+```{r match lat lon to hex cells}
+FishGlob.10year.spp.cells <- data.table()
+
+#two potential cell sizes
+  #set cell area (depends on whether or not it's Norway)
+  cell_area_all  <- 7774.2 #km2 (8 from dggrdr)
+  cell_area_norway <- 23322.2 #km2 (7 from dggrdr; if you want to use different resolution, not doing as of now)
+  
+
 for(i in 1:length(all_survey_seasons)){
   FishGlob.10year.spp_subset <- FishGlob.10year.spp[survey_unit == all_survey_seasons[i],]
   
   #unique lat lon combos
-  FishGlob.10year.spp_subset_unique <- unique(FishGlob.10year.spp_subset[,.(longitude,latitude)])
-  
-  #adjust those that cross dateline, if greater than 150, subtract 360
-  FishGlob.10year.spp_subset_unique[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+  FishGlob.10year.spp_subset_unique <- unique(FishGlob.10year.spp_subset[,.(longitude,latitude,haul_id,year)])
   
   #coordinates to Spatial Points Object
-  sp <- st_as_sf(x = FishGlob.10year.spp_subset_unique, 
-                 coords = c("longitude_s","latitude"))
-
+  if(max(FishGlob.10year.spp_subset_unique[,longitude]) - min(FishGlob.10year.spp_subset_unique[,longitude]) > 359){ #if survey region crosses dateline, use st_shift_longitude()
+    sp <- FishGlob.10year.spp_subset_unique %>%
+          st_as_sf(coords = c("longitude","latitude"), crs = 4326) %>%
+             st_shift_longitude()
+  }else{
+    sp <- FishGlob.10year.spp_subset_unique %>%
+          st_as_sf(coords = c("longitude","latitude"), crs = 4326)
+  }
+  
   sp.t <- as(sp, "Spatial")
   
   proj4string(sp.t) <- CRS("+proj=longlat")
   
-  sp.p <- spTransform(sp.t, CRS("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=km +no_defs")) #note km^2 units
+proj <-  ifelse(max(FishGlob.10year.spp_subset_unique[,longitude]) - min(FishGlob.10year.spp_subset_unique[,longitude]) > 359, #if survey region crosses dateline, use +lon_0=-140 instead of +lon_0=0
+         "+proj=robin +lon_0=-140 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=km +no_defs",
+         "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=km +no_defs")
+  
+  
+  sp.p <- spTransform(sp.t, CRS(proj)) #note km^2 units
   
   #use Concaveman to convert points to polygon
   polygon  <- concaveman(sp, 2, 3)
-  
+
   polygon_spapol <- as(polygon, "Spatial") #convert simple polygon feature to spatial polygon
   
   proj4string(polygon_spapol) <- CRS("+proj=longlat")
   
-  polygon_spapol.p <- spTransform(polygon_spapol, CRS("+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=km +no_defs")) #note km^2 units
+  polygon_spapol.p <- spTransform(polygon_spapol, CRS(proj)) #note km^2 units
   
   #create grid 
-  #set cell area (depends on whether or not it's Norway)
-  cell_area_all  <- 7774.2 #km2
-  cell_area_norway <- 23322.2 #km2
-  
-    #set cell_area based on whether or not it's the Norway survey
-  cell_area <- ifelse(all_survey_seasons[i] == "Nor-BTS", cell_area_norway, cell_area_all)
-  
-  #calculate cell_diameter of hexagons from cell_areas
-  cell_diameter <- sqrt(2 * cell_area / sqrt(3)) # in kilometers  
-
   #set cell_area based on whether or not it's the Norway survey
-  cell_area_m <- ifelse(all_survey_seasons[i] == "Nor-BTS", cell_area_norway*1000, cell_area_all*1000)
+ # cell_area_km <- ifelse(all_survey_seasons[i] == "Nor-BTS", cell_area_norway, cell_area_all) #note this is in kilometers (if you want to use different cell resolution for Norway, not doing as of now)
+  cell_area_km = cell_area_all
   
   #calculate cell_diameter of hexagons from cell_areas
-  cell_diameter_m <- sqrt(2 * cell_area / sqrt(3)) # in meters
+  cell_diameter_km <- sqrt(2 * cell_area_km / sqrt(3)) # in meters
+  
 
   ext <- as(extent(polygon_spapol.p)
-            + cell_diameter
+            + 2*cell_diameter_km #add a buffer to make sure all observations are assigned a cell
              , "SpatialPolygons")
-  plot(ext)
-  plot(sp.p, add = T, pch = ".")
+ # plot(ext)
+ # plot(sp.p, add = T, pch = ".")
   
   projection(ext) <- projection(polygon_spapol.p) #match projection
   
   # generate array of hexagon centers
-  g <- spsample(ext, type = "hexagonal", cellsize = cell_diameter, offset = c(0.5, 0.5))
+  g <- spsample(ext, type = "hexagonal", cellsize = cell_diameter_km, offset = c(0.5, 0.5))
   
     # convert center points to hexagons
-  g <- HexPoints2SpatialPolygons(g, dx = cell_diameter)
+  g <- HexPoints2SpatialPolygons(g, dx = cell_diameter_km)
   
-  plot(g)
-  plot(sp.p, add = T, pch = ".")
+ plot(g)
+ plot(sp.p, add = T, pch = ".")
+ title(paste0(all_survey_seasons[i]))
 
   #link lat lon to cell#
-  #where do they overlap
-  over(sp.p,g)
-  sp.p$cell_ID <- over(sp.p,g)
+    #where do they overlap
+    sp.p$cell_ID <- over(sp.p,g) #over(x=location of queries, y = layer from which geometries are queried)
+    
+    #link lat long to cell #s
+    FishGlob.10year.spp_subset_unique[,cell_ID := sp.p$cell_ID][,cell_year_count := .N, .(cell_ID, year)]
+    
+    #link back to subsetted database of observations
+    FishGlob.10year.spp_subset.cells <- FishGlob.10year.spp_subset[FishGlob.10year.spp_subset_unique, on = c("longitude", "latitude","year","haul_id")]
+    
+    FishGlob.10year.spp.cells <- rbind(FishGlob.10year.spp.cells, FishGlob.10year.spp_subset.cells)
+
+    
+#make sure all projections match for binding of polygons
+polygon_spapol.forbind <- spTransform(polygon_spapol.p,
+                                      CRS=CRS( "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=km +no_defs"))
+
+polygon_spapol.forbind$survey_unit <- all_survey_seasons[i]
   
-  #link lat long to cell #s
-  FishGlob.10year.spp_subset_unique[,cell_ID := sp.p$cell_ID]
-  
+#bind polygons into spdf
+if(i ==1){
+  all_survey_seasons_polygon <- polygon_spapol.forbind #if first, just polygon to start
+}else{
+  all_survey_seasons_polygon <- rbind(all_survey_seasons_polygon, polygon_spapol.forbind)  #if not first, bind new polygon to first polygon
+}
+
+   
   
 }
+  
+writeOGR(all_survey_seasons_polygon, dsn = here::here("output/shapefiles"))
 ```
-
-
-Apply grid to Spatial Points
+Animate changes in sampling sites over time for each region in order to identify any huge issues
 ```{r}
-fishglob_grid_8 <- function(FishGlobTows, cell_area = 7774.2, clip = FALSE)
+library(gapminder)
+library(gganimate)
+library(gifski)
 ```
 
+
+
+
+Merge all shapefiles together in order to send to Sea Around Us team to obtain fishing specific fishing data.
+```{r}
+
+```
+
+
+________
+
+Standardize observations by # of hauls per cell and # cells sampled per year
+
+Remove any years that sample less than 85% of cells  ever sampled
+Remove any cells  that are sampled in less than 85% of years
 
 ```{r standardize observations all regions}
 
+#account of data loss by standardization
+data_loss <- data.table(survey_unit=all_survey_seasons,
+                        year_threshold=as.numeric(NA),
+                        cell_threshold=as.numeric(NA),
+                        percent_years_excluded=as.numeric(NA),
+                        percent_hauls_excluded_by_year=as.numeric(NA),
+                        percent_obs_excluded_by_year=as.numeric(NA),
+                        percent_cells_excluded=as.numeric(NA),
+                        percent_hauls_excluded_total=as.numeric(NA),
+                        percent_obs_excluded_total=as.numeric(NA))
 
-#world map
-world <- data.table(map_data('world'))
-world[,long_s := ifelse(long > 150, (long-360),(long))]
-
-
-#if positive, subtract 360
-FishGlob.10year[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
-
-#delete if NA for longitude or latitude
-FishGlob.10year <- FishGlob.10year[complete.cases(FishGlob.10year[,.(longitude, latitude)])]
-
-#set up grid
-dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least 1 observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
-
-map_points_plots <- list()
-
-FishGlob_cleaned <- data.table()
-
+FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete <- data.table()
 
 for (i in 1:length(all_survey_seasons)) {
       
-      #reduce to specific survey/season combination
-      reduced_FishGlob.10year <- FishGlob.10year[survey_unit == all_survey_seasons[i],]
+      #subset to region
+      FishGlob.10year.spp.cells_subset <- FishGlob.10year.spp.cells[survey_unit == all_survey_seasons[i],]
       
-      #pull out unique lat lons
-      unique_latlon <- unique(reduced_FishGlob.10year[,.(latitude, longitude_s)])
+      #unique year, #cells  sampled
+      year_cells_sampled <- unique(FishGlob.10year.spp.cells_subset[,.(year,cell_ID)])
+      year_cells_sampled <- year_cells_sampled[,yearly_cell_count := .N,year]
       
-      unique_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude_s, latitude)] #get corresponding grid cells for this region/survey combo
-    
-      #find cell centers
-      cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell])
-    
-      #linking cell centers to unique_latlon
-      unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
-    
-        #link centers back to main data table
-      reduced_FishGlob.10year.gridded <- merge(reduced_FishGlob.10year, unique_latlon, by = c("latitude", "longitude_s"))
-    
-      #number of tows in each cell
-      towcount <- unique_latlon[, .N, by = cell]
-    
-      #get the grid cell boundary for cells which had trawls
-      grid <- dgcellstogrid(dggs, unique_latlon[,cell], frame = T, wrapcells = F)
-    
-      #update grid properties to include # of trawls in each cell
-      grid <- merge(grid, unique_latlon, by = "cell")
+      #we'll make benchmark 70% just for now
+      year_benchmark <- 0.70
+      benchmark_value <- year_benchmark*max(year_cells_sampled[,yearly_cell_count])
       
-      #Any years where clearly fewer haulids were sampled?
-      year_haulids <- reduced_FishGlob.10year.gridded[,.(haulid_count = length(unique(haul_id))),year]
+      #only keep years where over 70% of cells are sampled
+      year_cells_sampled[,benchmark := yearly_cell_count >= benchmark_value]
       
-      #we'll make benchmark 85% just for now
-      benchmark_value <- 0.7*max(year_haulids[,haulid_count])
-      #only keep years where over 85% of cells are sampled
-      year_haulids[,benchmark := haulid_count >= benchmark_value]
+      years_deleted <- unique(year_cells_sampled[benchmark == F,year]) #which years are left out?
       
-      years_deleted <- year_haulids[benchmark == F]$year #which years are left out?
+      years_kept <-unique(year_cells_sampled[benchmark ==T,year]) #which years to keep
       
-      years_kept <- year_haulids[benchmark ==T]$year #which years  to keep
-      
-      years_deleted_percent <- round(length(years_deleted)/nrow(year_haulids)*100,1)
+      years_deleted_percent <- round(length(years_deleted)/length(unique(year_cells_sampled[,year]))*100,1)
       
 
        #print the years that are left out
@@ -328,95 +486,74 @@ for (i in 1:length(all_survey_seasons)) {
      print(paste0(years_deleted_percent, "% of Years Excluded"))
       
       #reduce to years that are well sampled
-      reduced_FishGlob.10year.gridded.r <- reduced_FishGlob.10year.gridded[year %in% years_kept,]
+      FishGlob.10year.spp.cells_subset.wellsampledyears <- FishGlob.10year.spp.cells_subset[year %in% years_kept,]
       
-      #identify any cells that in any years are sampled less than 1 times
-      reduced_FishGlob.10year.gridded.r[,year_cell_count := length(unique(haul_id)),.(year,cell)]
+      #how many observations does this remove?
+      percent_obs_removed_year <- round((nrow(FishGlob.10year.spp.cells_subset)-nrow(FishGlob.10year.spp.cells_subset.wellsampledyears))/nrow(FishGlob.10year.spp.cells_subset)*100,2)
+      
+      percent_hauls_removed_year <- round((length(unique(FishGlob.10year.spp.cells_subset[,haul_id]))-length(unique(FishGlob.10year.spp.cells_subset.wellsampledyears[,haul_id])))/length(unique(FishGlob.10year.spp.cells_subset[,haul_id]))*100,2)
+      
+      #identify any cells that are not sampled in 85% of years
+      FishGlob.10year.spp.cells_subset.wellsampledyears[,year_cell_count := length(unique(haul_id)),.(year,cell_ID)] # unique haul ids per cell per year
+      
+      cell_by_year <- unique(FishGlob.10year.spp.cells_subset.wellsampledyears[, .(cell_ID,year)])
+      
+      cell_by_year[,years_per_cell := .N,cell_ID]
       
       #cell ids to remove and keep
-      #in any year, which cells are sampled less than 1 times, these need to go
-      cell_id_remove <- unique(reduced_FishGlob.10year.gridded.r[year_cell_count < 1]$cell)
-      cells_deleted_percent <- round(length(cell_id_remove)/length(unique(reduced_FishGlob.10year.gridded.r[,cell]))*100,1)
+      #in any year, which cells are sampled in less than 70% of years
+      #we'll make benchmark 70% just for now
+      cell_benchmark <- 0.70
+      benchmark_value_year_count <- cell_benchmark*max(cell_by_year[,years_per_cell])
+      
+      cell_id_remove <- unique(cell_by_year[years_per_cell<benchmark_value_year_count,cell_ID])
+      
+      cells_deleted_percent <- round(length(cell_id_remove)/length(unique(FishGlob.10year.spp.cells_subset.wellsampledyears[,cell_ID]))*100,1)
       #this removes 40% of cells from Aleutian islands, seems like too much, I will return to this
       
       #reduce to cells that are well sampled
-      reduced_FishGlob.10year.gridded.r.cell <- reduced_FishGlob.10year.gridded.r[!cell %in% cell_id_remove,]
+      FishGlob.10year.spp.cells_subset.wellsampledyearscells <- FishGlob.10year.spp.cells_subset.wellsampledyears[!cell_ID %in% cell_id_remove,]
       
       #add to cleaned data table of all regions
-      FishGlob_cleaned  <- rbind(FishGlob_cleaned, reduced_FishGlob.10year.gridded.r.cell)
+      FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete  <- rbind(FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete, FishGlob.10year.spp.cells_subset.wellsampledyearscells)
+      
+      #What percent of hauls does this remove?
+      hauls_removed_yearcell <- round((length(unique(FishGlob.10year.spp.cells_subset[,haul_id]))-length(unique(FishGlob.10year.spp.cells_subset.wellsampledyearscells[,haul_id])))/length(unique(FishGlob.10year.spp.cells_subset[,haul_id]))*100,1) 
       
       #What percent of observations does this remove?
-      obs_removed <- round((nrow(reduced_FishGlob.10year.gridded.r)-nrow(reduced_FishGlob.10year.gridded.r.cell))/nrow(reduced_FishGlob.10year.gridded.r)*100,1) #we lose 13.4% of observations
+      obs_removed_yearcell <- round((nrow(FishGlob.10year.spp.cells_subset)-nrow(FishGlob.10year.spp.cells_subset.wellsampledyearscells))/nrow(FishGlob.10year.spp.cells_subset)*100,1)
       
       cell_id_remove.string <- paste(cell_id_remove, collapse = ", ")
-      obs_removed.string <- paste(obs_removed, collapse = ", ")
+      obs_removed.string <- paste(obs_removed_yearcell, collapse = ", ")
+      
+      #build data table from this reduced output
+      FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete <- rbind(FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete, FishGlob.10year.spp.cells_subset.wellsampledyearscells)
+      
+      #fill out table with statistics of dropped observations
+      data_loss[i, "year_threshold"] = year_benchmark
+      data_loss[i, "cell_threshold"] = cell_benchmark
+      data_loss[i, "percent_years_excluded"] = years_deleted_percent
+      data_loss[i, "percent_hauls_excluded_by_year"] = percent_hauls_removed_year
+      data_loss[i, "percent_obs_excluded_by_year"] = percent_obs_removed_year
+      data_loss[i, "percent_cells_excluded"] = cells_deleted_percent
+      data_loss[i, "percent_hauls_excluded_total"] = hauls_removed_yearcell
+      data_loss[i, "percent_obs_excluded_total"] = obs_removed_yearcell
       
         #print portion of cells that are left out
-      print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_seasons[i], " Cells left out = 0"), paste0(all_survey_seasons[i], " Cells left out = ", cell_id_remove.string, ", ",cells_deleted_percent, "% Cells Excluded, ",obs_removed, "% Observations Removed")))
+      print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_seasons[i], " Cells left out = 0"), paste0(all_survey_seasons[i], " Cells left out = ", cell_id_remove.string, ", ",cells_deleted_percent, "% Cells Excluded, ",hauls_removed_yearcell,"% Hauls Removed, ", obs_removed_yearcell, "% Observations Removed")))
       
-      #make a map of these points
-      
-      #unique lat lon
-      unique_latlon_reduced <- unique(reduced_FishGlob.10year.gridded.r.cell[,.(longitude,  latitude)])
-      #if greater than 150, subtract 360
-      unique_latlon_reduced[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
-    
-        #set bounds of basemap using coordinates
-      reg <- world[long_s >= min(unique_latlon_reduced[,longitude_s]-2) & long_s <= max(unique_latlon_reduced[,longitude_s]+2) & lat >= min(unique_latlon_reduced[,latitude]-2) & lat <= max(unique_latlon_reduced[,latitude]+2)]
-      
-      if(max(unique_latlon_reduced[,longitude] > 150)) {
-      #make map
-      map_points_plots[[i]] <- ggplot() +
-    geom_polygon(data = world, aes(x=long_s, y = lat, group = group), 
-                                     fill = "black", 
-                                     color="black") +
-      geom_point(data = unique_latlon_reduced,
-        aes(
-          x = longitude_s,
-          y = latitude),
-        color = "red", size = 0.05
-      ) +
-        labs(x = "Longitude", y = "Latitude") +
-        coord_equal(xlim = c(min(unique_latlon_reduced[,longitude_s]-2), max(unique_latlon_reduced[,longitude_s]+2)), 
-                    ylim = c(min(unique_latlon_reduced[,latitude]-2), max(unique_latlon_reduced[,latitude]+2))) +
-      theme_classic()
-      
-      mapfilename <- paste0(all_survey_seasons[i], "_map_point_plot.jpg")
-    
-     ggsave(map_points_plots[[i]], filename = mapfilename, path = here::here("figures","map_points_plots"))
-      } else {
-          #make map
-      map_points_plots[[i]] <- ggplot() +
-    geom_polygon(data = world, aes(x=long, y = lat, group = group), 
-                                     fill = "black", 
-                                     color="black") +
-      geom_point(data = unique_latlon_reduced,
-        aes(
-          x = longitude,
-          y = latitude),
-        color = "red", size = 0.05
-      ) +
-        labs(x = "Longitude", y = "Latitude") +
-        coord_equal(xlim = c(min(unique_latlon_reduced[,longitude]-2), max(unique_latlon_reduced[,longitude]+2)), 
-                    ylim = c(min(unique_latlon_reduced[,latitude]-2), max(unique_latlon_reduced[,latitude]+2))) +
-      theme_classic()
-      
-      mapfilename <- paste0(all_survey_seasons[i], "_map_point_plot.jpg")
-    
-     ggsave(map_points_plots[[i]], filename = mapfilename, path = here::here("figures","map_points_plots"))
       }
      
-    }
+
 
 #now, check again to see if any are less than 10 years
-FishGlob_cleaned[,years_sampled_update := length(unique(year)),.(survey,season)]
-FishGlob_cleaned.10year <- FishGlob_cleaned[years_sampled_update >= 10,]
+FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete[,years_sampled_update := length(unique(year)),.(survey_unit)]
+FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete.10year <- FishGlob.10year.spp.cells_subset.wellsampledyearscells_complete[years_sampled_update >= 10,]
 
 #saveRDS(FishGlob_cleaned.10year, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
 #FishGlob_cleaned.10year <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
 
-length(unique(FishGlob_cleaned.10year[,survey]))
 
 ```
 

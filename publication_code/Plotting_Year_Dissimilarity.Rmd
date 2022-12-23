@@ -1,0 +1,687 @@
+---
+title: "Plotting Year ~ Dissimilarity Model"
+output: html_notebook
+---
+
+
+
+```{r setup}
+library(ggplot2)
+library(data.table)
+library(lme4)
+library(mgcv)
+library(tidymv)
+```
+
+Load data and model
+```{r}
+#intercept_slope_varies <- readRDS("~/homogenization_analyses/intercept_slope_varies.rds")
+distances_dissimilarities_allyears <- readRDS("/Users/zoekitchel/Documents/grad_school/Rutgers/Repositories/trawl_spatial_turnover_git/output/distance_decay/distances_dissimilarities_allyears.rds")
+```
+
+Prep distances dissimilarities
+```{r}
+#season_survey = factor
+distances_dissimilarities_allyears[,season_survey := factor(season_survey)]
+
+#add new variable for year in sequence per region
+distances_dissimilarities_allyears[,first_year := min(year),.(season_survey)]
+distances_dissimilarities_allyears[,last_year := max(year),.(season_survey)]
+
+distances_dissimilarities_allyears[,year_in_seq := year-first_year+1]
+
+distances_dissimilarities_allyears[,years_sampled := last_year-first_year+1]
+
+survey_season_sampling_years <- unique(distances_dissimilarities_allyears[,.(season_survey, years_sampled)])
+
+#list all survey units
+season_survey.list <- unique(survey_season_sampling_years[,season_survey])
+```
+
+Palette for plotting all 29 regions
+```{r link colors to survey units}
+palette_28 <- c("#5A5156","#F6222E","#FE00FA", 
+  "#16FF32","#3283FE","#FEAF16","#B00068", 
+  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
+  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
+  "#1C8356","#85660D","#B10DA1","#FBE426", 
+  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
+  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
+  "#822E1C")
+
+color_link <- data.table(season_survey = season_survey.list,hex = palette_28)
+```
+
+Let's try to learn more about this model. Confint won't run: confint(linear.mod.n, oldNames=FALSE)
+Computing profile confidence intervals ...
+Error in zetafun(np, ns) : profiling detected new, lower deviance
+In addition: Warning message:
+In doTryCatch(return(expr), name, parentenv, handler) :
+  restarting interrupted promise evaluation
+  
+Summary of model where we include every possible pairwise dissimilarity metric.
+```{r}
+summary(intercept_slope_varies) #
+```
+
+
+Plotting LMER with input of every possible pairing 
+```{r plot LMER}
+# see group coefficients
+summary(intercept_slope_varies)
+model_coefs <- coef(intercept_slope_varies)$season_survey
+
+intercept_slope_varies_confint <- system.time(confint(intercept_slope_varies, oldNames = F))
+
+model_coefs$season_survey <- rownames(model_coefs)
+
+model_coefs <- data.table(model_coefs)
+
+#merge with duration of survey
+model_coefs_length <- model_coefs[survey_season_sampling_years, on = "season_survey"]
+
+model_coefs_length[,years_sampled := as.numeric(years_sampled)][,Directional_Change := ifelse(year_in_seq > 0, "Differentiation","Homogenization")]
+
+#min max distances_dissimilarities
+min_bray <- min(distances_dissimilarities_allyears[,bray_curtis_dissimilarity_balanced], na.rm = T)
+max_bray <- max(distances_dissimilarities_allyears[,bray_curtis_dissimilarity_balanced], na.rm = T)
+
+#order table by coefficient
+setkey(model_coefs_length, year_in_seq)
+
+
+ggplot(data = model_coefs_length, aes(x = reorder(season_survey, year_in_seq) , y = year_in_seq, label = season_survey)) +
+  geom_point(stat = 'identity', aes(size = years_sampled, color = Directional_Change)) +
+  scale_size_binned(range = c(1,8), name = "Survey Period Length") +
+  scale_color_discrete(name = "Directional Change") +
+  geom_hline(yintercept = 0) +
+  xlab("Season and Survey") +
+  ylab("Coef BC Dissimilarity ~ Year") +
+  coord_flip() +
+  theme_classic()
+
+```
+
+Alternatively, what if instead of numbers of years sampled, we pull in SD of random effect coefficients from the model. 0.0031413 SD for all? Can't get convint to work
+```{r}
+summary(mod1)$varcor 
+
+BC_Dissimilarity_Coef_errorbar <- ggplot(data = model_coefs_length, aes(x = reorder(season_survey, year_in_seq) , y = year_in_seq, label = season_survey)) +
+    geom_errorbar(aes(ymin = year_in_seq - 0.0031413, ymax = year_in_seq + 0.0031413), color = "grey") + #add standard deviation
+  geom_point(stat = 'identity', aes(size = years_sampled, color = Directional_Change)) +
+  scale_size_binned(range = c(1,8), name = "Survey Period Length") +
+  scale_color_discrete(name = "Directional Change") +
+  geom_hline(yintercept = 0) +
+  xlab("Season and Survey") +
+  ylab("Coef BC Dissimilarity ~ Year") +
+  coord_flip() +
+  theme_classic()
+
+BC_Dissimilarity_Coef_errorbar
+```
+
+
+Dissimilarity versus time (no points)
+```{r}
+ggplot(data = model_coefs_length) +
+  geom_abline(aes(intercept = `(Intercept)`, 
+                  slope = year_in_seq,
+                  colour = season_survey
+                  ),
+              size = 0.5
+              ) +
+    scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
+  "#16FF32","#3283FE","#FEAF16","#B00068", 
+  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
+  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
+  "#1C8356","#85660D","#B10DA1","#FBE426", 
+  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
+  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
+  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
+  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
+  ylim(limits = c(0,1)) +
+  xlim(limits = c(min(model_coefs_length$years_sampled),max(model_coefs_length$years_sampled))) +
+  theme_classic() +
+  xlab("Year in Survey Sequence") +
+  ylab("Pairwise Bray Curtis Dissimilarity")
+```
+
+Dissimilarity versus time, with points
+```{r}
+
+
+points_lines_bray_year <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears_annual,
+             aes(x = year_in_seq,
+                 y = mean_annual_bray,
+                 color = season_survey), alpha = 0.5) +
+  geom_abline(data = model_coefs_length,
+              aes(intercept = `(Intercept)`, 
+                  slope = year_in_seq,
+                  colour = season_survey
+                  ),
+              size = 0.5
+              ) +
+    scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
+  "#16FF32","#3283FE","#FEAF16","#B00068", 
+  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
+  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
+  "#1C8356","#85660D","#B10DA1","#FBE426", 
+  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
+  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
+  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
+  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
+  theme_classic() +
+  xlab("Year in Survey Sequence") +
+  ylab("Pairwise Bray Curtis Dissimilarity")
+
+ggsave(points_lines_bray_year, path = "~/homogenization_analyses", filename = "points_lines_bray_year.png", height = 8, width = 12, units = "in")
+
+points_lines_bray_year
+
+points_wavylines_bray_year <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears_annual,
+             aes(x = year_in_seq,
+                 y = mean_annual_bray,
+                 color = season_survey), alpha = 0.5) +
+    geom_smooth(data = distances_dissimilarities_allyears_annual,
+             aes(x = year_in_seq,
+                 y = mean_annual_bray,
+                 color = season_survey), method = "gam", se = F) +
+#  geom_abline(data = model_coefs_length,
+#              aes(intercept = `(Intercept)`, 
+#                  slope = year_in_seq,
+#                  colour = season_survey
+#                  ),
+#              size = 0.5
+#              ) +
+    scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
+  "#16FF32","#3283FE","#FEAF16","#B00068", 
+  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
+  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
+  "#1C8356","#85660D","#B10DA1","#FBE426", 
+  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
+  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
+  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
+  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
+  theme_classic() +
+  xlab("Year in Survey Sequence") +
+  ylab("Pairwise Bray Curtis Dissimilarity")
+
+points_wavylines_bray_year
+
+ggsave(points_wavylines_bray_year, path = "~/homogenization_analyses", filename = "points_wavylines_bray_year.png", height = 8, width = 12, units = "in")
+```
+
+```{r}
+curves_bray_year <- ggplot() +
+  geom_smooth(data = distances_dissimilarities_allyears,
+             aes(x = year_in_seq,
+                 y = bray_curtis_dissimilarity_balanced,
+                 color = season_survey), alpha = 0.5, method = "gam") +
+    scale_color_manual(values =  c(
+  "#5A5156","#E4E1E3","#F6222E","#FE00FA", 
+  "#16FF32","#3283FE","#FEAF16","#B00068", 
+  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
+  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
+  "#1C8356","#85660D","#B10DA1","#FBE426", 
+  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
+  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
+  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
+  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
+  theme_classic() +
+  xlab("Year in Survey Sequence") +
+  ylab("Pairwise Bray Curtis Dissimilarity")
+
+curves_bray_year
+
+ggsave(curves_bray_year, path = "~/homogenization_analyses", filename = "curves_bray_year.png", height = 4, width = 8, units = "in")
+```
+
+
+
+
+##Mean and Median Dissimilarity Value
+
+To decide if mean or median is a better fit, let's look at distribution
+```{r look at distribution}
+#we'll look at a few examples
+hist(distances_dissimilarities_allyears[season_survey == "AI" & year == 1991,]$bray_curtis_dissimilarity_balanced)
+
+hist(distances_dissimilarities_allyears[season_survey == "AI" & year == 2000,]$bray_curtis_dissimilarity_balanced)
+
+hist(distances_dissimilarities_allyears[season_survey == "MEDITS" & year == 2005,]$bray_curtis_dissimilarity_balanced)
+
+hist(distances_dissimilarities_allyears[season_survey == "NS-IBTS-3" & year == 2010,]$bray_curtis_dissimilarity_balanced)
+```
+
+Calculate mean and median
+```{r calculate mean and median instead}
+#mean and median annual dissimilarity bray
+distances_dissimilarities_allyears[,mean_annual_bray := mean(bray_curtis_dissimilarity_balanced, na.rm = T),.(season_survey, year)][,mean_annual_jaccard := mean(jaccard_dissimilarity_turnover, na.rm = T),.(season_survey, year)][,median_annual_bray := median(bray_curtis_dissimilarity_balanced, na.rm = T),.(season_survey, year)][,median_annual_jaccard := median(jaccard_dissimilarity_turnover, na.rm = T),.(season_survey, year)]
+
+#distances in km
+distances_dissimilarities_allyears[,distance_km := distance/1000]
+
+#reduced datatable
+distances_dissimilarities_allyears_annual <- unique(distances_dissimilarities_allyears[,.(season_survey, year, year_in_seq, mean_annual_bray, mean_annual_jaccard, median_annual_bray, median_annual_jaccard)])
+
+#rm(distances_dissimilarities_allyears)
+```
+
+Loop for initial similarity and halving distance (alternative to mean dissimilarity)
+SEE MILLAR et al. 2011
+
+glm(s~d, family = binomial(link = log))
+
+Fit this for one region and year to test?
+```{r}
+
+#make sure order is right
+setkey(distances_dissimilarities_allyears_annual, season_survey, year)
+
+#also, initial similarity (1km) and halving distance?
+for (i in 22:length(season_survey.list)) {
+  subset <- distances_dissimilarities_allyears[season_survey == season_survey.list[i],] #subset to one region season
+  
+  year_vector <- unique(subset[,year])
+  #single year
+  for (j in 1:length(year_vector)) {
+  
+    subset_year <- subset[year == year_vector[j],]
+    
+    #create similarity column 
+    subset_year[,bray_curtis_similarity_balanced := 1-bray_curtis_dissimilarity_balanced]
+    subset_year[,jaccard_similarity_turnover := 1-jaccard_dissimilarity_turnover]
+    
+    #bray curtis GLM for distance decay parameters
+    bray_curtis_dissimilarity_decay_glm <- glm(bray_curtis_similarity_balanced ~ distance_km, family = binomial(link = "log"), data = subset_year) #ignore warning: "non-integer #successes in a binomial glm!non-integer #successes in a binomial glm!"
+    
+    bc_alpha <- coef(bray_curtis_dissimilarity_decay_glm)[[1]] #bray curtis alpha
+    
+    bc_beta <- -coef(bray_curtis_dissimilarity_decay_glm)[[2]] #bray curtis beta
+    
+    bc_halving <- log(2)/bc_beta #halving distance in km
+    
+    bc_initial <- exp(bc_alpha) #initial similarity for 1 km
+    
+    #populate annual data table for distance dissimilarity
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j], halv_dist_bray_turnover_glm := bc_halving]
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j], init_sim_bray_turnover_glm := bc_initial]
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j], alpha_jaccard_turnover_glm := bc_alpha]
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j], beta_bray_turnover_glm := bc_beta]
+  
+    #jaccard GLM for distance decay parameters
+
+    jaccard_dissimilarity_decay_glm <- glm(jaccard_similarity_turnover ~ distance_km, family = binomial(link = "log"), data = subset_year
+                                         #  , start = c(-0.0019,0) #hash or unhash, for S-GEORG which needs a starting value
+                                           )
+    
+    jaccard_alpha <- coef(jaccard_dissimilarity_decay_glm)[[1]] #jaccard alpha
+    
+    jaccard_beta <- -coef(jaccard_dissimilarity_decay_glm)[[2]] #jaccard beta
+    
+    jaccard_halving <- log(2)/jaccard_beta #halving distance
+    
+    jaccard_initial <- exp(jaccard_alpha) #initial similarity 
+    
+    #populate annual data table for distance dissimilarity
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j],halv_dist_jaccard_turnover_glm := jaccard_halving]
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j],init_sim_jaccard_turnover_glm := jaccard_initial]
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j],alpha_jaccard_turnover_glm := jaccard_alpha]
+    distances_dissimilarities_allyears_annual[season_survey == season_survey.list[i] & year == year_vector[j],beta_jaccard_turnover_glm := jaccard_beta]
+    
+  print(paste0(j,"/",length(year_vector)))
+  
+  #in case you want to predict data and add back
+#  xdistance <- seq(min(subset_year$distance_km), max(subset_year$distance_km), by = 1)
+#  pred_values <- predict(bray_curtis_dissimilarity_decay_glm,  list(distance_km=xdistance),type="response")
+#  
+#  pred_values.dt <- data.table(xdistance = xdistance, pred_sim = pred_values)
+#  
+#  #in case you want to visualize
+#  ggplot() +
+#    geom_point(data = subset_year, aes(x = distance_km, y = bray_curtis_similarity_balanced)) +
+#    geom_line(data = pred_values.dt, aes(x = xdistance, y = pred_sim), color = "red") +
+#    theme_classic()
+#  
+#  
+  }
+  print(paste0(season_survey.list[i],": Reg ", i,"/",length(season_survey.list)))
+  
+}
+
+distances_dissimilarities_allyears_annual_decay <- distances_dissimilarities_allyears_annual
+
+#correlations
+cor(distances_dissimilarities_allyears_annual[,.(halv_dist_bray_turnover_glm, init_sim_bray_turnover_glm, mean_annual_bray, median_annual_bray)])
+
+plot(1-distances_dissimilarities_allyears_annual$init_sim_bray_turnover_glm, distances_dissimilarities_allyears_annual$mean_annual_bray)
+
+
+saveRDS(distances_dissimilarities_allyears_annual_decay, "/Users/zoekitchel/Documents/grad_school/Rutgers/Repositories/trawl_spatial_turnover_git/output/distance_decay/distances_dissimilarities_allyears_annual_decay.rds")
+
+```
+Plot halving distance, init similarity, mean and median bray across time 
+
+Wide to long for plotting
+```{r wide to long for plotting}
+#add initial dissimilarity
+distances_dissimilarities_allyears_annual[,init_dissim_bray_turnover_glm := 1-init_sim_bray_turnover_glm][,init_dissim_jaccard_turnover_glm := 1-init_sim_jaccard_turnover_glm]
+
+#wide to long for plotting
+distances_dissimilarities_allyears_annual.l <- melt(distances_dissimilarities_allyears_annual, id.vars = c("season_survey","year","year_in_seq"), measure.vars = c(4:8,12,15:16), variable.name = "Div_Metric")
+
+```
+
+
+```{r plot halv dist, init sim, mean and median bray across time}
+(all_0_1_metrics_over_time <- ggplot(distances_dissimilarities_allyears_annual.l[value <= 1 & value >= 0]) +
+  geom_point(aes(x = year, y = value, color = Div_Metric), size = 1) +
+  facet_wrap(~season_survey, scales = "free") +
+  theme_classic())
+
+ggsave(all_0_1_metrics_over_time, filename = "all_0_1_metrics_over_time.jpg", path = "/Users/zoekitchel/Documents/grad_school/Rutgers/Repositories/trawl_spatial_turnover_git/figures/alternate_metrics", width = 15, height = 7, unit = "in")
+
+#non 0_1 metrics over time
+(all_halv_dist_over_time <- ggplot(distances_dissimilarities_allyears_annual.l[value > 1 | value < 0]) +
+  geom_point(aes(x = year, y = value, color = Div_Metric), size = 1) +
+  facet_wrap(~season_survey, scales = "free") +
+  theme_classic())
+
+ggsave(all_halv_dist_over_time, filename = "all_halv_dist_over_time.jpg", path = "/Users/zoekitchel/Documents/grad_school/Rutgers/Repositories/trawl_spatial_turnover_git/figures/alternate_metrics", width = 15, height = 7, unit = "in")
+```
+Q for next time:
+-in which regions do jaccard and bray results match vs. which regions do they not match
+-halving distance versus initial similarity
+
+Janne Soininen,Robert McDonald,Helmut Hillebrand 2007
+
+- The initial similarity reflects beta diversity (i.e. turnover in species composition from site to site) at small spatial extents, and high initial similarities mirror low beta diversity. 
+
+- The halving distance reflects the rate of species turnover per unit distance, being thus a measure of the scale-dependency of beta diversity. Large halving distances indicate that the rate of species turnover change little with increasing spatial scale, while short halving distances imply that species turnover is highly scale-dependent.
+
+- The major advantage of the halving distance over any measure of slope is that it can be calculated for any type of regression between similarity and distance, and offers thus a highly useful and easily comprehensible metric for among-study comparisons. (this isn't really important for us)
+
+
+##What if we run model with means instead of every datapoint? Compare model summaries, and SD for slopes and intercepts of random effect of season_survey.
+
+```{r}
+
+library(mgcv) #to make gam
+
+#what if we run model with means instead of every datapoint?
+bray_curtis_dissimilarity_year_mod_annual_avg <- lmer(mean_annual_bray ~ year_in_seq + (1 + year_in_seq|season_survey),data = distances_dissimilarities_allyears_annual)
+
+jaccard_dissimilarity_year_mod_annual_avg <- lmer(mean_annual_jaccard ~ year_in_seq + (1 + year_in_seq|season_survey),data = distances_dissimilarities_allyears_annual)
+
+#what if we run model with median instead of every datapoint?
+
+bray_curtis_dissimilarity_year_mod_annual_median <- lmer(median_annual_bray ~ year_in_seq + (1 + year_in_seq|season_survey),data = distances_dissimilarities_allyears_annual)
+
+jaccard_dissimilarity_year_mod_annual_median <- lmer(median_annual_jaccard ~ year_in_seq + (1 + year_in_seq|season_survey),data = distances_dissimilarities_allyears_annual)
+
+#and, we need to use year instead of year in seq (DOESN'T WORK: boundary (singular) fit: see ?isSingular)
+bray_curtis_dissimilarity_year_mod_annual_avg_YEAR <- lmer(mean_annual_bray ~ year + (1 + year|season_survey), data = distances_dissimilarities_allyears_annual)
+
+
+summary(bray_curtis_dissimilarity_year_mod_annual_avg)
+summary(intercept_slope_varies)
+
+#what about a gam, and use actual year instead of year in seq
+
+bray_curtis_dissimilarity_year_mod_annual_avg_GAM <- gam(mean_annual_bray ~ year + 
+                                                           s(season_survey,year, bs = "fs", m = 1), #random smooth
+                                                         data = distances_dissimilarities_allyears_annual)
+
+jaccard_dissimilarity_year_mod_annual_avg_GAM <- gam(mean_annual_jaccard ~ year + 
+                                                           s(season_survey,year, bs = "fs", m = 1), #random smooth
+                                                         data = distances_dissimilarities_allyears_annual)
+
+summary(bray_curtis_dissimilarity_year_mod_annual_avg_GAM)
+
+
+```
+
+Plotting LMER with only one value per year region combo (mean values of dissimilarity per year)
+```{r}
+# see group coefficients
+model_coefs_reduced <- coef(bray_curtis_dissimilarity_year_mod_annual_avg)$season_survey 
+model_coefs_reduced_YEAR <- coef(bray_curtis_dissimilarity_year_mod_annual_avg_YEAR)$season_survey 
+model_coefs_reduced_jaccard <- coef(jaccard_dissimilarity_year_mod_annual_avg)$season_survey 
+
+model_coefs_reduced$season_survey <- rownames(model_coefs_reduced)
+model_coefs_reduced_YEAR$season_survey <- rownames(model_coefs_reduced_YEAR)
+model_coefs_reduced_jaccard$season_survey <- rownames(model_coefs_reduced_jaccard)
+
+model_coefs_reduced <- data.table(model_coefs_reduced)
+model_coefs_reduced_YEAR <- data.table(model_coefs_reduced_YEAR)
+model_coefs_reduced_jaccard <- data.table(model_coefs_reduced_jaccard)
+
+
+#merge with duration of survey
+model_coefs_reduced_length <- model_coefs_reduced[survey_season_sampling_years, on = "season_survey"]
+model_coefs_reduced_jaccard <- model_coefs_reduced_jaccard[survey_season_sampling_years, on = "season_survey"]
+
+model_coefs_reduced_length[,years_sampled := as.numeric(years_sampled)][,Directional_Change := ifelse(year_in_seq > 0, "Differentiation","Homogenization")]
+model_coefs_reduced_jaccard[,years_sampled := as.numeric(years_sampled)][,Directional_Change := ifelse(year_in_seq > 0, "Differentiation","Homogenization")]
+
+model_coefs_reduced_length_YEAR <- model_coefs_reduced_YEAR[survey_season_sampling_years, on = "season_survey"]
+
+model_coefs_reduced_length_YEAR[,years_sampled := as.numeric(years_sampled)][,Directional_Change := ifelse(year > 0, "Differentiation","Homogenization")]
+
+#min max distances_dissimilarities
+min_bray_reduced <- min(distances_dissimilarities_allyears_annual[,mean_annual_bray], na.rm = T)
+max_bray_reduced <- max(distances_dissimilarities_allyears_annual[,mean_annual_bray], na.rm = T)
+
+#order table by coefficient
+setorder(model_coefs_reduced_length, year_in_seq)
+setorder(model_coefs_reduced_jaccard, year_in_seq)
+
+#add colors
+model_coefs_reduced_length <- model_coefs_reduced_length[color_link, on = "season_survey"]
+model_coefs_reduced_jaccard <- model_coefs_reduced_jaccard[color_link, on = "season_survey"]
+
+
+colors_ordered <- copy(unique(model_coefs_reduced_length[,hex]))
+colors_ordered_jaccard <- copy(unique(model_coefs_reduced_jaccard[,hex]))
+
+
+#BRAY
+#year in seq
+BC_Dissimilarity_Coef_errorbar_reduced <- ggplot(data = model_coefs_reduced_length, aes(x = reorder(season_survey, year_in_seq) , y = year_in_seq, label = season_survey)) +
+    geom_errorbar(aes(ymin = year_in_seq - 0.002681, ymax = year_in_seq + 0.002681), color = "grey") + #add standard deviation
+  geom_point(stat = 'identity', aes(size = years_sampled, color = Directional_Change)) +
+  scale_size_binned(range = c(1,8), name = "Survey Period Length") +
+  scale_color_discrete(name = "Directional Change") +
+  geom_hline(yintercept = 0) +
+  xlab("Season and Survey") +
+  ylab("Coef BC Dissimilarity ~ Year") +
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(colour = colors_ordered, face = "bold"), axis.title.y = element_blank())
+
+BC_Dissimilarity_Coef_errorbar_reduced
+
+#compare to when all points are used
+
+#JACCARD
+#year in seq
+jaccard_Dissimilarity_Coef_errorbar_reduced <- ggplot(data = model_coefs_reduced_jaccard, aes(x = reorder(season_survey, year_in_seq) , y = year_in_seq, label = season_survey)) +
+    geom_errorbar(aes(ymin = year_in_seq - 0.002656, ymax = year_in_seq + 0.002656), color = "grey") + #add standard deviation
+  geom_point(stat = 'identity', aes(size = years_sampled, color = Directional_Change)) +
+  scale_size_binned(range = c(1,8), name = "Survey Period Length") +
+  scale_color_discrete(name = "Directional Change") +
+  geom_hline(yintercept = 0) +
+  xlab("Season and Survey") +
+  ylab("Coef Jaccard Dissimilarity ~ Year") +
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(colour = colors_ordered_jaccard, face = "bold"), axis.title.y = element_blank())
+
+jaccard_Dissimilarity_Coef_errorbar_reduced
+
+#compare to when all points are used
+
+
+library(cowplot)
+BC_Dissimilarity_Coef_errorbar_merge_compare <- plot_grid(BC_Dissimilarity_Coef_errorbar+ylim(-0.008,0.008)+theme(legend.position = "null"), BC_Dissimilarity_Coef_errorbar_reduced+ylim(-0.008,0.008)+theme(legend.position = "null"), get_legend(BC_Dissimilarity_Coef_errorbar + theme(legend.position = "bottom")),
+          ncol = 1)
+
+
+ggsave(BC_Dissimilarity_Coef_errorbar_merge_compare, height = 6, width = 4, unit = "in",  path = "~/homogenization_analyses", filename = "BC_Dissimilarity_Coef_errorbar_merge.png",)
+
+
+#JUST YEAR (DOESN'T WORKKK)
+BC_Dissimilarity_Coef_errorbar_reduced_YEAR <- ggplot(data = model_coefs_reduced_length_YEAR, aes(x = reorder(season_survey, year) , y = year, label = season_survey)) +
+    geom_errorbar(aes(ymin = year - 0.0001921, ymax = year + 0.0001921), color = "grey") + #add standard deviation
+  geom_point(stat = 'identity', aes(size = years_sampled, color = Directional_Change)) +
+  scale_size_binned(range = c(1,8)) +
+  geom_hline(yintercept = 0) +
+  xlab("Season and Survey") +
+  ylab("Coef BC Dissimilarity ~ Year") +
+  coord_flip() +
+  theme_classic()
+
+BC_Dissimilarity_Coef_errorbar_reduced_YEAR
+
+```
+
+Dissimilarity versus time for mean annual dissimilarity as input instead of all pairwise comparisons, with points
+```{r}
+
+
+points_wavylines_bray_year_reduced <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears_annual,
+             aes(x = year,
+                 y = mean_annual_bray,
+                 color = season_survey), alpha = 0.5) +
+    geom_smooth(data = distances_dissimilarities_allyears_annual,
+             aes(x = year,
+                 y = mean_annual_bray,
+                 color = season_survey), method = "gam", se = F, size = 0.5) +
+#  geom_abline(data = model_coefs_length,
+#              aes(intercept = `(Intercept)`, 
+#                  slope = year_in_seq,
+#                  colour = season_survey
+#                  ),
+#              size = 0.5
+#              ) +
+  geom_smooth(data = distances_dissimilarities_allyears_annual) +
+    scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
+  "#16FF32","#3283FE","#FEAF16","#B00068", 
+  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
+  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
+  "#1C8356","#85660D","#B10DA1","#FBE426", 
+  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
+  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
+  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
+  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
+  theme_classic() +
+  xlab("Year") +
+  ylab("Pairwise Bray Curtis Dissimilarity")
+
+points_wavylines_bray_year_reduced
+
+ggsave(points_wavylines_bray_year_reduced, path = "~/homogenization_analyses", filename = "points_wavylines_bray_year_reduced.png", height = 8, width = 12, units = "in")
+
+#what if we plot actual model
+
+ggplot() +
+  plot_smooths(
+  model = bray_curtis_dissimilarity_year_mod_annual_avg_GAM,
+  series = year,
+  comparison = season_survey
+)
+
+#for plotting, get model as predictions
+bray_curtis_dissimilarity_year_mod_annual_avg_GAM_predictions <- predict(bray_curtis_dissimilarity_year_mod_annual_avg_GAM, se.fit = TRUE)
+jaccard_dissimilarity_year_mod_annual_avg_GAM_predictions <- predict(jaccard_dissimilarity_year_mod_annual_avg_GAM, se.fit = TRUE)
+
+#predict average lmer
+bray_curtis_dissimilarity_year_mod_annual_avg_lmer_predictions <- predict(bray_curtis_dissimilarity_year_mod_annual_avg, se.fit = TRUE)
+jaccard_dissimilarity_year_mod_annual_avg_lmer_predictions <- predict(jaccard_dissimilarity_year_mod_annual_avg, se.fit = TRUE)
+
+#add to full data table
+
+distances_dissimilarities_allyears_annual[,preds_bray_curtis_dissim := bray_curtis_dissimilarity_year_mod_annual_avg_GAM_predictions$fit][,se_bray_curtis_dissim := bray_curtis_dissimilarity_year_mod_annual_avg_GAM_predictions$se.fit][,lmer_avg := fixef(bray_curtis_dissimilarity_year_mod_annual_avg)[[1]] + fixef(bray_curtis_dissimilarity_year_mod_annual_avg_YEAR)[[2]] * year_in_seq] 
+
+distances_dissimilarities_allyears_annual[,preds_jaccard_dissim := jaccard_dissimilarity_year_mod_annual_avg_GAM_predictions$fit][,se_jaccard_dissim := jaccard_dissimilarity_year_mod_annual_avg_GAM_predictions$se.fit][,lmer_avg := fixef(jaccard_dissimilarity_year_mod_annual_avg)[[1]] + fixef(jaccard_dissimilarity_year_mod_annual_avg)[[2]] * year_in_seq] 
+
+#now plot
+
+points_wavylines_bray_year_reduced_gam_YEAR <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears_annual,
+             aes(x = year,
+                 y = mean_annual_bray,
+                 color = season_survey), alpha = 0.5, size = 1) +
+    geom_line(data = distances_dissimilarities_allyears_annual,
+             aes(x = year,
+                 y = preds_bray_curtis_dissim,
+                 color = season_survey)) +
+  geom_ribbon(data = distances_dissimilarities_allyears_annual, aes(x = year, ymin=preds_bray_curtis_dissim-se_bray_curtis_dissim, ymax=preds_bray_curtis_dissim+se_bray_curtis_dissim, fill = season_survey), alpha=0.1) +
+#  geom_abline(data = model_coefs_length,
+#              aes(intercept = `(Intercept)`, 
+#                  slope = year_in_seq,
+#                  colour = season_survey
+#                  ),
+#              size = 0.5
+#              ) +
+  geom_smooth(data = distances_dissimilarities_allyears_annual, aes(x = year, y = lmer_avg), color = "black", method = "lm") +
+    scale_color_manual(values =  palette_28, name = "Survey & Season") +
+  scale_fill_manual(values =  palette_28, guide = "none") +
+  theme_classic() +
+  xlab("Year") +
+  ylab("Pairwise Bray Curtis Dissimilarity")
+
+points_wavylines_bray_year_reduced_gam_YEAR
+
+ggsave(points_wavylines_bray_year_reduced_gam_YEAR, path = "~/homogenization_analyses", filename = "points_lines_bray_year.png", height = 8, width = 12, units = "in")
+
+#same, but jaccard
+points_wavylines_jaccard_year_reduced_gam_YEAR <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears_annual,
+             aes(x = year,
+                 y = mean_annual_jaccard,
+                 color = season_survey), alpha = 0.5, size = 1) +
+    geom_line(data = distances_dissimilarities_allyears_annual,
+             aes(x = year,
+                 y = preds_jaccard_dissim,
+                 color = season_survey)) +
+  geom_ribbon(data = distances_dissimilarities_allyears_annual, aes(x = year, ymin=preds_jaccard_dissim-se_jaccard_dissim, ymax=preds_jaccard_dissim+se_jaccard_dissim, fill = season_survey), alpha=0.1) +
+#  geom_abline(data = model_coefs_length,
+#              aes(intercept = `(Intercept)`, 
+#                  slope = year_in_seq,
+#                  colour = season_survey
+#                  ),
+#              size = 0.5
+#              ) +
+  geom_smooth(data = distances_dissimilarities_allyears_annual, aes(x = year, y = lmer_avg), color = "black", method = "lm") +
+    scale_color_manual(values =  palette_28, name = "Survey & Season") +
+  scale_fill_manual(values =  palette_28, guide = "none") +
+  theme_classic() +
+  xlab("Year") +
+  ylab("Pairwise Jaccard Dissimilarity")
+
+points_wavylines_jaccard_year_reduced_gam_YEAR
+
+ggsave(points_wavylines_jaccard_year_reduced_gam_YEAR, path = "~/homogenization_analyses", filename = "points_lines_jaccard_year.png", height = 8, width = 12, units = "in")
+
+```
+
+Merge BC versus Year plot with GAMS and Region vs. coefficient plot for LMERs
+```{r}
+BC_GAM_LMER_merge <- plot_grid(points_wavylines_bray_year_reduced_gam_YEAR + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), BC_Dissimilarity_Coef_errorbar_reduced + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), labels = c("","Survey &\nSeason  ",""), vjust = 1.5, hjust = 0)
+
+BC_GAM_LMER_merge_legend <- plot_grid(BC_GAM_LMER_merge, get_legend(BC_Dissimilarity_Coef_errorbar_reduced), rel_widths = c(10,2))
+
+ggsave(BC_GAM_LMER_merge_legend, path = "~/homogenization_analyses", filename = "BC_GAM_LMER_merge_legend.png", height = 7, width = 12, units = "in")
+```
+Merge Jaccard versus Year plot with GAMS and Region vs. coefficient plot for LMERs
+```{r}
+jaccard_GAM_LMER_merge <- plot_grid(points_wavylines_jaccard_year_reduced_gam_YEAR + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), jaccard_Dissimilarity_Coef_errorbar_reduced + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), labels = c("","Survey &\nSeason  ",""), vjust = 1.5, hjust = 0)
+
+jaccard_GAM_LMER_merge_legend <- plot_grid(jaccard_GAM_LMER_merge, get_legend(jaccard_Dissimilarity_Coef_errorbar_reduced), rel_widths = c(10,2))
+
+ggsave(jaccard_GAM_LMER_merge_legend, path = "~/homogenization_analyses", filename = "jaccard_GAM_LMER_merge_legend.png", height = 7, width = 12, units = "in")
+```
