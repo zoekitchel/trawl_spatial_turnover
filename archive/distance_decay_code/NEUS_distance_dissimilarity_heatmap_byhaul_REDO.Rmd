@@ -1,0 +1,689 @@
+---
+title: "NEUS_similarity_heatmap_distance"
+output: html_notebook
+---
+
+```{r setup}
+library(data.table)
+library(viridis)
+library(ggplot2)
+library(reshape2)
+library(geosphere)
+library(vegan)
+library(raster)
+library(here)
+library(cowplot)
+library(plyr)
+library(ggpubr)
+library(sf)
+library(concaveman)
+
+#load data
+#fall
+neus_fall_grid.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_fall_grid.reduced_3plustows.rds")
+#spring
+neus_spring_grid.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_spring_grid.reduced_3plustows.rds")
+
+#distance among grid cells
+#fall
+neus_fall_reg_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_fall_reg_distances.l.rds")
+#spring
+neus_spring_reg_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-NEUS/neus_spring_reg_distances.l.rds")
+```
+
+Region Stats
+
+* Number of species in region
+* Length of study period
+* Number of years in which data was collected
+* Range of latitudes sampled
+* Mid latitude of region
+* Range of longitudes sampled
+* Overall area sampled
+* Depths sampled
+
+```{r region stats}
+neus_stats <- data.table(region = character() , season = character(), spp_num = numeric(), study_period = numeric(), study_duration = numeric(), lat_range = numeric(), mid_lat = numeric(), lon_range = numeric(), area = numeric(), depth_range = numeric(),  mid_depth = numeric())
+
+
+#maps
+###fall
+####unique lat lon
+neus_fall_lat_lon <- unique(neus_fall_grid.reduced_3plustows[,.(latitude, longitude)])
+
+neus_fall_pts <- st_as_sf(neus_fall_lat_lon, coords=c('longitude','latitude'), crs=4326 )
+
+neus_fall_conc <- concaveman(neus_fall_pts)
+
+neus_fall_area <- st_area(neus_fall_conc) #m2
+
+####unique lat lon
+neus_spring_lat_lon <- unique(neus_spring_grid.reduced_3plustows[,.(latitude, longitude)])
+
+neus_spring_pts <- st_as_sf(neus_spring_lat_lon, coords=c('longitude','latitude'), crs=4326 )
+
+neus_spring_conc <- concaveman(neus_spring_pts)
+
+neus_spring_area <- st_area(neus_spring_conc) #m2
+
+
+#fall row
+neus_fall <- c("neus","fall",length(unique(neus_fall_grid.reduced_3plustows$accepted_name)),
+               max(neus_fall_grid.reduced_3plustows$year)-min(neus_fall_grid.reduced_3plustows$year),
+               length(unique(neus_fall_grid.reduced_3plustows$year)),
+               max(neus_fall_grid.reduced_3plustows$latitude)-min(neus_fall_grid.reduced_3plustows$latitude),
+               mean(neus_fall_grid.reduced_3plustows$latitude),
+               max(neus_fall_grid.reduced_3plustows$longitude)-min(neus_fall_grid.reduced_3plustows$longitude),
+               neus_fall_area,
+               max(neus_fall_grid.reduced_3plustows$depth, na.rm = T)-min(neus_fall_grid.reduced_3plustows$depth, na.rm = T),
+               mean(neus_fall_grid.reduced_3plustows$depth, na.rm = T)
+               )
+
+#spring row
+neus_spring <- c("neus","spring",length(unique(neus_spring_grid.reduced_3plustows$accepted_name)),
+               max(neus_spring_grid.reduced_3plustows$year)-min(neus_spring_grid.reduced_3plustows$year),
+               length(unique(neus_spring_grid.reduced_3plustows$year)),
+               max(neus_spring_grid.reduced_3plustows$latitude)-min(neus_spring_grid.reduced_3plustows$latitude),
+               mean(neus_spring_grid.reduced_3plustows$latitude),
+               max(neus_spring_grid.reduced_3plustows$longitude)-min(neus_spring_grid.reduced_3plustows$longitude),
+               neus_spring_area,
+               max(neus_spring_grid.reduced_3plustows$depth)-min(neus_spring_grid.reduced_3plustows$depth),
+               mean(neus_spring_grid.reduced_3plustows$depth)
+               )
+
+neus_stats <- data.table(rbind(neus_spring, neus_fall))
+
+colnames(neus_stats)<-c("region","season","spp_num","study_period","study_duration","lat_range","mid_lat","lon_range","area","depth_range","mid_depth")
+
+saveRDS(neus_stats, here::here("output","region_stats","neus_stats.rds"))
+```
+
+#Fall
+
+Lists of Years fall
+```{r year lists fall}
+neus_fall_grid.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+setorder(neus_fall_grid.reduced_3plustows, year)
+
+neus_fall_years <- unique(neus_fall_grid.reduced_3plustows[,year])
+
+```
+
+Haul ID keys
+```{r list of haul_ids fall}
+neus_fall_haul_ids <- unique(neus_fall_grid.reduced_3plustows[,haul_id])
+neus_fall_haul_ids_key <- data.table(haul_id = neus_fall_haul_ids, key_ID = seq(1,length(neus_fall_haul_ids), by = 1))
+
+```
+
+Convert haul_ids to numeric key_IDs
+```{r}
+
+neus_fall_grid.reduced_3plustows[,haul_id := as.numeric(haul_id)]
+neus_fall_haul_ids_key[,haul_id := as.numeric(haul_id)]
+
+neus_fall_grid.reduced_3plustows <- neus_fall_grid.reduced_3plustows[neus_fall_haul_ids_key, on = "haul_id"]
+
+```
+
+
+Dissimilarities across multiple years
+
+```{r dissimilarities between cells across multiple years for spring fall}
+library(betapart)
+neus_fall_distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), "haul_id2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity_balanced" = numeric(), year = integer(), "jaccard_dissimilarity_turnover" = numeric())
+
+#Now loop through all years
+for (i in 1:length(neus_fall_years)) {
+  reduced_year <- neus_fall_grid.reduced_3plustows[year == neus_fall_years[i],]
+  
+#cannot have wgt or num
+  reduced_year <- reduced_year[!is.na(wgt),]
+  
+  #distances among cells
+  setorder(reduced_year, key_ID)
+  
+  latitude_longitude_haul_id <- unique(reduced_year[,.(latitude,longitude,key_ID)])
+  neus_fall_distances <- distm(latitude_longitude_haul_id[,.(longitude,latitude)])
+  key_IDs <- latitude_longitude_haul_id[,key_ID]
+
+  colnames(neus_fall_distances) <- rownames(neus_fall_distances) <- key_IDs
+
+  #wide to longitudeg
+  haul_id_distances.l <- reshape2::melt(neus_fall_distances,varnames = (c("haul_id1", "haul_id2")), value.name = "distance")
+  
+  #make into data table
+  haul_id_distances.l <- data.table(haul_id_distances.l)
+
+  
+  reduced_year_wide <- dcast(reduced_year, key_ID + year ~ accepted_name, value.var = "wgt", fun.aggregate = sum) #longitude to wide data for community matrix, column names are cell then species
+  
+  
+  ncols <- ncol(reduced_year_wide)
+  communitymatrix <- reduced_year_wide[,3:ncols] #community matrix with year and cell on far right
+  communitymatrix.occurence <- communitymatrix
+  communitymatrix.occurence[communitymatrix.occurence > 0] <- 1
+
+  #list of haul_id keys
+  key_IDs_subset <- reduced_year_wide$key_ID
+
+  dissimilarities_abundance <- beta.pair.abund(communitymatrix, index.family = "bray") #dissimilarity 
+  dissimilarities_occurrence <- beta.pair(communitymatrix.occurence, index.family = "jaccard") #dissimilarity
+
+  #make into matrix
+  dissimilarities_abundance.m <- as.matrix(dissimilarities_abundance$beta.bray.bal, labels=TRUE) #bal = balanced
+  dissimilarities_occurrence.m <- as.matrix(dissimilarities_occurrence$beta.jtu, labels=TRUE) #jtu = turnover
+  colnames(dissimilarities_abundance.m) <- rownames(dissimilarities_abundance.m) <- key_IDs_subset
+  colnames(dissimilarities_occurrence.m) <- rownames(dissimilarities_occurrence.m) <- key_IDs_subset
+
+  #reshape dissimilarities
+  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haul_id1", "haul_id2"), value.name = "bray_curtis_dissimilarity_balanced")
+  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haul_id1", "haul_id2"), value.name = "jaccard_dissimilarity_turnover")
+  dissimilarities_abundance.l <- data.table(dissimilarities_abundance.l) #and then to data table
+  dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
+
+  #add year for these values
+  dissimilarities_abundance.l[, "year" := neus_fall_years[i]]
+  dissimilarities_occurrence.l[, "year" := neus_fall_years[i]]
+
+  #merge distance with dissimilarity for this year with both metrics of dissimilarity
+  dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance.l, on = c("haul_id1", "haul_id2")]
+  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haul_id1", "haul_id2", "year")]
+
+
+  #add to data table
+  neus_fall_distances_dissimilarities_allyears <- rbind(neus_fall_distances_dissimilarities_allyears, dissimilarities_full)
+  
+  print(paste0(i,"/",length(neus_fall_years)))
+  
+}
+
+summary(neus_fall_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
+
+#delete repeats
+neus_fall_distances_dissimilarities_allyears <- neus_fall_distances_dissimilarities_allyears[haul_id1 >= haul_id2,]
+
+
+neus_fall_distances_dissimilarities_allyears[,bray_curtis_similarity_balanced := (1-bray_curtis_dissimilarity_balanced)][,jaccard_similarity_turnover := (1-jaccard_dissimilarity_turnover)]
+
+saveRDS(neus_fall_distances_dissimilarities_allyears, file = "neus_fall_distances_dissimilarities_allyears.rds")
+
+neus_fall_distances_dissimilarities_allyears <- readRDS("neus_fall_distances_dissimilarities_allyears.rds")
+
+```
+
+###Heat map for fall
+Average within bins for plotting
+
+#try rounding to 10s and 1s this time!
+```{r subsample fall}
+#jaccard only
+neus_fall_distances_dissimilarities_allyears_jaccard <- neus_fall_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity_turnover, bray_curtis_similarity_balanced)][,distance_km := distance/1000]
+
+#new column with rounded distance
+neus_fall_distances_dissimilarities_allyears_jaccard[,distance_km_10s := round_any(distance_km,10)][,distance_km_1s := round(distance_km,0)] #round to nearest 10, 1
+
+#new column with median jaccard similarity & bray similarity means for 1 and 10 km
+neus_fall_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean_10s := 
+                                                       mean(jaccard_similarity_turnover), .(year, distance_km_10s)][, bray_similarity_mean_10s :=
+                                                      mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)][, jaccard_similarity_mean_1s := 
+                                                       mean(jaccard_similarity_turnover), .(year, distance_km_1s)][, bray_similarity_mean_1s :=
+                                                      mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)]
+
+#reduce to unique values
+neus_fall_distances_dissimilarities_allyears_jaccard_rounded <- unique(neus_fall_distances_dissimilarities_allyears_jaccard, by = c("year","distance_km_10s","distance_km_1s"))
+```
+
+All possible combos fall
+```{r all combos fall}
+#all possible 1s
+seq_1 <- seq(0,max(neus_fall_distances_dissimilarities_allyears_jaccard_rounded$distance_km_1s), by = 1)
+
+#all possible 10s
+seq_10 <- seq(0,max(neus_fall_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10s), by = 10)
+
+#datatable with all possible combos
+neus_fall_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = neus_fall_years, distance_km_1s = seq_1))
+
+#combine
+neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- neus_fall_distances_dissimilarities_allyears_jaccard_allcombos[neus_fall_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_km_1s")]
+```
+
+#This is where it's at
+From "Depth-Time visualization using R, the tidyverse, and ggplot2" tutorial
+
+```{r plot neus heat maps fall}
+
+#convert year to factor
+setkey(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos,year)
+neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,year.f := as.factor(year)]
+
+#save this data table
+saveRDS(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos, here::here("output","distance_decay","neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+
+#jaccard similarity
+(neus_fall_jaccard_heatmap <- ggplot(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = jaccard_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 0.8) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1988","1990","1995", "2000","2005", "2010","2015","2020")) +
+  labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
+  theme_classic())
+
+ggsave(plot = neus_fall_jaccard_heatmap, path = here::here("figures","neus"),file = "neus_fall_jaccard_heatmap.jpg")
+ggsave(plot = neus_fall_jaccard_heatmap, path = here::here("figures","neus"),file = "neus_fall_jaccard_heatmap.eps")
+
+
+#bray curtis similarity
+(neus_fall_bray_heatmap <- ggplot(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = bray_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 0.8) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+  scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1988","1990","1995", "2000","2005", "2010","2015","2020")) +
+  labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
+  theme_classic())
+
+ggsave(plot = neus_fall_bray_heatmap, path = here::here("figures","neus"),file = "neus_fall_bray_heatmap.jpg")
+ggsave(plot = neus_fall_bray_heatmap, path = here::here("figures","neus"),file = "neus_fall_bray_heatmap.eps")
+```
+Box plots
+```{r fall box plots}
+
+#jaccard similarity
+(neus_fall_jaccard_boxplot <- ggplot(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(year.f,jaccard_similarity_turnover)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Jaccard Similarity") +
+  scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1988","1990","1995", "2000","2005", "2010","2015","2020")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+  ylim(c(0,0.75)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#bray curtis similarity
+(neus_fall_bray_boxplot <- ggplot(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(year.f,bray_curtis_similarity_balanced)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Bray Curtis Similarity") +
+  scale_x_discrete(limits=levels(neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1988","1990","1995", "2000","2005", "2010","2015","2020")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+ #   ylim(c(0,0.48)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#corresponding models
+neus_fall_avg_jaccard_mod <- lm(data = neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos, formula = jaccard_similarity_turnover ~ as.numeric(year))
+
+neus_fall_avg_bray_curtis_mod <- lm(data = neus_fall_distances_dissimilarities_allyears_jaccard_rounded_allcombos, formula = bray_curtis_similarity_balanced ~ as.numeric(year))
+
+summary(neus_fall_avg_jaccard_mod)
+summary(neus_fall_avg_bray_curtis_mod)
+```
+
+Now, merge the previous two fall plots
+```{r merge plots fall}
+#pull out legend
+neus_fall_legend_heatmaps <- get_legend(neus_fall_jaccard_heatmap + labs(color = "Similarity"))
+
+neus_fall_merge <- plot_grid(neus_fall_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) ,
+                             neus_fall_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()),
+                             neus_fall_jaccard_boxplot + theme(axis.text.x = element_text(size = 6)), 
+                             neus_fall_bray_boxplot + theme(axis.text.x = element_text(size = 6)),
+                             nrow = 2, ncol = 2, align = "hv", axis = "lb")
+
+neus_fall_merge
+
+ggsave(neus_fall_merge, path = here::here("figures","neus"), file = "neus_fall_heat_boxplot_merge.jpg", width = 3, height = 5, unit = "in")
+ggsave(neus_fall_merge, path = here::here("figures","neus"), file = "neus_fall_heat_boxplot_merge.eps", width = 3, height = 5, unit = "in")
+
+```
+
+#Spring
+
+Lists of Years spring
+```{r year lists spring}
+neus_spring_grid.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+setorder(neus_spring_grid.reduced_3plustows, year)
+
+neus_spring_years <- unique(neus_spring_grid.reduced_3plustows[,year])
+
+```
+
+Haul ID keys
+```{r list of haul_ids spring}
+neus_spring_haul_ids <- unique(neus_spring_grid.reduced_3plustows[,haul_id])
+neus_spring_haul_ids_key <- data.table(haul_id = neus_spring_haul_ids, key_ID = seq(1,length(neus_spring_haul_ids), by = 1))
+
+```
+
+Convert haul_ids to numeric key_IDs
+```{r}
+
+neus_spring_grid.reduced_3plustows[,haul_id := as.numeric(haul_id)]
+neus_spring_haul_ids_key[,haul_id := as.numeric(haul_id)]
+
+neus_spring_grid.reduced_3plustows <- neus_spring_grid.reduced_3plustows[neus_spring_haul_ids_key, on = "haul_id"]
+
+```
+
+
+Dissimilarities across multiple years
+
+```{r dissimilarities between cells across multiple years for spring spring}
+library(betapart)
+neus_spring_distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), "haul_id2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity_balanced" = numeric(), year = integer(), "jaccard_dissimilarity_turnover" = numeric())
+
+#Now loop through all years
+for (i in 1:length(neus_spring_years)) {
+  reduced_year <- neus_spring_grid.reduced_3plustows[year == neus_spring_years[i],]
+  
+#cannot have wgt or num
+  reduced_year <- reduced_year[!is.na(wgt),]
+  
+  #distances among cells
+  setorder(reduced_year, key_ID)
+  
+  latitude_longitude_haul_id <- unique(reduced_year[,.(latitude,longitude,key_ID)])
+  neus_spring_distances <- distm(latitude_longitude_haul_id[,.(longitude,latitude)])
+  key_IDs <- latitude_longitude_haul_id[,key_ID]
+
+  colnames(neus_spring_distances) <- rownames(neus_spring_distances) <- key_IDs
+
+  #wide to longitudeg
+  haul_id_distances.l <- reshape2::melt(neus_spring_distances,varnames = (c("haul_id1", "haul_id2")), value.name = "distance")
+  
+  #make into data table
+  haul_id_distances.l <- data.table(haul_id_distances.l)
+
+  
+  reduced_year_wide <- dcast(reduced_year, key_ID + year ~ accepted_name, value.var = "wgt", fun.aggregate = sum) #longitude to wide data for community matrix, column names are cell then species
+  
+  
+  ncols <- ncol(reduced_year_wide)
+  communitymatrix <- reduced_year_wide[,3:ncols] #community matrix with year and cell on far right
+  communitymatrix.occurence <- communitymatrix
+  communitymatrix.occurence[communitymatrix.occurence > 0] <- 1
+
+  #list of haul_id keys
+  key_IDs_subset <- reduced_year_wide$key_ID
+
+  dissimilarities_abundance <- beta.pair.abund(communitymatrix, index.family = "bray") #dissimilarity 
+  dissimilarities_occurrence <- beta.pair(communitymatrix.occurence, index.family = "jaccard") #dissimilarity
+
+  #make into matrix
+  dissimilarities_abundance.m <- as.matrix(dissimilarities_abundance$beta.bray.bal, labels=TRUE) #bal = balanced
+  dissimilarities_occurrence.m <- as.matrix(dissimilarities_occurrence$beta.jtu, labels=TRUE) #jtu = turnover
+  colnames(dissimilarities_abundance.m) <- rownames(dissimilarities_abundance.m) <- key_IDs_subset
+  colnames(dissimilarities_occurrence.m) <- rownames(dissimilarities_occurrence.m) <- key_IDs_subset
+
+  #reshape dissimilarities
+  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haul_id1", "haul_id2"), value.name = "bray_curtis_dissimilarity_balanced")
+  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haul_id1", "haul_id2"), value.name = "jaccard_dissimilarity_turnover")
+  dissimilarities_abundance.l <- data.table(dissimilarities_abundance.l) #and then to data table
+  dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
+
+  #add year for these values
+  dissimilarities_abundance.l[, "year" := neus_spring_years[i]]
+  dissimilarities_occurrence.l[, "year" := neus_spring_years[i]]
+
+  #merge distance with dissimilarity for this year with both metrics of dissimilarity
+  dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance.l, on = c("haul_id1", "haul_id2")]
+  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haul_id1", "haul_id2", "year")]
+
+
+  #add to data table
+  neus_spring_distances_dissimilarities_allyears <- rbind(neus_spring_distances_dissimilarities_allyears, dissimilarities_full)
+  
+  print(paste0(i,"/",length(neus_spring_years)))
+  
+}
+
+summary(neus_spring_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
+
+#delete repeats
+neus_spring_distances_dissimilarities_allyears <- neus_spring_distances_dissimilarities_allyears[haul_id1 >= haul_id2,]
+
+
+neus_spring_distances_dissimilarities_allyears[,bray_curtis_similarity_balanced := (1-bray_curtis_dissimilarity_balanced)][,jaccard_similarity_turnover := (1-jaccard_dissimilarity_turnover)]
+
+saveRDS(neus_spring_distances_dissimilarities_allyears, file = "neus_spring_distances_dissimilarities_allyears.rds")
+
+neus_spring_distances_dissimilarities_allyears <- readRDS("neus_spring_distances_dissimilarities_allyears.rds")
+
+```
+
+###Heat map for spring
+Average within bins for plotting
+
+#try rounding to 10s and 1s this time!
+```{r subsample spring}
+#jaccard only
+neus_spring_distances_dissimilarities_allyears_jaccard <- neus_spring_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity_turnover, bray_curtis_similarity_balanced)][,distance_km := distance/1000]
+
+#new column with rounded distance
+neus_spring_distances_dissimilarities_allyears_jaccard[,distance_km_10s := round_any(distance_km,10)][,distance_km_1s := round(distance_km,0)] #round to nearest 10, 1
+
+#new column with median jaccard similarity & bray similarity means for 1 and 10 km
+neus_spring_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean_10s := 
+                                                       mean(jaccard_similarity_turnover), .(year, distance_km_10s)][, bray_similarity_mean_10s :=
+                                                      mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)][, jaccard_similarity_mean_1s := 
+                                                       mean(jaccard_similarity_turnover), .(year, distance_km_1s)][, bray_similarity_mean_1s :=
+                                                      mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)]
+
+#reduce to unique values
+neus_spring_distances_dissimilarities_allyears_jaccard_rounded <- unique(neus_spring_distances_dissimilarities_allyears_jaccard, by = c("year","distance_km_10s","distance_km_1s"))
+```
+
+All possible combos spring
+```{r all combos spring}
+#all possible 1s
+seq_1 <- seq(0,max(neus_spring_distances_dissimilarities_allyears_jaccard_rounded$distance_km_1s), by = 1)
+
+#all possible 10s
+seq_10 <- seq(0,max(neus_spring_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10s), by = 10)
+
+#datatable with all possible combos
+neus_spring_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = neus_spring_years, distance_km_1s = seq_1))
+
+#combine
+neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- neus_spring_distances_dissimilarities_allyears_jaccard_allcombos[neus_spring_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_km_1s")]
+```
+
+#This is where it's at
+From "Depth-Time visualization using R, the tidyverse, and ggplot2" tutorial
+
+```{r plot neus heat maps spring}
+
+#convert year to factor
+setkey(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos,year)
+neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,year.f := as.factor(year)]
+
+#jaccard similarity
+(neus_spring_jaccard_heatmap <- ggplot(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = jaccard_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 0.8) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+scale_x_discrete(limits=levels(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1987","1990","1995", "2000","2005", "2010","2015","2020")) +
+  labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
+  theme_classic())
+
+ggsave(plot = neus_spring_jaccard_heatmap, path = here::here("figures","neus"),file = "neus_spring_jaccard_heatmap.jpg")
+ggsave(plot = neus_spring_jaccard_heatmap, path = here::here("figures","neus"),file = "neus_spring_jaccard_heatmap.eps")
+
+
+#bray curtis similarity
+(neus_spring_bray_heatmap <- ggplot(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = bray_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 0.8) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+  scale_x_discrete(limits=levels(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1987","1990","1995", "2000","2005", "2010","2015","2020")) +
+  labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
+  theme_classic())
+
+ggsave(plot = neus_spring_bray_heatmap, path = here::here("figures","neus"),file = "neus_spring_bray_heatmap.jpg")
+ggsave(plot = neus_spring_bray_heatmap, path = here::here("figures","neus"),file = "neus_spring_bray_heatmap.eps")
+```
+Box plots
+```{r spring box plots}
+
+#jaccard similarity
+(neus_spring_jaccard_boxplot <- ggplot(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(year.f,jaccard_similarity_turnover)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Jaccard Similarity") +
+  scale_x_discrete(limits=levels(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1987","1990","1995", "2000","2005", "2010","2015","2020")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+  ylim(c(0,0.75)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#bray curtis similarity
+(neus_spring_bray_boxplot <- ggplot(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(year.f,bray_curtis_similarity_balanced)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Bray Curtis Similarity") +
+  scale_x_discrete(limits=levels(neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1987","1990","1995", "2000","2005", "2010","2015","2020")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+ #   ylim(c(0,0.48)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#corresponding models
+neus_spring_avg_jaccard_mod <- lm(data = neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos, formula = jaccard_similarity_turnover ~ as.numeric(year))
+
+neus_spring_avg_bray_curtis_mod <- lm(data = neus_spring_distances_dissimilarities_allyears_jaccard_rounded_allcombos, formula = bray_curtis_similarity_balanced ~ as.numeric(year))
+
+summary(neus_spring_avg_jaccard_mod)
+summary(neus_spring_avg_bray_curtis_mod)
+```
+
+Now, merge the previous two plots
+```{r merge plots spring}
+#pull out legend
+neus_spring_legend_heatmaps <- get_legend(neus_spring_jaccard_heatmap + labs(color = "Similarity"))
+
+neus_spring_merge <- plot_grid(neus_spring_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) ,
+                             neus_spring_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()),
+                             neus_spring_jaccard_boxplot + theme(axis.text.x = element_text(size = 6)), 
+                             neus_spring_bray_boxplot + theme(axis.text.x = element_text(size = 6)),
+                             nrow = 2, ncol = 2, align = "hv", axis = "lb")
+
+neus_spring_merge
+
+ggsave(neus_spring_merge, path = here::here("figures","neus"), file = "neus_spring_heat_boxplot_merge.jpg", width = 3, height = 5, unit = "in")
+ggsave(neus_spring_merge, path = here::here("figures","neus"), file = "neus_spring_heat_boxplot_merge.eps", width = 3, height = 5, unit = "in")
+
+```
+
+
+
+
+Add extra columns with coefficients
+```{r data summary with coef}
+
+neus_stats[2,jac_coef := 
+           neus_fall_avg_jaccard_mod$coefficients[[2]]][2, jac_p := 
+          summary(neus_fall_avg_jaccard_mod)$coefficients[2,4]][2,bray_coef :=
+          neus_fall_avg_bray_curtis_mod$coefficients[[2]]][2,bray.p := 
+          summary(neus_fall_avg_bray_curtis_mod)$coefficients[2,4]]
+
+neus_stats[1,jac_coef := 
+           neus_spring_avg_jaccard_mod$coefficients[[2]]][1, jac_p := 
+          summary(neus_spring_avg_jaccard_mod)$coefficients[2,4]][1,bray_coef :=
+          neus_spring_avg_bray_curtis_mod$coefficients[[2]]][1,bray.p := 
+          summary(neus_spring_avg_bray_curtis_mod)$coefficients[2,4]]
+
+
+saveRDS(neus_stats, here::here("output","region_stats","neus_stats.rds"))
+```
+
+
+
+
+
+
+
+#HAVEN'T CONTINUED
+###maybe i'll do this later? maybe not
+At its heart, this graphic is just a ggplot() with a geom_raster() layer. The complication is, geom_raster() requires equally spaced points in both the x- and y-direction. The rest of this post is about how to make that happen.
+
+Linear Interpolatitudeion
+
+I interpolatitudee in the distance direction first, because I think this is the better assumption: as you go down further away, a reasonable way to estimate the similarity at a distance which you did not measure is to draw a straight line between the similarity at the distance that you did measure. (Not great, but sure)
+```{r}
+estimate_jac_sim_by_year <- function(target_year, target_distance) {
+  data_for_year <- neus_distances_dissimilarities_allyears[year == target_year]
+  
+  # approx() is one way to do a linear interpolatitudeion
+  approx(data_for_year$distance, data_for_year$jaccard_similarity, xout = target_distance)$y
+}
+
+estimate_jac_sim_by_year(1990, c(0,3000,300000))
+```
+Expand data inputs
+```{r}
+temp_interp_depth <- data.table(expand.grid(
+  # the same years as neus spring
+  year = neus_years,
+  # ddistances can now be any value
+  distance = seq(0, max(neus_distances_dissimilarities_allyears$distance), by = 10))
+)
+
+temp_interp_depth[,jaccard_similarity_modeled := estimate_jac_sim_by_year(year,distance), year]
+
+```
+Visualize
+```{r}
+ggplot(temp_interp_depth,aes(year,distance, color = jaccard_similarity_modeled)) +
+  geom_point() +
+   scale_colour_gradient2(
+    midpoint = 0.5, 
+    high = scales::muted("red"), 
+    low = scales::muted("blue")
+  )
+```
+
+First, we write a function that estimates the temperature at any date given a depth that is in temp_interp_depth (the tibble we just calculatitudeed).
+
+```{r}
+estimate_jac_sim_by_distance <- function(target_distance, target_year) {
+  data_for_distance <- temp_interp_depth[distance == target_distance,]
+    setkey(data_for_distance, year)
+  approx(data_for_distance$year, data_for_distance$jaccard_similarity_modeled, xout = target_year)$y
+}
+
+estimate_jac_sim_by_distance(
+  target_distance = 1000000, 
+  target_year = c(1990,1998,2000)
+)
+```
+Expand year grid
+```{r}
+jac_sim_raster <- data.table(expand.grid(
+  # dates can now be any value
+  year = seq(min(neus_years), max(neus_years), by = 1),
+  # depths must be the same as in temp_interp_depth
+  distance = unique(temp_interp_depth$distance))
+)
+
+jac_sim_raster[,jaccard_similarity_modeled := estimate_jac_sim_by_distance(distance,year),by = distance]
+
+
+```
+Finally, we have equally-spaced values in both the date and depth dimensions. This can be visualized using geom_raster(), with temp mapped to the fill aesthetic. I’ve again used scale_fill_gradient2() to ensure that red values represent “hot”, blue values represent “cool”, and that there is some way to visualize the depth of the thermocline. Finally, I’ve used coord_cartesian(expand = FALSE) to eliminate the white border around the outside of the raster layer…I think it looks nicer that way.
+
+
+```{r final jaccard similarity plot}
+ggplot(jac_sim_raster, aes(year, distance, fill = jaccard_similarity_modeled)) +
+  geom_raster() +
+  scale_fill_gradientn(colors =
+c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
+  ) +
+  coord_cartesian(expand = FALSE)
+```
+

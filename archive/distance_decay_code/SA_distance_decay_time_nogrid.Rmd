@@ -1,0 +1,880 @@
+---
+title: "SA Distance Decay over Time"
+output: html_notebook
+---
+
+```{r setup}
+library(data.table)
+library(vegan)
+library(ggplot2)
+library(broom) #augment
+library(betapart)
+library(geosphere)
+
+#load data
+dat_SA_grid.reduced_3plustows <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SA/dat_SA_grid.reduced_3plustows.rds")
+
+#distance among grid cells
+sa_reg_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SA/sa_reg_distances.l.rds")
+
+
+
+```
+
+In this iteration of the analysis, each tow will be analyzed independently--I will not be summing or averaging over cells. However, I did use cells in order to eliminate undersampled years/tows.
+
+
+Split up seasons
+```{r split  up seasons}
+#spring
+dat_SA_grid.spring.reduced_3plustows <- dat_SA_grid.reduced_3plustows[region == "Southeast US Spring"]
+#summer
+dat_SA_grid.summer.reduced_3plustows <- dat_SA_grid.reduced_3plustows[region == "Southeast US Summer"]
+#fall
+dat_SA_grid.fall.reduced_3plustows <- dat_SA_grid.reduced_3plustows[region == "Southeast US Fall"]
+```
+
+Distance decay for SPRING SA
+```{r each year build exponential model for spring}
+#years
+#order data table by years
+dat_SA_grid.spring.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+setorder(dat_SA_grid.spring.reduced_3plustows, year)
+
+sa_years_spring <- unique(dat_SA_grid.spring.reduced_3plustows[,year])
+
+
+sa_similarity_mod_coefs_spring <- data.table("year" = sa_years_spring)
+
+
+for (i in 1:length(sa_years_spring)) {
+  
+  reduced_year <- dat_SA_grid.spring.reduced_3plustows[year == sa_years_spring[i],]
+  
+  #distances among cells
+  setorder(reduced_year, haulid)
+  
+  lat_lon_haulid <- unique(reduced_year[,.(lat,lon,haulid)])
+  
+  nsites=nrow(lat_lon_haulid)
+  
+  Results_jaccardtotal=matrix(NA,nrow=nsites,ncol=2)
+  Results_jaccardturnover=matrix(NA,nrow=nsites,ncol=2)
+  
+    
+  Results_braytotal=matrix(NA,nrow=nsites,ncol=2)
+  Results_braybalanced=matrix(NA,nrow=nsites,ncol=2)
+  
+  for (j in 1:nrow(lat_lon_haulid)){ #jackknife pulls out one haul id per run
+                  
+                  lat_lon_haulid.m1 <- lat_lon_haulid[-j,]
+                
+                distances <- distm(lat_lon_haulid.m1[,.(lon, lat)])
+                
+                distances.dist <- as.dist(distances)
+                
+                #get rid of any observations in the missing haul
+                haulid.skip <- lat_lon_haulid[j,]$haulid
+                reduced_year.m1 <- reduced_year[haulid != haulid.skip]
+                
+                #throw to wide
+                
+                reduced_year_wide <- dcast(reduced_year.m1, haulid ~ matched_name2, value.var = "wtcpue", fill = 0, fun.aggregate = sum) #long to wide data for community matrix, column names are cell then species
+                
+              #for presence absense matrix, all values !=0 are 1s
+              index <- reduced_year_wide[,1]
+              spp_only <- reduced_year_wide[,2:ncol(reduced_year_wide)]
+              
+              spp_only[spp_only > 0] <- as.numeric(1)
+              
+              reduced_year_wide.pres <- cbind(index, spp_only)
+              
+              #now, use betapart to construct objects to be used in decay models
+              
+              beta.pair.abund <- beta.pair.abund(reduced_year_wide[,2:ncol(reduced_year_wide)], index.family = "bray") #abundances, bray curtis
+              
+              beta.pair <- beta.pair(reduced_year_wide.pres[,2:ncol(reduced_year_wide.pres)], index.family = "jaccard") #occurrences, jaccard
+              
+              
+              #ABUNDANCE
+              
+              #bray balanced (turnover), fitting glm because I can't get betapart to work (no initializing values)
+                s = 1-as.vector(beta.pair.abund$beta.bray.bal)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_braybalanced[j,]=coef(g)
+                
+                
+              #bray total (nestedness and turnover)  
+                s = 1-as.vector(beta.pair.abund$beta.bray)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_braytotal[j,]=coef(g)
+                
+                
+                #OCCURRENCE
+                #jaccard turnover
+                 s = 1-as.vector(beta.pair$beta.jtu)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_jaccardturnover[j,]=coef(g)
+                
+                #total jaccard from pres abs data
+                s = 1-as.vector(beta.pair$beta.jac)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_jaccardtotal[j,]=coef(g)
+              
+                    print(paste0(j,"/",nsites))
+  }
+  
+    Results_braytotal=cbind(Results_braytotal[,1],-Results_braytotal[,2],
+                            exp(Results_braytotal[,1]),-log(2)/Results_braytotal[,2]) #check this calculation, fine for now
+    colnames(Results_braytotal)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_braytotal=rbind(apply(Results_braytotal,2,mean),
+                sqrt(diag(var(Results_braytotal)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_braytotal)=c("Jnife_mean","se")
+      
+    Results_braybalanced=cbind(Results_braybalanced[,1],-Results_braybalanced[,2],
+                            exp(Results_braybalanced[,1]),-log(2)/Results_braybalanced[,2])
+    colnames(Results_braybalanced)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_braybalanced=rbind(apply(Results_braybalanced,2,mean),
+                sqrt(diag(var(Results_braybalanced)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_braybalanced)=c("Jnife_mean","se")
+      
+    Results_jaccardtotal=cbind(Results_jaccardtotal[,1],-Results_jaccardtotal[,2],
+                            exp(Results_jaccardtotal[,1]),-log(2)/Results_jaccardtotal[,2])
+    colnames(Results_jaccardtotal)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_jaccardtotal=rbind(apply(Results_jaccardtotal,2,mean),
+                sqrt(diag(var(Results_jaccardtotal)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_jaccardtotal)=c("Jnife_mean","se")
+      
+    Results_jaccardturnover=cbind(Results_jaccardturnover[,1],-Results_jaccardturnover[,2],
+                            exp(Results_jaccardturnover[,1]),-log(2)/Results_jaccardturnover[,2])
+    colnames(Results_jaccardturnover)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_jaccardturnover=rbind(apply(Results_jaccardturnover,2,mean),
+                sqrt(diag(var(Results_jaccardturnover)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_jaccardturnover)=c("Jnife_mean","se")
+      
+      
+      #mean values of intercept and slope
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_intercept"] <- Summary_jaccardtotal[1,1]
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_slope"] <- Summary_jaccardtotal[1,2]
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_intercept"] <- Summary_jaccardturnover[1,1] 
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_slope"] <- Summary_jaccardturnover[1,2] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_intercept"] <- Summary_braytotal[1,1] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_slope"] <- Summary_braytotal[1,2] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_intercept"] <- Summary_braybalanced[1,1] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_slope"] <- Summary_braybalanced[1,2] 
+      
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_initial"] <- Summary_jaccardtotal[1,3]
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_halving"] <- Summary_jaccardtotal[1,4]
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_initial"] <- Summary_jaccardturnover[1,3] 
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_halving"] <- Summary_jaccardturnover[1,4] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_initial"] <- Summary_braytotal[1,3] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_halving"] <- Summary_braytotal[1,4] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_initial"] <- Summary_braybalanced[1,3] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_halving"] <- Summary_braybalanced[1,4] 
+      
+      #standard error
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_intercept_se"] <- Summary_jaccardtotal[2,1]
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_slope_se"] <- Summary_jaccardtotal[2,2]
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_intercept_se"] <- Summary_jaccardturnover[2,1] 
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_slope_se"] <- Summary_jaccardturnover[2,2] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_intercept_se"] <- Summary_braytotal[2,1] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_slope_se"] <- Summary_braytotal[2,2] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_intercept_se"] <- Summary_braybalanced[2,1] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_slope_se"] <- Summary_braybalanced[2,2] 
+       
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_initial_se"] <- Summary_jaccardtotal[2,3]
+      sa_similarity_mod_coefs_spring[i,"jaccard_total_halving_se"] <- Summary_jaccardtotal[2,4]
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_initial_se"] <- Summary_jaccardturnover[2,3] 
+      sa_similarity_mod_coefs_spring[i, "jaccard_turnover_halving_se"] <- Summary_jaccardturnover[2,4] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_initial_se"] <- Summary_braytotal[2,3] 
+      sa_similarity_mod_coefs_spring[i, "bray_total_halving_se"] <- Summary_braytotal[2,4] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_initial_se"] <- Summary_braybalanced[2,3] 
+      sa_similarity_mod_coefs_spring[i, "bray_balanced_halving_se"] <- Summary_braybalanced[2,4] 
+      
+    
+      print(paste0(i,"/",length(sa_years_spring)))
+}
+
+save(sa_similarity_mod_coefs_spring, file = "sa_similarity_mod_coefs_spring.RData")
+load("sa_similarity_mod_coefs_spring.RData")
+
+
+
+```
+
+Visualizing spring model parameters over time
+```{r visualizing spring model parameters HALVING DISTANCE}
+#jaccard total halving distance
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_spring) +
+  geom_errorbar(aes(ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_jaccard_halving_distance.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_jaccard_halving_distance.eps")
+
+#bray curtis total halving distance
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_spring) +
+  geom_errorbar(aes(ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_bray_halving_distance.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_bray_halving_distance.eps")
+
+```
+
+Now, same, but for spring initial similarity
+```{r visualizing spring model parameters}
+#jaccard initial similarity
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_spring) +
+  geom_errorbar(aes(ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_initial)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_jaccard_initial_similarity.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_jaccard_initial_similarity.eps")
+
+#bray curtis initial similarity
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_spring) +
+  geom_errorbar(aes(ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_initial)) +
+  geom_smooth(method = "lm", aes(y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_bray_curtis_initial_similarity.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_spring_bray_curtis_initial_similarity.eps")
+
+```
+
+
+##Distance decay for FALL SA
+```{r each year build exponential model for fall}
+
+#years
+#order data table by years
+dat_SA_grid.fall.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+setorder(dat_SA_grid.fall.reduced_3plustows, year)
+
+sa_years_fall <- unique(dat_SA_grid.fall.reduced_3plustows[,year])
+
+
+sa_similarity_mod_coefs_fall <- data.table("year" = sa_years_fall)
+
+
+for (i in 1:length(sa_years_fall)) {
+  
+  reduced_year <- dat_SA_grid.fall.reduced_3plustows[year == sa_years_fall[i],]
+  
+  #distances among cells
+  setorder(reduced_year, haulid)
+  
+  lat_lon_haulid <- unique(reduced_year[,.(lat,lon,haulid)])
+  
+  nsites=nrow(lat_lon_haulid)
+  
+  Results_jaccardtotal=matrix(NA,nrow=nsites,ncol=2)
+   Results_jaccardturnover=matrix(NA,nrow=nsites,ncol=2)
+  
+    
+  Results_braytotal=matrix(NA,nrow=nsites,ncol=2)
+  Results_braybalanced=matrix(NA,nrow=nsites,ncol=2)
+  
+  for (j in 1:nrow(lat_lon_haulid)){ #jackknife pulls out one haul id per run
+                  
+                  lat_lon_haulid.m1 <- lat_lon_haulid[-j,]
+                
+                distances <- distm(lat_lon_haulid.m1[,.(lon, lat)])
+                
+                distances.dist <- as.dist(distances)
+                
+                #get rid of any observations in the missing haul
+                haulid.skip <- lat_lon_haulid[j,]$haulid
+                reduced_year.m1 <- reduced_year[haulid != haulid.skip]
+                
+                #throw to wide
+                
+                reduced_year_wide <- dcast(reduced_year.m1, haulid ~ matched_name2, value.var = "wtcpue", fill = 0, fun.aggregate = sum) #long to wide data for community matrix, column names are cell then species
+                
+              #for presence absense matrix, all values !=0 are 1s
+              index <- reduced_year_wide[,1]
+              spp_only <- reduced_year_wide[,2:ncol(reduced_year_wide)]
+              
+              spp_only[spp_only > 0] <- as.numeric(1)
+              
+              reduced_year_wide.pres <- cbind(index, spp_only)
+              
+              #now, use betapart to construct objects to be used in decay models
+              
+              beta.pair.abund <- beta.pair.abund(reduced_year_wide[,2:ncol(reduced_year_wide)], index.family = "bray") #abundances, bray curtis
+              
+              beta.pair <- beta.pair(reduced_year_wide.pres[,2:ncol(reduced_year_wide.pres)], index.family = "jaccard") #occurrences, jaccard
+              
+              
+              #ABUNDANCE
+              
+              #bray balanced (turnover), fitting glm because I can't get betapart to work (no initializing values)
+                s = 1-as.vector(beta.pair.abund$beta.bray.bal)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_braybalanced[j,]=coef(g)
+                
+                
+              #bray total (nestedness and turnover)  
+                s = 1-as.vector(beta.pair.abund$beta.bray)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_braytotal[j,]=coef(g)
+                
+                
+                #OCCURRENCE
+                #jaccard turnover
+                 s = 1-as.vector(beta.pair$beta.jtu)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_jaccardturnover[j,]=coef(g)
+                
+                #total jaccard from pres abs data
+                s = 1-as.vector(beta.pair$beta.jac)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_jaccardtotal[j,]=coef(g)
+              
+                    print(paste0(j,"/",nsites))
+  }
+  
+    Results_braytotal=cbind(Results_braytotal[,1],-Results_braytotal[,2],
+                            exp(Results_braytotal[,1]),-log(2)/Results_braytotal[,2])
+    colnames(Results_braytotal)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_braytotal=rbind(apply(Results_braytotal,2,mean),
+                sqrt(diag(var(Results_braytotal)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_braytotal)=c("Jnife_mean","se")
+      
+    Results_braybalanced=cbind(Results_braybalanced[,1],-Results_braybalanced[,2],
+                            exp(Results_braybalanced[,1]),-log(2)/Results_braybalanced[,2])
+    colnames(Results_braybalanced)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_braybalanced=rbind(apply(Results_braybalanced,2,mean),
+                sqrt(diag(var(Results_braybalanced)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_braybalanced)=c("Jnife_mean","se")
+      
+    Results_jaccardtotal=cbind(Results_jaccardtotal[,1],-Results_jaccardtotal[,2],
+                            exp(Results_jaccardtotal[,1]),-log(2)/Results_jaccardtotal[,2])
+    colnames(Results_jaccardtotal)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_jaccardtotal=rbind(apply(Results_jaccardtotal,2,mean),
+                sqrt(diag(var(Results_jaccardtotal)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_jaccardtotal)=c("Jnife_mean","se")
+      
+    Results_jaccardturnover=cbind(Results_jaccardturnover[,1],-Results_jaccardturnover[,2],
+                            exp(Results_jaccardturnover[,1]),-log(2)/Results_jaccardturnover[,2])
+    colnames(Results_jaccardturnover)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_jaccardturnover=rbind(apply(Results_jaccardturnover,2,mean),
+                sqrt(diag(var(Results_jaccardturnover)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_jaccardturnover)=c("Jnife_mean","se")
+      
+      
+      #mean values of intercept and slope
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_intercept"] <- Summary_jaccardtotal[1,1]
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_slope"] <- Summary_jaccardtotal[1,2]
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_intercept"] <- Summary_jaccardturnover[1,1] 
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_slope"] <- Summary_jaccardturnover[1,2] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_intercept"] <- Summary_braytotal[1,1] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_slope"] <- Summary_braytotal[1,2] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_intercept"] <- Summary_braybalanced[1,1] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_slope"] <- Summary_braybalanced[1,2] 
+      
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_initial"] <- Summary_jaccardtotal[1,3]
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_halving"] <- Summary_jaccardtotal[1,4]
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_initial"] <- Summary_jaccardturnover[1,3] 
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_halving"] <- Summary_jaccardturnover[1,4] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_initial"] <- Summary_braytotal[1,3] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_halving"] <- Summary_braytotal[1,4] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_initial"] <- Summary_braybalanced[1,3] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_halving"] <- Summary_braybalanced[1,4] 
+      
+      #standard error
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_intercept_se"] <- Summary_jaccardtotal[2,1]
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_slope_se"] <- Summary_jaccardtotal[2,2]
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_intercept_se"] <- Summary_jaccardturnover[2,1] 
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_slope_se"] <- Summary_jaccardturnover[2,2] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_intercept_se"] <- Summary_braytotal[2,1] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_slope_se"] <- Summary_braytotal[2,2] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_intercept_se"] <- Summary_braybalanced[2,1] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_slope_se"] <- Summary_braybalanced[2,2] 
+      
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_initial_se"] <- Summary_jaccardtotal[2,3]
+      sa_similarity_mod_coefs_fall[i,"jaccard_total_halving_se"] <- Summary_jaccardtotal[2,4]
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_initial_se"] <- Summary_jaccardturnover[2,3] 
+      sa_similarity_mod_coefs_fall[i, "jaccard_turnover_halving_se"] <- Summary_jaccardturnover[2,4] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_initial_se"] <- Summary_braytotal[2,3] 
+      sa_similarity_mod_coefs_fall[i, "bray_total_halving_se"] <- Summary_braytotal[2,4] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_initial_se"] <- Summary_braybalanced[2,3] 
+      sa_similarity_mod_coefs_fall[i, "bray_balanced_halving_se"] <- Summary_braybalanced[2,4] 
+      
+    
+      print(paste0(i,"/",length(sa_years_fall)))
+}
+
+saveRDS(sa_similarity_mod_coefs_fall, file = "sa_similarity_mod_coefs_fall.rds")
+sa_similarity_mod_coefs_fall <- readRDS("sa_similarity_mod_coefs_fall.rds")
+
+```
+
+##Visualizing fall model parameters over time
+```{r visualizing fall model parameters jaccard halving distance}
+#jaccard total halving distance
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_fall) +
+  geom_errorbar(aes(ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+ # ylim(170,1600) +
+  labs(x = "Year", y = "Jaccard Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_jaccard_halving_distance.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_jaccard_halving_distance.eps")
+
+#bray curtis total halving distance
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_fall) +
+  geom_errorbar(aes(ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Similarity Halving Distance (km)") +
+#  ylim(150,750) +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_bray_halving_distance.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_bray_halving_distance.eps")
+
+```
+Now, same, but for fall initial similarity
+```{r visualizing fall model parameters initial similarity}
+#jaccard initial similarity
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_fall) +
+  geom_errorbar(aes(ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_initial)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_jaccard_initial_similarity.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_jaccard_initial_similarity.eps")
+
+#bray curtis initial similarity
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_fall) +
+  geom_errorbar(aes(ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_initial)) +
+  geom_smooth(method = "lm", aes(y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_bray_curtis_initial_similarity.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_fall_bray_curtis_initial_similarity.eps")
+
+```
+
+##Distance decay for SUMMER SA
+```{r each year build exponential model for summer}
+
+#years
+#order data table by years
+dat_SA_grid.summer.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+setorder(dat_SA_grid.summer.reduced_3plustows, year)
+
+sa_years_summer <- unique(dat_SA_grid.summer.reduced_3plustows[,year])
+
+
+sa_similarity_mod_coefs_summer <- data.table("year" = sa_years_summer)
+
+
+for (i in 1:length(sa_years_summer)) {
+  
+  reduced_year <- dat_SA_grid.summer.reduced_3plustows[year == sa_years_summer[i],]
+  
+  #distances among cells
+  setorder(reduced_year, haulid)
+  
+  lat_lon_haulid <- unique(reduced_year[,.(lat,lon,haulid)])
+  
+  nsites=nrow(lat_lon_haulid)
+  
+  Results_jaccardtotal=matrix(NA,nrow=nsites,ncol=2)
+   Results_jaccardturnover=matrix(NA,nrow=nsites,ncol=2)
+  
+    
+  Results_braytotal=matrix(NA,nrow=nsites,ncol=2)
+  Results_braybalanced=matrix(NA,nrow=nsites,ncol=2)
+  
+  for (j in 1:nrow(lat_lon_haulid)){ #jackknife pulls out one haul id per run
+                  
+                  lat_lon_haulid.m1 <- lat_lon_haulid[-j,]
+                
+                distances <- distm(lat_lon_haulid.m1[,.(lon, lat)])
+                
+                distances.dist <- as.dist(distances)
+                
+                #get rid of any observations in the missing haul
+                haulid.skip <- lat_lon_haulid[j,]$haulid
+                reduced_year.m1 <- reduced_year[haulid != haulid.skip]
+                
+                #throw to wide
+                
+                reduced_year_wide <- dcast(reduced_year.m1, haulid ~ matched_name2, value.var = "wtcpue", fill = 0, fun.aggregate = sum) #long to wide data for community matrix, column names are cell then species
+                
+              #for presence absense matrix, all values !=0 are 1s
+              index <- reduced_year_wide[,1]
+              spp_only <- reduced_year_wide[,2:ncol(reduced_year_wide)]
+              
+              spp_only[spp_only > 0] <- as.numeric(1)
+              
+              reduced_year_wide.pres <- cbind(index, spp_only)
+              
+              #now, use betapart to construct objects to be used in decay models
+              
+              beta.pair.abund <- beta.pair.abund(reduced_year_wide[,2:ncol(reduced_year_wide)], index.family = "bray") #abundances, bray curtis
+              
+              beta.pair <- beta.pair(reduced_year_wide.pres[,2:ncol(reduced_year_wide.pres)], index.family = "jaccard") #occurrences, jaccard
+              
+              
+              #ABUNDANCE
+              
+              #bray balanced (turnover), fitting glm because I can't get betapart to work (no initializing values)
+                s = 1-as.vector(beta.pair.abund$beta.bray.bal)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_braybalanced[j,]=coef(g)
+                
+                
+              #bray total (nestedness and turnover)  
+                s = 1-as.vector(beta.pair.abund$beta.bray)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_braytotal[j,]=coef(g)
+                
+                
+                #OCCURRENCE
+                #jaccard turnover
+                 s = 1-as.vector(beta.pair$beta.jtu)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_jaccardturnover[j,]=coef(g)
+                
+                #total jaccard from pres abs data
+                s = 1-as.vector(beta.pair$beta.jac)
+                d = as.vector(distances.dist)
+                g = suppressWarnings(glm(s~d,family=binomial(link='log')))
+                  
+                      Results_jaccardtotal[j,]=coef(g)
+              
+                    print(paste0(j,"/",nsites))
+  }
+  
+    Results_braytotal=cbind(Results_braytotal[,1],-Results_braytotal[,2],
+                            exp(Results_braytotal[,1]),-log(2)/Results_braytotal[,2])
+    colnames(Results_braytotal)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_braytotal=rbind(apply(Results_braytotal,2,mean),
+                sqrt(diag(var(Results_braytotal)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_braytotal)=c("Jnife_mean","se")
+      
+    Results_braybalanced=cbind(Results_braybalanced[,1],-Results_braybalanced[,2],
+                            exp(Results_braybalanced[,1]),-log(2)/Results_braybalanced[,2])
+    colnames(Results_braybalanced)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_braybalanced=rbind(apply(Results_braybalanced,2,mean),
+                sqrt(diag(var(Results_braybalanced)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_braybalanced)=c("Jnife_mean","se")
+      
+    Results_jaccardtotal=cbind(Results_jaccardtotal[,1],-Results_jaccardtotal[,2],
+                            exp(Results_jaccardtotal[,1]),-log(2)/Results_jaccardtotal[,2])
+    colnames(Results_jaccardtotal)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_jaccardtotal=rbind(apply(Results_jaccardtotal,2,mean),
+                sqrt(diag(var(Results_jaccardtotal)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_jaccardtotal)=c("Jnife_mean","se")
+      
+    Results_jaccardturnover=cbind(Results_jaccardturnover[,1],-Results_jaccardturnover[,2],
+                            exp(Results_jaccardturnover[,1]),-log(2)/Results_jaccardturnover[,2])
+    colnames(Results_jaccardturnover)=c("a_intercept","beta_slope","s0","halfd")
+    Summary_jaccardturnover=rbind(apply(Results_jaccardturnover,2,mean),
+                sqrt(diag(var(Results_jaccardturnover)*(nsites-1)*(1-1/nsites))))
+      rownames(Summary_jaccardturnover)=c("Jnife_mean","se")
+      
+      
+      #mean values of intercept and slope
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_intercept"] <- Summary_jaccardtotal[1,1]
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_slope"] <- Summary_jaccardtotal[1,2]
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_intercept"] <- Summary_jaccardturnover[1,1] 
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_slope"] <- Summary_jaccardturnover[1,2] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_intercept"] <- Summary_braytotal[1,1] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_slope"] <- Summary_braytotal[1,2] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_intercept"] <- Summary_braybalanced[1,1] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_slope"] <- Summary_braybalanced[1,2] 
+      
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_initial"] <- Summary_jaccardtotal[1,3]
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_halving"] <- Summary_jaccardtotal[1,4]
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_initial"] <- Summary_jaccardturnover[1,3] 
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_halving"] <- Summary_jaccardturnover[1,4] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_initial"] <- Summary_braytotal[1,3] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_halving"] <- Summary_braytotal[1,4] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_initial"] <- Summary_braybalanced[1,3] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_halving"] <- Summary_braybalanced[1,4] 
+      
+      #standard error
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_intercept_se"] <- Summary_jaccardtotal[2,1]
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_slope_se"] <- Summary_jaccardtotal[2,2]
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_intercept_se"] <- Summary_jaccardturnover[2,1] 
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_slope_se"] <- Summary_jaccardturnover[2,2] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_intercept_se"] <- Summary_braytotal[2,1] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_slope_se"] <- Summary_braytotal[2,2] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_intercept_se"] <- Summary_braybalanced[2,1] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_slope_se"] <- Summary_braybalanced[2,2] 
+      
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_initial_se"] <- Summary_jaccardtotal[2,3]
+      sa_similarity_mod_coefs_summer[i,"jaccard_total_halving_se"] <- Summary_jaccardtotal[2,4]
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_initial_se"] <- Summary_jaccardturnover[2,3] 
+      sa_similarity_mod_coefs_summer[i, "jaccard_turnover_halving_se"] <- Summary_jaccardturnover[2,4] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_initial_se"] <- Summary_braytotal[2,3] 
+      sa_similarity_mod_coefs_summer[i, "bray_total_halving_se"] <- Summary_braytotal[2,4] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_initial_se"] <- Summary_braybalanced[2,3] 
+      sa_similarity_mod_coefs_summer[i, "bray_balanced_halving_se"] <- Summary_braybalanced[2,4] 
+      
+    
+      print(paste0(i,"/",length(sa_years_summer)))
+}
+
+saveRDS(sa_similarity_mod_coefs_summer, file = "sa_similarity_mod_coefs_summer.rds")
+sa_similarity_mod_coefs_summer <- readRDS("sa_similarity_mod_coefs_summer.rds")
+
+```
+
+##Visualizing summer model parameters over time
+```{r visualizing summer model parameters jaccard halving distance}
+#jaccard total halving distance
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_summer) +
+  geom_errorbar(aes(ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+ # ylim(170,1600) +
+  labs(x = "Year", y = "Jaccard Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_jaccard_halving_distance.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_jaccard_halving_distance.eps")
+
+#bray curtis total halving distance
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_summer) +
+  geom_errorbar(aes(ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_halving/1000)) +
+  geom_smooth(method = "lm", aes(y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Similarity Halving Distance (km)") +
+#  ylim(150,750) +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_bray_halving_distance.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_bray_halving_distance.eps")
+
+```
+Now, same, but for summer initial similarity
+```{r visualizing summer model parameters initial similarity}
+#jaccard initial similarity
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_summer) +
+  geom_errorbar(aes(ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = jaccard_total_initial)) +
+  geom_smooth(method = "lm", aes(y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_jaccard_initial_similarity.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_jaccard_initial_similarity.eps")
+
+#bray curtis initial similarity
+ggplot(aes(x = as.numeric(year)), data = sa_similarity_mod_coefs_summer) +
+  geom_errorbar(aes(ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(aes(y = bray_total_initial)) +
+  geom_smooth(method = "lm", aes(y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+  geom_errorbar(aes(ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(aes(y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(method = "lm", aes(y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_bray_curtis_initial_similarity.jpg")
+ggsave(path = here::here("figures","sa"),filename = "sa_summer_bray_curtis_initial_similarity.eps")
+
+```
+
+##Plot both seasons together
+
+Halving distance
+
+```{r both jaccard together halving distance}
+#jaccard total halving distance
+ggplot() +
+  #spring
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_total_halving/1000)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_total_halving/1000-jaccard_total_halving_se/1000, ymax = jaccard_total_halving/1000+jaccard_total_halving_se/1000), alpha = 0.3) +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_total_halving/1000),shape = 15, color = "grey") +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_total_halving/1000),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_turnover_halving/1000-jaccard_turnover_halving_se/1000, ymax = jaccard_turnover_halving/1000+jaccard_turnover_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_halving/1000), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"), filename = "sa_bothseasons_jaccard_halvingdistance.jpg", height = 4, width = 4, unit = "in")
+```
+Both Bray together
+```{r both bray together halving}
+#jbray total halving distance
+ggplot() +
+  #spring
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3, color = "black") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_total_halving/1000)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_total_halving/1000), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_balanced_halving/1000), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_balanced_halving/1000), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_total_halving/1000-bray_total_halving_se/1000, ymax = bray_total_halving/1000+bray_total_halving_se/1000), alpha = 0.3) +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_total_halving/1000),shape = 15, color = "grey") +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_total_halving/1000),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_balanced_halving/1000-bray_balanced_halving_se/1000, ymax = bray_balanced_halving/1000+bray_balanced_halving_se/1000), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_balanced_halving/1000), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_balanced_halving/1000), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Similarity Halving Distance (km)") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"), filename = "sa_bothseasons_bray_halvingdistance.jpg", height = 4, width = 4, unit = "in")
+```
+Now, same but for initial sim
+Jaccard initial similarity
+```{r both seasons jaccard initial similarity}
+#jaccard initial similarity
+ggplot() +
+  #spring
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_total_initial)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = jaccard_turnover_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_total_initial-jaccard_total_initial_se, ymax = jaccard_total_initial+jaccard_total_initial_se), alpha = 0.3) +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_total_initial),shape = 15, color = "grey") +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_total_initial),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = jaccard_turnover_initial-jaccard_turnover_initial_se, ymax = jaccard_turnover_initial+jaccard_turnover_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = jaccard_turnover_initial), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = jaccard_turnover_initial), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Jaccard Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"), filename = "sa_bothseasons_jaccard_initialdistance.jpg", height = 4, width = 4, unit = "in")
+```
+
+Both seasons of Bray together
+```{r both bray together initial similarity sa}
+#bray initial similarity
+ggplot() +
+  #spring
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3, color = "black") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_total_initial)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_total_initial), linetype = 1, color = "black", se = F, alpha = 0.4) +
+#  geom_errorbar(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_spring, aes(x = as.numeric(year), y = bray_balanced_initial), color = "aquamarine4", position = position_dodge(width = 0.3)) +
+  geom_smooth(data = sa_similarity_mod_coefs_spring, method = "lm", aes(x = as.numeric(year), y = bray_balanced_initial), linetype = 1, color = "aquamarine4", se = F, alpha = 0.4) +
+  
+    #fall
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_total_initial-bray_total_initial_se, ymax = bray_total_initial+bray_total_initial_se), alpha = 0.3) +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_total_initial),shape = 15, color = "grey") +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_total_initial),  color = "grey", se = F, alpha = 0.4,linetype = "dashed") +
+#  geom_errorbar(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), ymin = bray_balanced_initial-bray_balanced_initial_se, ymax = bray_balanced_initial+bray_balanced_initial_se), alpha = 0.3, color = "green") +
+  geom_point(data = sa_similarity_mod_coefs_fall, aes(x = as.numeric(year), y = bray_balanced_initial), color = "aquamarine2", position = position_dodge(width = 0.3),shape = 15) +
+  geom_smooth(data = sa_similarity_mod_coefs_fall, method = "lm", aes(x = as.numeric(year), y = bray_balanced_initial), linetype = "dashed", color = "aquamarine2", se = F, alpha = 0.4) +
+  labs(x = "Year", y = "Bray Curtis Initial Similarity") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+ggsave(path = here::here("figures","sa"), filename = "sa_bothseasons_bray_initialdistance.jpg", height = 4, width = 4, unit = "in")
+```

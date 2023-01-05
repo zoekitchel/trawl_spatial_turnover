@@ -1,0 +1,215 @@
+---
+title: "Prepping SHELF Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
+```
+
+
+Moving forward, I plan to use data directly from FishGlob.
+
+November 21, 2021
+```{r pull in data from fishglob for Scotian Shelf from Google Drive}
+drive_download("SCS_clean.csv",
+               overwrite = T)
+
+shelf <- fread("SCS_clean.csv")
+
+file.remove("SCS_clean.csv")
+
+```
+
+```{r pull in SHELF}
+
+# Get Unique lines in the data table
+unique_shelf_latlon<- unique(shelf[,.(latitude, longitude)])
+unique_shelf_latlon.sf <- unique_shelf_latlon
+  
+#make lat lon coordinates into polygon
+coordinates(unique_shelf_latlon.sf) <- ~latitude + longitude
+unique_shelf_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_shelf_latlon, "unique_shelf_latlon.RData")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-75, -55,38, 50)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_shelf_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_shelf_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for shelf trawl
+
+#centersof cells
+shelf_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_shelf_latlon[,cell])
+
+#linking cell centers to unique_shelf_latlon
+unique_shelf_latlon[,LON_CENTER := shelf_cellcenters$lon_deg][,LAT_CENTER := shelf_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+shelf <- merge(shelf, unique_shelf_latlon, by = c("latitude", "longitude"))
+
+#number of tows in each cell
+towcount <- unique_shelf_latlon[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_shelf <- dgcellstogrid(dggs, unique_shelf_latlon[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_shelf <- merge(grid, unique_shelf_latlon, by = "cell")
+
+ggplot(data = grid_shelf, aes(x = long, y = lat, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_shelf, "grid_shelf.rds")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying}
+
+na_outline + 
+   geom_polygon(grid_shelf, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "grid_SHELF_cells_spacing_111.pdf")
+  
+```
+
+Now, we'll overlay grid cells onto this list of tows (shelf) using lat and lon and gridrr package
+```{r get rid of underused grid cells}
+
+year_grid <- data.table(table(shelf$cell, shelf$year))
+
+#there are some grid cells with infrequent records, I will delete these
+grid_cells_to_exclude <- unique(year_grid[N == 0]$V1)
+
+#delete these grid cells from full data table
+shelf.reduced <- shelf[!cell %in% grid_cells_to_exclude]
+
+#270643 observations left, this should be great
+
+#how many tows (TOW) per cell in a given year
+
+haul_cell_unique <- unique(shelf.reduced[,.(haul_id, cell, year)])
+
+shelf_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
+
+shelf_cells_lessthan3 <- shelf_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(shelf_cells_lessthan3[,cell])
+
+shelf.reduced.again <- shelf.reduced[!cell %in% cells_to_delete]
+
+#down to 114793 observations
+
+saveRDS(shelf.reduced.again, "shelf_data_gridded.rds")
+
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells}
+#just need grid cell # and center lat lon for each grid cell 
+shelf_grid_cells <- unique(shelf.reduced.again[,.(cell, LON_CENTER, LAT_CENTER)])
+
+shelf_grid_cells <- setorder(shelf_grid_cells, cell)
+
+shelf_reg_distances <- distm(shelf_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(shelf_reg_distances) <- shelf_grid_cells$cell
+rownames(shelf_reg_distances) <- shelf_grid_cells$cell
+
+#reorient to long form 
+shelf_reg_distances.l <- melt(as.matrix(shelf_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+shelf_reg_distances.l <- data.table(shelf_reg_distances.l) #and then to data table
+shelf_reg_distances.l <- shelf_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+saveRDS(shelf_reg_distances.l, "shelf_reg_distances.l.rds")
+```
+
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo}
+#cell/year/region combos
+shelf_unique_tows_cell <- shelf.reduced[,.SD[1],.(year, cell, haul_id)]
+
+#no years have way more tows than others
+plot(shelf_unique_tows_cell[,.N,.(year,cell)]$year, shelf_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(shelf_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 54/558 cell/year combos  (9.7%)
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows}
+shelf_counts <- shelf_unique_tows_cell[,.N,.(year,cell)]
+shelf_keep <- shelf_counts[N>2,][,N := NULL]
+
+shelf_grid.reduced_3plustows <- shelf.reduced[shelf_keep, on = .(cell, year)]
+
+
+```
+
+Summary of area sampled
+```{r sum area sampled}
+#distance between furthest north and furthest south point
+library(geosphere)
+max_north_south_km <- (distm(c(mean(shelf_grid.reduced_3plustows$longitude), min(shelf_grid.reduced_3plustows$latitude)), c(mean(shelf_grid.reduced_3plustows$longitude), max(shelf_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+#distance between furthest east and furthest west point
+max_west_east_km <- (distm(c(min(shelf_grid.reduced_3plustows$longitude), mean(shelf_grid.reduced_3plustows$latitude)), c(max(shelf_grid.reduced_3plustows$longitude), mean(shelf_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+
+max_north_south_km
+max_west_east_km
+
+summary(shelf_grid.reduced_3plustows$depth)
+
+length(unique(shelf_grid.reduced_3plustows$accepted_name))
+```
+
+Save
+```{r save}
+saveRDS(shelf.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SHELF/shelf_grid.reduced.rds")
+
+
+saveRDS(shelf_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SHELF/shelf_reg_distances.l.rds")
+
+saveRDS(shelf_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-SHELF/shelf_grid.reduced_3plustows.rds")
+
+
+```

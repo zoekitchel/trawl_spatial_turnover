@@ -1,0 +1,101 @@
+---
+title: "iNEXT_EBS_Richness"
+output: html_notebook
+---
+I will plot how richness changes over time but will use iNEXT to calculate richness
+
+```{r setup}
+library(data.table)
+library(iNEXT)
+```
+
+Abundance Data
+```{r abundance data}
+ebs_data <- readRDS("ebs_data_gridded.RData")
+
+head(ebs_data)
+```
+First, we will plot richness for the entire region (ignoring cells)
+
+Format as data frame with species as rows and years as columns , "wtcpue - numeric - the weight in kilograms captured per unit effort"
+
+```{r sum across years}
+ebs_data_year <- ebs_data[,wtcpue_sum := sum(wtcpue, na.rm = T), .(matched_name2, year)][,wtcpue_sum_round := round(wtcpue_sum, 0)]
+
+ebs_data_year.r <- unique(ebs_data_year[,.(matched_name2, year, wtcpue_sum_round)])
+```
+I want to calculate richness for each individual year (site)
+```{r all years x abundances}
+
+#list of years 
+ebs_years <- unique(ebs_data_year.r[,year])
+sort(ebs_years)
+
+#long to wide
+ebs_wide <- dcast(ebs_data_year.r, matched_name2 ~ year, value.var = "wtcpue_sum_round", fill = 0)
+
+```
+
+Apply iNEXT. iNEXT will literally only take data frames, so, I will make it into a data frame first.
+```{r applying iNEXT to overall richness}
+ebs_wide.df <- data.frame(ebs_wide)
+
+ebs_overall_biomass_iNEXT_richness <- iNEXT(ebs_wide.df[,2:length(ebs_wide.df)], q = 0, datatype = "abundance")
+saveRDS(ebs_overall_biomass_iNEXT_richness, "ebs_overall_biomass_iNEXT_richness.RData")
+
+ebs_overall_biomass_iNEXT_shannon <- iNEXT(ebs_wide.df[,2:length(ebs_wide.df)], q = 1, datatype = "abundance") #how to deal with the fact abundance should be a round number
+saveRDS(ebs_overall_biomass_iNEXT_shannon, "ebs_overall_biomass_iNEXT_shannon.RData")
+
+
+ebs_overall_biomass_iNEXT_simpson <- iNEXT(ebs_wide.df[,2:length(ebs_wide.df)], q = 2, datatype = "abundance")
+saveRDS(ebs_overall_biomass_iNEXT_simpson, "ebs_overall_biomass_iNEXT_simpson.RData")
+# to assess sample completeness (this takes a bit), iNEXT focuses on three measures of Hill numbers of order q: species richness (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and Simpson diversity (q = 2, the inverse of Simpson concentration), I should look at all three
+
+ebs_overall_iNEXT_min_coverage_richness <- min(ebs_overall_biomass_iNEXT_richness$DataInfo$SC)
+ebs_overall_iNEXT_min_coverage_shannon <- min(ebs_overall_biomass_iNEXT_shannon$DataInfo$SC)
+ebs_overall_iNEXT_min_coverage_simpson <- min(ebs_overall_biomass_iNEXT_simpson$DataInfo$SC)
+
+#minimum sample coverage across sites is 0.9998, so this will be my SC value
+
+#this step below takes a long time as well... keep in mind
+
+ebs_overall_diversity_richness <- estimateD(ebs_wide.df[,2:length(ebs_wide.df)], datatype = "abundance", base = "coverage", level = ebs_overall_iNEXT_min_coverage_richness) # compare point diversities for specified completeness
+
+saveRDS(ebs_overall_diversity_richness, file = "ebs_overall_diversity_richness.RData")
+
+ebs_overall_diversity_shannon <- estimateD(ebs_wide.df[,2:length(ebs_wide.df)], datatype = "abundance", base = "coverage", level = ebs_overall_iNEXT_min_coverage_shannon) # compare point diversities for specified completeness
+
+saveRDS(ebs_overall_diversity_shannon, file = "ebs_overall_diversity_shannon.RData")
+
+ebs_overall_diversity_simpson <- estimateD(ebs_wide.df[,2:length(ebs_wide.df)], datatype = "abundance", base = "coverage", level = ebs_overall_iNEXT_min_coverage_simpson) # compare point diversities for specified completeness
+
+saveRDS(ebs_overall_diversity_simpson, file = "ebs_overall_diversity_simpson.RData")
+#only thing that would change above is coverage estimates (q = 0-2)
+
+#convert to data table to make easier to manipulate
+ebs_overall_diversity_richness.dt <- data.table(ebs_overall_diversity_richness)
+ebs_overall_diversity_shannon.dt <- data.table(ebs_overall_diversity_shannon)
+ebs_overall_diversity_simpson.dt <- data.table(ebs_overall_diversity_simpson)
+
+ebs_overall_diversity_richness.dt[,year := as.numeric(substr(site, 2, 5))][,metric_type := "richness"]
+ebs_overall_diversity_shannon.dt[,year := as.numeric(substr(site, 2, 5))][,metric_type := "shannon"]
+ebs_overall_diversity_simpson.dt[,year := as.numeric(substr(site, 2, 5))][,metric_type := "simpson"]
+
+#... turns out it calculates all three metrics (hill numbers) for you anyway... no need to do three times, cool bro
+
+#rarefied richness overtime plot
+ggplot(aes(x = year, y = qD), data = ebs_overall_diversity_richness.dt[order == 0,]) +
+  geom_smooth(aes(ymin = qD.LCL, ymax = qD.UCL), stat = "identity", color = "black") +
+  labs(x= "Year", y = "Estimated Richness") +
+  theme_classic() +
+  theme(text = element_text(size=20))
+
+#simpson and shannon diversity plot
+ggplot(aes(x = year, y = qD, linetype = as.factor(order)), data = ebs_overall_diversity_richness.dt[order != 0,]) +
+  geom_smooth(aes(ymin = qD.LCL, ymax = qD.UCL), stat = "identity", color = "black", alpha = 3) +
+  labs(x= "Year", y = "Diversity Metric") +
+  theme_classic() +
+  theme(text = element_text(size=20))
+
+
+```

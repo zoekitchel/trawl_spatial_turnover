@@ -1,0 +1,283 @@
+---
+title: "Prepping GOA Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
+```
+
+
+Moving forward, I plan to use data directly from FishGlob.
+
+November 21, 2021
+```{r pull in data from fishglob for West Coast Triennial from Google Drive}
+drive_download("GOA_clean.csv",
+               overwrite = T)
+
+goa <- fread("GOA_clean.csv")
+
+file.remove("GOA_clean.csv")
+
+```
+
+```{r pull in GOA}
+
+# Get Unique lines in the data table
+unique_goa_latlon<- unique(goa[,.(latitude, longitude)])
+unique_goa_latlon.sf <- unique_goa_latlon
+  
+#make lat lon coordinates into polygon
+coordinates(unique_goa_latlon.sf) <- ~latitude + longitude
+unique_goa_latlon.sf@proj4string <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+saveRDS(unique_goa_latlon, "unique_goa_latlon.RData")
+
+#plot north america
+world <- ne_countries(scale = "medium", returnclass = "sp")
+
+world_ext <- extent(-175, -125,50, 60)
+
+north_america_spdf <- crop(world, world_ext)
+
+north_america_df <- fortify(north_america_spdf)
+
+(na_outline <- ggplot(north_america_df, aes(long, lat, group = group)) +
+  geom_polygon(color = "white", fill = "grey") +
+  labs(x = "Longitude", y = "Latitude") +
+  coord_equal() +
+  theme_classic() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+ geom_point(unique_goa_latlon, mapping = aes(longitude, latitude), inherit.aes = FALSE, shape = 18, size = 0.001, color = "red") +
+  coord_equal())
+
+```
+
+Playing around with dggridR (package that makes grid cells)
+```{r learning dggridR}
+dggs <- dgconstruct(spacing = 111, metric = T, resround = 'nearest')
+
+unique_goa_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for NEUS trawl
+
+#centersof cells
+goa_cellcenters <- dgSEQNUM_to_GEO(dggs, unique_goa_latlon[,cell])
+
+#linking cell centers to unique_goa_latlon
+unique_goa_latlon[,LON_CENTER := goa_cellcenters$lon_deg][,LAT_CENTER := goa_cellcenters$lat_deg]
+
+#link centers back to main data table
+
+goa <- merge(goa, unique_goa_latlon, by = c("latitude", "longitude"))
+
+#number of tows in each cell
+towcount <- unique_goa_latlon[, .N, by = cell]
+
+#get the grid cell boundary for cells which had trawls
+grid_goa <- dgcellstogrid(dggs, unique_goa_latlon[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_goa <- merge(grid, unique_goa_latlon, by.x = "cell", by.y ="cell")
+
+ggplot(data = grid_goa, aes(x = long, y = lat, group = cell)) +
+  geom_polygon() +
+  coord_quickmap()
+
+saveRDS(grid_goa, "grid_goa.rds")
+
+```
+
+Trying to plot with grid overlaying
+```{r grid overlaying}
+
+na_outline + 
+   geom_polygon(grid_goa, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, color = "black", fill = NA, size = 0.1)
+
+ggsave(filename = "grid_GOA_cells_spacing_111.pdf")
+  
+```
+
+Cleaning spp names (must be ID'd to species!) NEED TO ADD TO OTHER REGIONS
+```{r clean GOA names}
+goa.clean <- goa[rank == "Species",]
+#drops ~1,000
+```
+
+
+Now, we'll overlay grid cells onto this list of tows using LAT and LON and gridrr package
+```{r get rid of underused grid cells}
+
+year_grid <- data.table(table(goa.clean$cell, goa.clean$year))
+
+#full matrix of year x grid x  cell
+cell_numbers <- unique(goa.clean$cell)
+years <- unique(goa.clean$year)
+seasons <- unique(goa.clean$region)
+
+cells_cross_years_cross_region <- data.table(expand.grid(cell = cell_numbers, year = years, region = seasons))
+
+observations <- unique(goa.clean[,.N,by = c("year","cell")])
+
+#merge possible cell year region combinations with actual observations
+goa_cell_data_nodata <- observations[cells_cross_years_cross_region, on = .(year, cell)]
+
+#new pres/abs column
+goa_cell_data_nodata[,pres := ifelse(is.na(N), 0, 1)]
+
+#which grid cells are sampled in which years?
+ggplot(goa_cell_data_nodata, aes(as.factor(year), as.factor(cell))) + 
+  geom_tile(aes(fill = factor(pres)), color = "grey", size = 0.01) +
+#  facet_wrap(~region, scales="free") +
+  scale_fill_manual(values = c("white", "black"), breaks = c(0,1), labels = c("No Data", "Data")) +
+  labs(x = "Year", y = "Cell") +
+  theme(legend.title = element_blank(),
+        axis.text.y = element_text(size = 4),
+        axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5),
+        strip.text.x = element_text(size = 10),
+        axis.ticks = element_blank())
+
+ggsave(filename = "goa_data_availability.jpg", path = "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/")
+
+```
+Delete cells that aren't sampled regularly (missing more than 2 years from 1984-2017):
+
+- 59451
+- 59370
+- 2210
+- 1805
+- 1642
+- 1640
+- 1477
+- 1395
+- 1233
+- 1229
+- 1146
+- 1063
+- 986
+- 815
+- 489
+
+
+
+Infrequently sampled cells (cells with less than 1 survey in a region every year)
+```{r infrequently sampled cells}
+#dump 
+dump <- c(59451, 59370, 2210, 1805, 1642, 1640, 1477, 1395, 1233, 1229, 1146, 1063, 986, 815, 489)
+
+
+#delete these grid cells from full data table
+goa_grid.reduced <- goa.clean[!cell %in% dump]
+dim(goa_grid.reduced )
+#117560 observations left
+
+```
+
+This is where I would use rarefaction or coverage, for now I will skip
+```{r rarefaction or coverage?}
+#how many tows (TOW) per cell in a given year
+
+haul_cell_unique <- unique(goa_grid.reduced[,.(haul_id, cell, year)])
+
+goa_samplingevents_byyear <- haul_cell_unique[,.N, .(year, cell)]
+
+goa_cells_lessthan3 <- goa_samplingevents_byyear[N<3,]
+
+cells_to_delete <- unique(goa_cells_lessthan3[,cell])
+
+dat_goa.reduced.again <- goa_grid.reduced[!cell %in% cells_to_delete]
+
+#down to 1582496   observations
+
+saveRDS(dat_goa.reduced.again, "goa_data_gridded.rds")
+
+```
+
+Find distance between center of each grid cell
+```{r distance between grid cells}
+#just need grid cell # and center lat lon for each grid cell 
+goa_grid_cells <- unique(goa_grid.reduced[,.(cell, LON_CENTER, LAT_CENTER)])
+
+goa_grid_cells <- setorder(goa_grid_cells, cell)
+
+goa_reg_distances <- distm(goa_grid_cells[,.(LON_CENTER, LAT_CENTER)])
+
+colnames(goa_reg_distances) <- goa_grid_cells$cell
+rownames(goa_reg_distances) <- goa_grid_cells$cell
+
+#reorient to long form 
+goa_reg_distances.l <- melt(as.matrix(goa_reg_distances), varnames = c("cell1", "cell2"), value.name = "distance(m)") #matrix to data frame
+goa_reg_distances.l <- data.table(goa_reg_distances.l) #and then to data table
+goa_reg_distances.l <- goa_reg_distances.l[cell1 > cell2,] # get rid of repetitions and self-comparisons
+saveRDS(goa_reg_distances.l, "goa_reg_distances.l.rds")
+```
+
+Check the # of tows per grid cell/year combo
+```{r number of tows per grid cell/year/region combo}
+#cell/year/region combos
+goa_unique_tows_cell <- goa_grid.reduced[,.SD[1],.(year, cell, haul_id)]
+
+#no years have way more tows than others
+plot(goa_unique_tows_cell[,.N,.(year,cell)]$year, goa_unique_tows_cell[,.N,.(year,cell)]$N)
+
+#therefore, I will not leave out any years, but rather just pull out cells in years they are undersampled (<N=3, which is )
+
+summary(goa_unique_tows_cell[,.N,.(year,cell)]$N < 3) #this occurs in 50/839 cell/year combos  (6%, no biggie)
+
+#I don't think I need to exclude in ALL years, just in a few years
+#an alternative would be to assess coverage using biomass (# of singletons and doubletons)
+
+```
+
+Delete all observations with less than 3 tows in a given year/cell
+```{r delete observations with less than 3 tows}
+goa_counts <- goa_unique_tows_cell[,.N,.(year,cell)]
+goa_keep <- goa_counts[N>2,][,N := NULL]
+
+dat_goa_grid.reduced_3plustows <- goa_grid.reduced[goa_keep, on = .(cell, year)]
+
+
+```
+
+
+Summary of area sampled
+```{r sum area sampled}
+#distance between furthest north and furthest south point
+library(geosphere)
+max_north_south_km <- (distm(c(mean(dat_goa_grid.reduced_3plustows$longitude), min(dat_goa_grid.reduced_3plustows$latitude)), c(mean(dat_goa_grid.reduced_3plustows$longitude), max(dat_goa_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+#distance between furthest east and furthest west point
+max_west_east_km <- (distm(c(min(dat_goa_grid.reduced_3plustows$longitude), mean(dat_goa_grid.reduced_3plustows$latitude)), c(max(dat_goa_grid.reduced_3plustows$longitude), mean(dat_goa_grid.reduced_3plustows$latitude)), fun = distHaversine))/1000
+
+max_north_south_km
+max_west_east_km
+
+summary(dat_goa_grid.reduced_3plustows$depth)
+
+length(unique(dat_goa_grid.reduced_3plustows$accepted_name))
+
+sort(unique(as.numeric(goa$year)))
+length(unique(goa$year))
+```
+
+Save
+```{r save}
+saveRDS(goa_grid.reduced, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/GOA_grid.reduced.rds")
+
+
+saveRDS(goa_reg_distances.l, "/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/GOA_reg_distances.l.rds")
+
+saveRDS(dat_goa_grid.reduced_3plustows,"/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-GOA/GOA_grid.reduced_3plustows.rds")
+
+
+```

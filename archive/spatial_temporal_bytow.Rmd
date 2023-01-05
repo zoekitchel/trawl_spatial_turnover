@@ -1,0 +1,156 @@
+---
+title: "Spatial Temporal Diversity By Tow"
+output: 
+html_notebook: default
+# make this github_document to make a .md file instead that will show up on github
+---
+```{r setup}
+library(data.table)
+library(ggplot2)
+library(geosphere)
+library(vegan)
+```
+
+### Load and set up data
+```{r data}
+# North American data
+trawl <- readRDS("data/NorthAmerican_trawl_data_full.rds")
+
+# make a tow number so that we can easily eliminate duplicate comparisons (1->2 and 2->1)
+# as opposed to haulid that is a factor
+trawl[, townum := .GRP, by = haulid]
+
+```
+
+### Calculate distance between tows for each year in each region
+```{r community and geographic distance calculations by year}
+# fix lons < -180
+trawl[lon < -180 , lon := lon + 360]
+
+# loop through each region and year
+# adds all results to long table "dist"
+regs <- trawl[, sort(unique(region))]
+for(reg in regs){
+  print(reg)
+  yrs <- trawl[region == reg, sort(unique(year))]
+  
+  for(yr in yrs){
+    # geographic distance between tows
+    distgeo <- distm(trawl[region == reg & year == yr, .(townum, lon, lat)][!duplicated(townum), .(lon, lat)]) # geographic distance matrix
+    rownames(distgeo) <- colnames(distgeo) <- trawl[region == reg & year == yr, .(townum)][!duplicated(townum), townum]
+    distgeo.l <- data.table(melt(as.matrix(distgeo), varnames = c("tow1", "tow2"), value.name = "distgeo")) #matrix to long data.table
+    distgeo.l <- distgeo.l[tow1 > tow2,] # get rid of repetitions and self-comparisons
+    
+    # create community matrix
+    commat <- dcast(trawl[region == reg & year == yr, .(biomass = wtcpue, townum, spp)], townum ~ spp, value.var = "biomass", fun.aggregate = sum) #long to wide data for community matrix, column names are townum then each spp. This adds zeros automatically through sum()
+    commat <- commat[rowSums(commat[,2:ncol(commat)]) > 0, ] # remove empty rows
+    commat <- commat[is.finite(rowSums(commat)), ] # remove rows without finite wtcpue values
+    
+    # community dissimilarity distances between tows
+    distcom <- as.matrix(vegdist(commat[,2:ncol(commat)], method = "jaccard", binary = TRUE)) # Jaccard dissimilarity 
+    distcomBC <- as.matrix(vegdist(commat[, 2:ncol(commat)], method = "bray", binary = FALSE)) # Bray-Curtis. Only use finite wtcpue values (one tow in Southeast US Summer is infinite)
+    colnames(distcom) <- rownames(distcom) <- commat$townum
+    colnames(distcomBC) <- rownames(distcomBC) <- commat$townum
+    distcom.l <- data.table(melt(distcom, varnames = c("tow1", "tow2"), value.name = "jaccard_dissimilarity")) # matrix to long data.table
+    distcom.l <- distcom.l[tow1 > tow2,] # to get rid of repetitions and self-comparisons
+    distcomBC.l <- data.table(melt(distcomBC, varnames = c("tow1", "tow2"), value.name = "braycurtis_dissimilarity"))
+    distcomBC.l <- distcomBC.l[tow1 > tow2,]
+    
+    #add year and region for these values
+    distcom.l[, year := yr]
+    distcom.l[, region := reg]
+    
+    #merge geographic with community distance for this year
+    thisdist <- merge(distcom.l , distcomBC.l, by = c('tow1', 'tow2'))
+    thisdist <- merge(thisdist, distgeo.l, by = c('tow1', 'tow2'))
+    
+    # add to output table if it already exists
+    # create output table if this is the first loop through
+    if(reg == regs[1] & yr == yrs[1]){
+      dist <- thisdist
+    } else {
+      dist <- rbind(dist, thisdist)
+    }
+  }
+}
+
+dist #here we have jaccard, bray-curtis and geographic distance
+# write.csv(dist, gzfile('temp/dist_bytow.csv.gz')) # in case R crashes later
+# dist <- fread('gunzip -c temp/dist_bytow.csv.gz', drop = 1)
+```
+
+### Plot distance decay for each year (Jaccard)
+```{r plot distance decay all years}
+# for(reg in regs){ # slow
+#   print(reg)
+#   distdec_byyr <- ggplot(data = dist[region == reg,], aes(x = distgeo, y = 1-jaccard_dissimilarity)) +
+#     geom_point(shape = 1, size = 0.5, alpha = 0.005) +
+#     theme_classic() +
+#     labs(x = "Distance (m)", y = "Jaccard Similarity") +
+#     theme(text=element_text(size = 8), 
+#           axis.text.x = element_text(angle = 90),
+#           strip.text.x = element_text(size = 5)) +
+#     geom_smooth() + 
+#     facet_wrap( ~ year, ncol = 8) + 
+#     ggtitle(reg)
+#   
+#   # display plot: the slow part
+#   print(distdec_byyr)
+#   
+# }
+
+# save plot: also slow
+# ggsave(distdec_byyr, path = "plots/", file = "distance_decay_tow_year.png", dpi = 300, width = 8, height = 8, units = 'in')
+
+
+```
+
+### Extract coefficient (slope) for each year: how does it change through time?
+```{r each year build linear model}
+# get slopes
+# could do this as quantile regression to get median (as in Magurran et al.)
+regs <- dist[, sort(unique(region))]
+for(reg in regs){
+  yrs <- dist[region == reg, sort(unique(year))]
+  for (yr in yrs) {
+    # Estimate the parameters using a linear model for this year
+    mod <- lm(jaccard_dissimilarity ~ distgeo, data = dist[region == reg & year == yr,])
+    mod2 <- lm(jaccard_dissimilarity ~ I(log(distgeo+1)), data = dist[region == reg & year == yr,])
+    mod3 <- lm(braycurtis_dissimilarity ~ distgeo, data = dist[region == reg & year == yr,])
+    mod4 <- lm(braycurtis_dissimilarity ~ I(log(distgeo+1)), data = dist[region == reg & year == yr,])
+    if(reg == regs[1] & yr == yrs[1]){
+      mod_coefs <- data.table(region = reg, year = yr, betaJ = coef(mod)[2], betaJlog = coef(mod2)[2], betaBC = coef(mod3)[2], betaBClog = coef(mod4)[2])
+    } else {
+      thesecoefs <- data.table(region = reg, year = yr, betaJ = coef(mod)[2], betaJlog = coef(mod2)[2], betaBC = coef(mod3)[2], betaBClog = coef(mod4)[2])
+      mod_coefs <- rbind(mod_coefs, thesecoefs)
+    }
+  }
+  
+}
+mod_coefs
+```
+
+### plot the distance decays by year
+```{r plot distance Jaccard decays, fig.width = 6, fig.height = 6}
+ggplot(mod_coefs, aes(year, betaJlog, group = region)) +
+  geom_point() +
+  facet_wrap(~region, scales = 'free', ncol = 3) +
+  geom_smooth() +
+  theme(text=element_text(size = 8), 
+        axis.text.x = element_text(angle = 90),
+        strip.text.x = element_text(size = 8))
+ggsave('plots/distance_decay_tow_slope_byregion.png', width = 8, height = 8, units = 'in')
+```
+
+### plot the log distance decays by year
+```{r plot log distance decays Bray Curtis, fig.width = 6, fig.height = 6}
+ggplot(mod_coefs, aes(year, betaBClog, group = region)) +
+  geom_point() +
+  facet_wrap(~region, scales = 'free', ncol = 3) +
+  geom_smooth() +
+  theme(text=element_text(size = 8), 
+        axis.text.x = element_text(angle = 90),
+        strip.text.x = element_text(size = 8))
+ggsave('plots/distance_decayBC_tow_slope_byregion.png', width = 8, height = 8, units = 'in')
+
+```

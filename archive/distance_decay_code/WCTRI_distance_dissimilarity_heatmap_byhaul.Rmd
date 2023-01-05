@@ -1,0 +1,370 @@
+---
+title: "WCTRI_similarity_heatmap_distance"
+output: html_notebook
+---
+
+```{r setup}
+library(data.table)
+library(viridis)
+library(ggplot2)
+library(reshape2)
+library(geosphere)
+library(vegan)
+library(raster)
+library(here)
+library(cowplot)
+library(plyr)
+
+#load data
+dat_WCTRI_grid.reduced_3plustows <- readRDS("~/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCTRI/dat_WCTRI_grid.reduced_3plustows.rds")
+
+#distance among grid cells
+
+wctri_reg_distances.l <- readRDS("/Users/zoekitchel/Documents/grad school/Rutgers/Repositories/trawl_spatial_turnover/data/gridded/USA-WCTRI/wctri_reg_distances.l.rds")
+```
+Lists of Years
+```{r year lists}
+dat_WCTRI_grid.reduced_3plustows[,year:= as.numeric(year)] #make numeric
+setorder(dat_WCTRI_grid.reduced_3plustows, year)
+
+wctri_years <- unique(dat_WCTRI_grid.reduced_3plustows[,year])
+
+```
+
+Haul ID keys
+```{r list of haul_ids}
+wctri_haul_ids <- unique(dat_WCTRI_grid.reduced_3plustows[,haul_id])
+wctri_haul_ids_key <- data.table(haul_id = wctri_haul_ids, key_ID = seq(1,length(wctri_haul_ids), by = 1))
+
+```
+
+Convert haul_ids to numeric key_IDs
+```{r}
+
+dat_WCTRI_grid.reduced_3plustows <- dat_WCTRI_grid.reduced_3plustows[wctri_haul_ids_key, on = "haul_id"]
+
+```
+
+
+Dissimilarities across multiple years
+
+```{r dissimilarities between cells across multiple years for spring}
+wctri_distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), "haul_id2" = integer(), "distance" = numeric(),"bray_curtis_dissimilarity" = numeric(), year = integer(), "jaccard_dissimilarity" = numeric())
+
+#Now loop through all years
+for (i in 1:length(wctri_years)) {
+  reduced_year <- dat_WCTRI_grid.reduced_3plustows[year == wctri_years[i],]
+  
+  #distances among cells
+  setorder(reduced_year, key_ID)
+  
+  lat_lon_haul_id <- unique(reduced_year[,.(lat,lon,key_ID)])
+  wctri_distances <- distm(lat_lon_haul_id[,.(lon,lat)])
+  key_IDs <- lat_lon_haul_id[,key_ID]
+
+  colnames(wctri_distances) <- rownames(wctri_distances) <- key_IDs
+
+  #wide to long
+  haul_id_distances.l <- reshape2::melt(wctri_distances,varnames = (c("haul_id1", "haul_id2")), value.name = "distance")
+  
+  #make into data table
+  haul_id_distances.l <- data.table(haul_id_distances.l)
+
+  
+  reduced_year_wide <- dcast(reduced_year, key_ID + year ~ matched_name2, value.var = "wtcpue", fun.aggregate = sum) #long to wide data for community matrix, column names are cell then species
+  
+  ncols <- ncol(reduced_year_wide)
+  communitymatrix <- cbind(reduced_year_wide[,3:ncols], reduced_year_wide[,1:2]) #community matrix with year and cell on far right
+
+  #list of haul_id keys
+  key_IDs_subset <- communitymatrix$key_ID
+
+  dissimilarities_abundance <- vegdist(communitymatrix[,1:(ncols-2)], method = "bray", binary = F) #dissimilarity 
+  dissimilarities_occurrence <- vegdist(communitymatrix[,1:(ncols-2)], method = "jaccard", binary = T) #T binary performs presence absence standardization before using decostand
+
+  #make into matrix
+  dissimilarities_abundance.m <- as.matrix(dissimilarities_abundance, labels=TRUE)
+  dissimilarities_occurrence.m <- as.matrix(dissimilarities_occurrence, labels=TRUE)
+  colnames(dissimilarities_abundance.m) <- rownames(dissimilarities_abundance.m) <- key_IDs_subset
+  colnames(dissimilarities_occurrence.m) <- rownames(dissimilarities_occurrence.m) <- key_IDs_subset
+
+  #reshape dissimilarities
+  dissimilarities_abundance.l <- reshape2::melt(dissimilarities_abundance.m, varnames = c("haul_id1", "haul_id2"), value.name = "bray_curtis_dissimilarity")
+  dissimilarities_occurrence.l <- reshape2::melt(dissimilarities_occurrence.m, varnames = c("haul_id1", "haul_id2"), value.name = "jaccard_dissimilarity")
+  dissimilarities_abundance.l <- data.table(dissimilarities_abundance.l) #and then to data table
+  dissimilarities_occurrence.l <- data.table(dissimilarities_occurrence.l)
+
+  #add year for these values
+  dissimilarities_abundance.l[, "year" := wctri_years[i]]
+  dissimilarities_occurrence.l[, "year" := wctri_years[i]]
+
+  #merge distance with dissimilarity for this year with both metrics of dissimilarity
+  dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance.l, on = c("haul_id1", "haul_id2")]
+  dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence.l, on = c("haul_id1", "haul_id2", "year")]
+
+
+  #add to data table
+  wctri_distances_dissimilarities_allyears <- rbind(wctri_distances_dissimilarities_allyears, dissimilarities_full)
+  
+}
+
+summary(wctri_distances_dissimilarities_allyears) #here we have bray, jaccard and geographic distance
+
+#delete repeats
+wctri_distances_dissimilarities_allyears <- wctri_distances_dissimilarities_allyears[haul_id1 >= haul_id2,] #3165272 to 1588479 rows
+
+
+wctri_distances_dissimilarities_allyears[,bray_curtis_similarity := (1-bray_curtis_dissimilarity)][,jaccard_similarity := (1-jaccard_dissimilarity)]
+
+saveRDS(wctri_distances_dissimilarities_allyears, file = "wctri_distances_dissimilarities_allyears.rds")
+
+wctri_distances_dissimilarities_allyears <- readRDS("wctri_distances_dissimilarities_allyears.rds")
+
+```
+
+#Heat map
+
+Subsample for plotting
+
+#try rounding to 50s this time!
+```{r subsample}
+#jaccard only
+wctri_distances_dissimilarities_allyears_jaccard <- wctri_distances_dissimilarities_allyears[,.(year,distance,jaccard_similarity, bray_curtis_similarity)][,distance_km := distance/1000]
+
+#new column with rounded distance
+wctri_distances_dissimilarities_allyears_jaccard[,distance_km_50s := round_any(distance_km,50)][,distance_km_10s := round_any(distance_km,10)] #round to nearest 10
+
+#new column with median jaccard similarity & bray similarity means
+wctri_distances_dissimilarities_allyears_jaccard[, jaccard_similarity_mean_10s := mean(jaccard_similarity), .(year, distance_km_10s)][, bray_similarity_mean_10s := mean(bray_curtis_similarity), .(year, distance_km_10s)]
+
+#reduce to unique values
+wctri_distances_dissimilarities_allyears_jaccard_rounded <- unique(wctri_distances_dissimilarities_allyears_jaccard, by = c("year","distance_km_10s"))
+```
+
+
+All possible combos
+```{r all combos}
+#all possible 10s
+seq_10 <- seq(0,max(wctri_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10s), by = 10)
+
+#all possiblew 50s
+seq_50 <- seq(0,max(wctri_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10), by = 50)
+
+#datatable with all possible combos
+wctri_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = wctri_years, distance_km_10s = seq_10))
+
+#combine
+wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- wctri_distances_dissimilarities_allyears_jaccard_allcombos[wctri_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_km_10s")]
+```
+
+
+Trying to use ggplot
+```{r}
+ggplot(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos, aes(year, distance_10s, fill = jaccard_similarity_mean)) +
+  geom_raster(interpolate = T) +
+  theme_classic() +
+  scale_fill_viridis(discrete = F)
+
+library(sp)
+
+```
+
+Convert to matrix
+```{r jaccard matrix}
+wctri_distances_dissimilarities_allyears_jaccard_wide <-
+data.table::dcast(wctri_distances_dissimilarities_allyears_jaccard_rounded[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
+
+setkey(wctri_distances_dissimilarities_allyears_jaccard_wide, distance_10s)
+
+#get rid of first column
+wctri_distances_dissimilarities_allyears_jaccard_wide.m <- wctri_distances_dissimilarities_allyears_jaccard_wide[,2:ncol(wctri_distances_dissimilarities_allyears_jaccard_wide)]
+
+wctri_distances_dissimilarities_allyears_jaccard_wide.m <- as.matrix(wctri_distances_dissimilarities_allyears_jaccard_wide.m)
+
+wctri_distances_dissimilarities_allyears_jaccard_wide.r <- as.raster (wctri_distances_dissimilarities_allyears_jaccard_wide.m)
+```
+
+Convert comprehensive table to matrix
+```{r}
+wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide <- data.table::dcast(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos[,.(year,distance_10s,jaccard_similarity_mean)], distance_10s ~ year, fill = NA)
+
+setkey(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide, distance_10s)
+
+#get rid of first column
+wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide[,2:ncol(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide)]
+
+wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m <- as.matrix(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
+
+wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.r <- as.raster (wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.m)
+```
+
+Plot raster
+```{r}
+image(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos_wide.r)
+```
+From "Depth-Time visualization using R, the tidyverse, and ggplot2" tutorial
+
+```{r plot heat maps}
+
+#convert year to factor
+setkey(wctri_distances_dissimilarities_allyears,year)
+wctri_distances_dissimilarities_allyears[,year.f := as.factor(year)]
+
+#jaccard similarity
+(wctri_jaccard_heatmap <- ggplot(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = jaccard_similarity_mean_10s)) +
+  geom_point(shape = "-", size = 9) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+scale_x_discrete(limits=levels(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1977", "1980", "1985", "1990", "1995", "2000")) +
+  labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
+  theme_classic())
+
+ggsave(plot = wctri_jaccard_heatmap, path = here::here("figures","wctri"),file = "wctri_jaccard_heatmap.jpg")
+ggsave(plot = wctri_jaccard_heatmap, path = here::here("figures","wctri"),file = "wctri_jaccard_heatmap.eps")
+
+
+#bray curtis similarity
+(wctri_bray_heatmap <- ggplot(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_10s, color = bray_similarity_mean_10s)) +
+  geom_point(shape = "-", size = 9) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+  scale_x_discrete(limits=levels(wctri_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1977", "1980", "1985", "1990", "1995", "2000")) +
+  labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
+  theme_classic())
+
+ggsave(plot = wctri_bray_heatmap, path = here::here("figures","wctri"),file = "wctri_bray_heatmap.jpg")
+ggsave(plot = wctri_bray_heatmap, path = here::here("figures","wctri"),file = "wctri_bray_heatmap.eps")
+```
+Box plots
+```{r spring box plots}
+
+#jaccard similarity
+(wctri_jaccard_boxplot <- ggplot(wctri_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Jaccard Similarity") +
+  scale_x_discrete(limits=levels(wctri_distances_dissimilarities_allyears$year.f), breaks = c("1977", "1980", "1985", "1990", "1995", "2000")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+  ylim(c(0,0.68)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#bray curtis similarity
+(wctri_bray_boxplot <- ggplot(wctri_distances_dissimilarities_allyears,aes(year.f,bray_curtis_similarity)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Bray Curtis Similarity") +
+  scale_x_discrete(limits=levels(wctri_distances_dissimilarities_allyears$year.f), breaks = c("1977", "1980", "1985", "1990", "1995", "2000")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+    ylim(c(0,0.48)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#corresponding models
+wctri_avg_jaccard_mod <- lm(data = wctri_distances_dissimilarities_allyears, formula = jaccard_similarity ~ as.numeric(year))
+
+wctri_avg_bray_curtis_mod <- lm(data = wctri_distances_dissimilarities_allyears, formula = bray_curtis_similarity ~ as.numeric(year))
+
+summary(wctri_avg_jaccard_mod)
+summary(wctri_avg_bray_curtis_mod)
+```
+
+Now, merge the previous two plots
+```{r merge plots}
+#pull out legend
+wctri_legend_heatmaps <- get_legend(wctri_jaccard_heatmap + labs(color = "Similarity"))
+
+wctri_merge <- plot_grid(wctri_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) ,
+                         wctri_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank()),
+                         wctri_jaccard_boxplot,
+                         wctri_bray_boxplot,  nrow = 2, ncol = 2, align = "hv", axis = "lb")
+
+wctri_merge
+
+ggsave(wctri_merge, path = here::here("figures","wctri"), file = "wctri_heat_boxplot_merge.jpg", width = 3.5, height = 5, unit = "in")
+ggsave(wctri_merge, path = here::here("figures","wctri"), file = "wctri_heat_boxplot_merge.eps", width = 3.5, height = 5, unit = "in")
+
+```
+
+
+###maybe i'll do this later? maybe not
+At its heart, this graphic is just a ggplot() with a geom_raster() layer. The complication is, geom_raster() requires equally spaced points in both the x- and y-direction. The rest of this post is about how to make that happen.
+
+Linear Interpolation
+
+I interpolate in the distance direction first, because I think this is the better assumption: as you go down further away, a reasonable way to estimate the similarity at a distance which you did not measure is to draw a straight line between the similarity at the distance that you did measure. (Not great, but sure)
+```{r}
+estimate_jac_sim_by_year <- function(target_year, target_distance) {
+  data_for_year <- wctri_distances_dissimilarities_allyears[year == target_year]
+  
+  # approx() is one way to do a linear interpolation
+  approx(data_for_year$distance, data_for_year$jaccard_similarity, xout = target_distance)$y
+}
+
+estimate_jac_sim_by_year(1990, c(0,3000,300000))
+```
+Expand data inputs
+```{r}
+temp_interp_depth <- data.table(expand.grid(
+  # the same years as wctri spring
+  year = wctri_years,
+  # ddistances can now be any value
+  distance = seq(0, max(wctri_distances_dissimilarities_allyears$distance), by = 10))
+)
+
+temp_interp_depth[,jaccard_similarity_modeled := estimate_jac_sim_by_year(year,distance), year]
+
+```
+Visualize
+```{r}
+ggplot(temp_interp_depth,aes(year,distance, color = jaccard_similarity_modeled)) +
+  geom_point() +
+   scale_colour_gradient2(
+    midpoint = 0.5, 
+    high = scales::muted("red"), 
+    low = scales::muted("blue")
+  )
+```
+
+First, we write a function that estimates the temperature at any date given a depth that is in temp_interp_depth (the tibble we just calculated).
+
+```{r}
+estimate_jac_sim_by_distance <- function(target_distance, target_year) {
+  data_for_distance <- temp_interp_depth[distance == target_distance,]
+    setkey(data_for_distance, year)
+  approx(data_for_distance$year, data_for_distance$jaccard_similarity_modeled, xout = target_year)$y
+}
+
+estimate_jac_sim_by_distance(
+  target_distance = 1000000, 
+  target_year = c(1990,1998,2000)
+)
+```
+Expand year grid
+```{r}
+jac_sim_raster <- data.table(expand.grid(
+  # dates can now be any value
+  year = seq(min(wctri_years), max(wctri_years), by = 1),
+  # depths must be the same as in temp_interp_depth
+  distance = unique(temp_interp_depth$distance))
+)
+
+jac_sim_raster[,jaccard_similarity_modeled := estimate_jac_sim_by_distance(distance,year),by = distance]
+
+
+```
+Finally, we have equally-spaced values in both the date and depth dimensions. This can be visualized using geom_raster(), with temp mapped to the fill aesthetic. I’ve again used scale_fill_gradient2() to ensure that red values represent “hot”, blue values represent “cool”, and that there is some way to visualize the depth of the thermocline. Finally, I’ve used coord_cartesian(expand = FALSE) to eliminate the white border around the outside of the raster layer…I think it looks nicer that way.
+
+
+```{r final jaccard similarity plot}
+ggplot(jac_sim_raster, aes(year, distance, fill = jaccard_similarity_modeled)) +
+  geom_raster() +
+  scale_fill_gradientn(colors =
+c("purple" ,"blue"  , "green" , "yellow" ,"orange", "red")
+  ) +
+  coord_cartesian(expand = FALSE)
+```
+
+                 
