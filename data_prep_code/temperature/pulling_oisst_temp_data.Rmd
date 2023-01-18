@@ -3,6 +3,15 @@ title: "Pulling OISST Temp Data"
 output: html_notebook
 ---
 
+This code is Script 5 for Kitchel et al. TITLE manuscript.
+
+- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
+
+- Code by Zoë J. Kitchel
+
+SESSION INFO TO DO
+
+
 Daily SST Temperature
 
 ```{r setup}
@@ -15,13 +24,12 @@ library(stringr)
 library(data.table)
 
 #pull in data for year and lat lon restrictions
-FishGlob_cleaned.10year.r <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.r.rds"))
-all_season_surveys <- unique(FishGlob_cleaned.10year.r[,survey_season])
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
 ```
 
 Unique Lat Lon Year for each Survey/season
 ```{r unique lat lon}
-unique_lat_lon_year <- unique(FishGlob_cleaned.10year.r[,.(latitude, longitude, year, survey, season, survey_season)])
+unique_lat_lon_year <- unique(FishGlob_clean[,.(latitude, longitude, year, survey, survey_unit)])
 
 #data range for this data is (-179.875, 179.875), so I will trim to this
 unique_lat_lon_year[,longitude_trim := ifelse(longitude < -179.875, -179.875, ifelse(longitude > 179.875, 179.875, longitude))]
@@ -29,7 +37,7 @@ unique_lat_lon_year[,longitude_trim := ifelse(longitude < -179.875, -179.875, if
 summary(unique_lat_lon_year[,longitude_trim])
 ```
 
-Visualize what data loook olike
+Visualize what data look like
 ```{r viz data}
 # The information for the NOAA OISST data
 rerddap::info(datasetid = "ncdcOisst21Agg_LonPM180", url = "https://coastwatch.pfeg.noaa.gov/erddap/")
@@ -37,18 +45,19 @@ rerddap::info(datasetid = "ncdcOisst21Agg_LonPM180", url = "https://coastwatch.p
 # Note that there is also a version with lon values from 0 yo 360
 rerddap::info(datasetid = "ncdcOisst21Agg", url = "https://coastwatch.pfeg.noaa.gov/erddap/")
 ```
+
 Write function to prep data based on start and end dates and provided lat long
 ```{r function to prep data}
 # This function downloads and prepares data based on user provided start and end dates
-OISST_sub_dl <- function(time_df, this_survey_season){
+OISST_sub_dl <- function(time_df, this_survey_unit){
   OISST_dat <- griddap(x = "ncdcOisst21Agg_LonPM180", 
                        url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
                        time = c(time_df$start, time_df$end), 
                        zlev = c(0, 0),
-                       latitude = c(min(unique_lat_lon_year[survey_season == this_survey_season]$latitude),
-                                    max(unique_lat_lon_year[survey_season == this_survey_season]$latitude)),
-                       longitude = c(min(unique_lat_lon_year[survey_season == this_survey_season]$longitude_trim),
-                                    max(unique_lat_lon_year[survey_season == this_survey_season]$longitude_trim)),
+                       latitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude),
+                                    max(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude)),
+                       longitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim),
+                                    max(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim)),
                        fields = "sst")$data %>% 
     mutate(time = as.Date(stringr::str_remove(time, "T00:00:00Z"))) %>% 
     dplyr::rename(t = time, temp = sst) %>% 
@@ -64,7 +73,7 @@ dl_years <- data.frame(date_index = 1:5,
                            start = as.Date(c("1981-09-01", "1989-01-01", 
                                              "1997-01-01", "2005-01-01", "2013-01-01")),
                            end = as.Date(c("1988-12-31", "1996-12-31", 
-                                           "2004-12-31", "2012-12-31", "2019-12-31")))
+                                           "2004-12-31", "2012-12-31", "2021-12-31")))
 
 
 
@@ -79,7 +88,7 @@ I am running AI separately because it spans dateline, and I need to do some edit
     system.time(
       OISST_data <- dl_years %>% 
         group_by(date_index) %>% 
-        group_modify(~OISST_sub_dl(.x, "AI_NA")) %>% 
+        group_modify(~OISST_sub_dl(.x, "AI")) %>% 
         ungroup() %>% 
         select(lon, lat, t, temp)
     ) # 38 seconds, ~8 seconds per batch
@@ -93,7 +102,7 @@ AI_max_negative <-max(unique_lat_lon_year[longitude < 0 & survey == "AI"]$longit
 OISST_data_AI <- OISST_data_AI[lon >= AI_min_positive | lon <= AI_max_negative,][,lon_s := ifelse(lon > 160, lon-360, lon)]
 
 #edit, because we don't actually need all of this data
-hist(FishGlob_cleaned.10year.r[survey == "AI", longitude])
+hist(FishGlob_clean[survey == "AI", longitude])
 #for just AI 
 #2024.317  159.159 4585.945 
 
@@ -115,20 +124,21 @@ OISST_data_AI %>%
   labs(x = NULL, y = NULL, fill = "SST (°C)") +
   theme(legend.position = "bottom")
 ```
+
 Loop to pull data for all regions (works best on remote server, takes quite a bit of time)
 ```{r loop to pull in all regions past AI}
-for (i in 2:length(all_season_surveys)) { #skip AI, pull separately because it spans dateline
+for (i in 2:length(all_survey_units)) { #skip AI, pull separately because it spans dateline
     system.time(
       OISST_data <- dl_years %>% 
         group_by(date_index) %>% 
-        group_modify(~OISST_sub_dl(.x, all_season_surveys[i])) %>% 
+        group_modify(~OISST_sub_dl(.x, all_survey_units[i])) %>% 
         ungroup() %>% 
         select(lon, lat, t, temp)
     ) # 38 seconds, ~8 seconds per batch
 
-    assign(paste0("OISST_data_",all_season_surveys[i]), OISST_data) #check this
+    assign(paste0("OISST_data_",all_survey_units[i]), OISST_data) #check this
     
-    saveRDS(get(paste0("OISST_data_",all_season_surveys[i])), here::here("data","Temperature",paste0("OISST_data_",all_season_surveys[i],".rds")))
+    saveRDS(get(paste0("OISST_data_",all_survey_units[i])), here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds")))
     
 }
 ```
@@ -147,14 +157,14 @@ And now all other regions
 
 OISST_data_temp_avgs_full <- data.table()
 
-for (i in 1:length(all_season_surveys)) {
-  min_month <- min(FishGlob_cleaned.10year.r[survey_season == all_season_surveys[i]]$month)
+for (i in 1:length(all_survey_units)) {
+  min_month <- min(FishGlob_clean[survey_unit == all_survey_units[i]]$month)
   
   #pull in data from rds files if not already in console
   
-  assign(paste0("OISST_data_",all_season_surveys[i]), readRDS(here::here("data","Temperature",paste0("OISST_data_",all_season_surveys[i],".rds"))))
+  assign(paste0("OISST_data_",all_survey_units[i]), readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
   
-  OISST_data <- data.table(get(paste0("OISST_data_",all_season_surveys[i])))
+  OISST_data <- data.table(get(paste0("OISST_data_",all_survey_units[i])))
   
   OISST_data[,month := month(t)][,year := year(t)]
   
@@ -185,9 +195,9 @@ OISST_data_simplified[, sst_difference_mean := mean(dist(yearly_mean_bypoint, me
   #link with raw temperature differences created with dist()
   OISST_data_temp_avgs <- OISST_data_temp_avgs[OISST_data_simplified_avgs, on = c("year_for_avg")]
   
-  OISST_data_temp_avgs[, survey_season := all_season_surveys[i]]
-  OISST_data_temp_avgs[, season := word(all_season_surveys[i],2, sep = "_")]
-  OISST_data_temp_avgs[, survey := word(all_season_surveys[i],1, sep = "_")]
+  OISST_data_temp_avgs[, survey_unit := all_survey_units[i]]
+  OISST_data_temp_avgs[, season := word(all_survey_units[i],2, sep = "_")]
+  OISST_data_temp_avgs[, survey := word(all_survey_units[i],1, sep = "_")]
   
   OISST_data_temp_avgs_full <- rbind(OISST_data_temp_avgs_full, OISST_data_temp_avgs)
   
@@ -204,13 +214,5 @@ OISST_data_simplified[, sst_difference_mean := mean(dist(yearly_mean_bypoint, me
 saveRDS(OISST_data_temp_avgs_full, here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
 
 ```
-
-TO DO: 
-
-* I'll delete any observations from October and November for AI sometime in the future? Not now
-    * Make sure each survey is roughly 1 season (See how Alexa deals with this)
-* Be more intentional about which temperature values I'm extracting (use polygons from line 108 in distance_decay_all_surveys)
-* Should Mediterranean be one reg, or multiple regs?
-* Shuffle years for each region to build confidence interval
 
 

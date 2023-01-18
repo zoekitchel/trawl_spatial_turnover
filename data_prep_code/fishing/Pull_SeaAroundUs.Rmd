@@ -3,7 +3,7 @@ title: "Pull together sea around us data"
 output: html_notebook
 ---
 
-Pull together sea around us data from the web by closets EEZ
+Pull together sea around us data from the web by closest EEZ
 
 This code is Script 6 for Kitchel et al. TITLE manuscript.
 
@@ -25,7 +25,7 @@ SAU_survey_key <- fread(here::here("data_prep_code","fishing","Survey_SOU_Key.cs
 
 Use the key to pull in all the csvs
 ```{r pull in CSVs of catch data}
-SAU_names <- SAU_survey_key[, Survey]
+SAU_names <- SAU_survey_key[, survey_unit]
 SAU_files <- SAU_survey_key[, FileName]
 
 SAU_full <- data.table()
@@ -34,7 +34,7 @@ for (i in 1:length(SAU_names)) {
   SAU_data <- fread(SAU_files[i]) #pull in data for region[i]
   SAU_data.r <- SAU_data[,.(area_name, area_type, year, scientific_name, common_name, functional_group, commercial_group, fishing_entity, fishing_sector, catch_type, reporting_status, gear_type, end_use_type, tonnes, landed_value)]
   #link back to survey
-  SAU_data.r[,Survey := SAU_names[i]]
+  SAU_data.r[,survey_unit := SAU_names[i]]
   
   SAU_full <- rbind(SAU_full, SAU_data.r) #bind all regions together
   print(paste0(i,":",SAU_names[i],", Number of Columns: ",ncol(SAU_data)))
@@ -90,22 +90,22 @@ SAU_full.landings.ided <- SAU_full.landings[scientific_name != "Marine fishes no
 Now, we will sum tonnes across each year for each region (should I do year before, or year of?)**
 Moving forward, will use year *before* as the predictor
 ```{r sum tonnes}
-SAU_summed_tonnes <- SAU_full.landings.ided[,summed_tonnes := sum(tonnes, na.rm = T),.(year, area_name, area_type, Survey)][ #key to include Survey because a few SAU data sets are in here multiple times
-    , summed_tonnes_scaled_byreg := scale(summed_tonnes),.(Survey)][#scale by region (ie high relative to given region)
+SAU_summed_tonnes <- SAU_full.landings.ided[,summed_tonnes := sum(tonnes, na.rm = T),.(year, area_name, area_type, survey_unit)][ #key to include survey_unit because a few SAU data sets are in here multiple times
+    , summed_tonnes_scaled_byreg := scale(summed_tonnes),.(survey_unit)][#scale by region (ie high relative to given region), this is what I plan to use
       , summed_tonnes_scaled := scale(summed_tonnes)] #scale across all values (ie high relative to all regions)
 
 #reduce to unique values we need
-SAU_summed_tonnes.r <- unique(SAU_summed_tonnes[,.(year, Survey, summed_tonnes, summed_tonnes_scaled, summed_tonnes_scaled_byreg)])
+SAU_summed_tonnes.r <- unique(SAU_summed_tonnes[,.(year, survey_unit, summed_tonnes, summed_tonnes_scaled, summed_tonnes_scaled_byreg)])
 
 
-#plot to visualizee
+#plot to visualize
 ggplot(SAU_summed_tonnes.r) +
   geom_line(aes(x = year, y = summed_tonnes_scaled_byreg)) +
-  facet_wrap(~Survey) +
+  facet_wrap(~survey_unit) +
   theme_classic()
 
 ggplot(SAU_summed_tonnes.r) +
-  geom_line(aes(x = year, y = summed_tonnes_scaled_byreg, color = Survey)) +
+  geom_line(aes(x = year, y = summed_tonnes_scaled_byreg, color = survey_unit)) +
   theme_classic()
 
 #save

@@ -262,6 +262,7 @@ color_year_adj_order <- model_coefs_reduced_length.unique[,hex]
 model_coefs_reduced_length.unique.alpha <- setorder(model_coefs_reduced_length.unique, Survey_Name_Season)
 color_alpha_order <- model_coefs_reduced_length.unique.alpha[,hex]
 
+saveRDS(model_coefs_reduced_length.unique, here::here("output","region_stats","model_coefs_reduced_length.unique.Rds"))
 ```
 
 Bar Plot Coefficient LMER

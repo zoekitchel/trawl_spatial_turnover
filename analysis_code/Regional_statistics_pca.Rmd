@@ -3,9 +3,7 @@ title: "Regional Statistics"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+This code is to look at regional statistics, and figures and stats will end up in supplement.
 
 ```{r setup}
 library(data.table)
@@ -16,42 +14,85 @@ library(concaveman)
 library(raster)
 
 
-FishGlob_cleaned.10year <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+#raw data
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
 
-#change depth to numeric
-FishGlob_cleaned.10year[,depth := as.numeric(depth)]
+#model coefficients from year_dissimilarity_models.Rmd
+model_coefs_reduced_length.unique <- readRDS(here::here("output","region_stats","model_coefs_reduced_length.unique.Rds"))
+
+#NB: years sampled = last_year-first_year+1
+
+```
+
+*Additional cleaning (first written in "dissim_metric_space_time.Rmd")*
+
+
+Delete observations without CPUE except for MEDITS (we will do trends in abundance metrics for this region)
+```{r delete no CPUE obs}
+#delete all rows where wgt_cpue is NA,  unless it is MEDITS region
+FishGlob_clean.noNA <- FishGlob_clean[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS"]
+
+#check
+summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these
+FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
+
+```
+
+
+Loop through all regions (takes  a few hours to run)
+
+```{r list of all survey season combinations}
+all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
+```
+
+For NZ-CHAT, we want to lump December observations with next year of observations (January,  February)
+```{r lump December observations with previous year}
+FishGlob_clean.noNA[survey_unit == "NZ-CHAT" & month == 12,  year := year+1, ]
+```
+
+Some spp are duplicated within a haul. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
+```{r sum duplicates}
+FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num := sum(num,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_h := sum(num_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_cpue := sum(num_cpue,  na.rm = T), .(accepted_name,  haul_id)]
+
+FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
+
+#make depth numeric
+FishGlob_clean.noNA[,depth := as.numeric(depth)]
 ```
 
 Pull in avg temp values and pull in avg fishing values
-```{r}
+```{r avg temp and fishing values}
  #open fishing and temp data
-distances_dissimilarities_allyears.year.models.temp.fishing <- readRDS( here::here("output","distance_decay","distances_dissimilarities_allyears.year.models.temp.fishing.rds"))
+distances_dissimilarities_allyears.r.temp.fishing <- readRDS( here::here("output","distance_decay","distances_dissimilarities_allyears.r.temp.fishing.rds"))
 
-distances_dissimilarities_allyears.year.models.temp.fishing[,mean_reg_temp_allyears := mean(sst_mean, na.rm = T),.(survey,season)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey,season,bray_coef, bray_coef_pvalue, jaccard_coef, jaccard_coef_pvalue)]
+distances_dissimilarities_allyears.r.temp.fishing[,mean_reg_temp_allyears := mean(sst_mean, na.rm = T),.(survey_unit)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey_unit)]
 
 
-distances_dissimilarities_allyears.year.models.temp.fishing.r <- unique(distances_dissimilarities_allyears.year.models.temp.fishing[,.(survey, season,mean_reg_fishing_allyears, mean_reg_temp_allyears, bray_coef, bray_coef_pvalue, jaccard_coef, jaccard_coef_pvalue)]) #for some reason Nor-BTS and S-GEORG are not registering anything, check on these later for fishing landing data
+avg_temp_avg_fishing <- unique(distances_dissimilarities_allyears.r.temp.fishing[,.(survey_unit,mean_reg_fishing_allyears, mean_reg_temp_allyears)]) 
 
-#add back survey season row
-distances_dissimilarities_allyears.year.models.temp.fishing.r[,survey_season := paste0(survey,"_",season)]
+#link coefficients
+year_survey_unit_characteristics <- model_coefs_reduced_length.unique[avg_temp_avg_fishing, on = "survey_unit"]
+
 ```
 
 
 ```{r calculate all region stats}
 
-#survey_seasons_list
-survey_seasons <- distances_dissimilarities_allyears.year.models.temp.fishing.r[,survey_season]
+#survey_unit
+region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats <- as.data.table(matrix(nrow = length(survey_seasons)))
-
-region_stats[,survey_season := as.character(V1)][, survey := as.character(V1)][ , season := as.character(V1)][, spp_num := as.numeric(V1)][, study_period := as.numeric(V1)][, study_duration := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,jaccard_coef := as.numeric()][,bray_coef := as.numeric()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][, study_period := as.numeric(V1)][, study_duration := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
 
   region_stats[,V1:=NULL]
 
-for (i in 1:length(survey_seasons)) {
-  reduced_FishGlob_cleaned.10year <- FishGlob_cleaned.10year[survey_season == survey_seasons[i]]
+for (i in 1:length(all_survey_units)) {
+  reduced_FishGlob_cleaned.10year <- FishGlob_clean.noNA[survey_unit == all_survey_units[i]]
   
-  reduced_distances_dissimilarities_allyears.year.models.temp.fishing.r <- distances_dissimilarities_allyears.year.models.temp.fishing.r[survey_season == survey_seasons[i]]
     ####unique lat lon
     lat_lon <- unique(reduced_FishGlob_cleaned.10year[,.(latitude, longitude)])
     
@@ -63,9 +104,8 @@ for (i in 1:length(survey_seasons)) {
     area <- st_area(conc) #m2
 
     #compile into region_Stats table    
-                  region_stats[i,"survey_season"] <- paste0(survey_seasons[i])
-                  region_stats[i,"survey"] <- word(survey_seasons[i],1, sep = "_")
-                  region_stats[i,"season"] <- word(survey_seasons[i],2, sep = "_")
+                  region_stats[i,"survey_unit"] <- paste0(all_survey_units[i])
+                  region_stats[i,"survey"] <- word(all_survey_units[i],1, sep = "_")
                   region_stats[i,"spp_num"] <- length(unique(reduced_FishGlob_cleaned.10year[,accepted_name]))
                   region_stats[i,"study_period"] <- max(reduced_FishGlob_cleaned.10year$year)-min(reduced_FishGlob_cleaned.10year$year)
                   region_stats[i,"study_duration"] <- length(unique(reduced_FishGlob_cleaned.10year$year))
@@ -75,17 +115,18 @@ for (i in 1:length(survey_seasons)) {
                   region_stats[i,"area"] <- area
                   region_stats[i,"depth_range"] <- max(reduced_FishGlob_cleaned.10year$depth, na.rm = T)-min(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
                   region_stats[i,"mid_depth"] <- mean(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
-                  region_stats[i,"mean_temp"] <- mean(reduced_distances_dissimilarities_allyears.year.models.temp.fishing.r[,mean_reg_temp_allyears])
-                  region_stats[i,"mean_landings"] <- mean(reduced_distances_dissimilarities_allyears.year.models.temp.fishing.r[,mean_reg_fishing_allyears])
-                  region_stats[i,"jaccard_coef"] <- ifelse(reduced_distances_dissimilarities_allyears.year.models.temp.fishing.r[,jaccard_coef_pvalue]<= 0.05,reduced_distances_dissimilarities_allyears.year.models.temp.fishing.r[,jaccard_coef], NA)
-                  region_stats[i,"bray_coef"] <- ifelse(reduced_distances_dissimilarities_allyears.year.models.temp.fishing.r[,bray_coef_pvalue]<= 0.05,reduced_distances_dissimilarities_allyears.year.models.temp.fishing.r[,bray_coef], NA)
+                  region_stats[i,"mean_temp"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_temp_allyears]
+                  region_stats[i,"mean_landings"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_fishing_allyears]
+                  region_stats[i,"bray_coef"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],year_adj]
+                  region_stats[i,"Directional_Change"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],Directional_Change]
+                  region_stats[i,"significant"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],significant]
 }
   
 #if any values are -Inf, change to NA
 invisible(lapply(names(region_stats),function(.name) set(region_stats, which(is.infinite(region_stats[[.name]])), j = .name,value =NA)))
 
-region_stats[,bray_positive_negative_coef := ifelse(bray_coef >0, 1, -1)]
-region_stats[,jaccard_positive_negative_coef := ifelse(jaccard_coef >0, 1, -1)]
+#add significant directions column
+region_stats[,"Significant Trends" := ifelse(significant==T, Directional_Change, "No Directional Change")]
 
 
 saveRDS(region_stats, here::here("output","region_stats","region_stats.rds"))
@@ -94,9 +135,9 @@ saveRDS(region_stats, here::here("output","region_stats","region_stats.rds"))
 PCA
 ```{r pca region stats}
 library(factoextra)
-region_stats.naomit <- na.omit(region_stats, cols = c(4:14))
-region_stats.region_stats.descriptive<- data.frame(region_stats[,4:14])
-rownames(region_stats.descriptive) <- region_stats$survey_season
+region_stats.naomit <- na.omit(region_stats, cols = c(3:13))
+region_stats.descriptive<- data.frame(region_stats[,3:13])
+rownames(region_stats.descriptive) <- region_stats$survey_unit
 region_stats.pca <- prcomp(na.omit(region_stats.descriptive), center = TRUE,scale. = TRUE) #removes all rows with missing values
 
 fviz_pca_ind(region_stats.pca,
@@ -120,7 +161,7 @@ fviz_pca_var(region_stats.pca,
              geom = c("arrow", "text")
              )
 
-fviz_pca(region_stats.pca, label = c("var","ind"), repel = T, habillage = region_stats.naomit[,survey_season], ggtheme = theme_classic())
+fviz_pca(region_stats.pca, label = c("var","ind"), repel = T, habillage = region_stats.naomit[,survey_unit], ggtheme = theme_classic())
 
 fviz_pca(region_stats.pca, label = c("var","ind"), repel = T, habillage = region_stats.naomit[,jaccard_positive_negative_coef], ggtheme = theme_classic())
 
@@ -129,5 +170,135 @@ fviz_pca(region_stats.pca, label = c("ind"), repel = T, habillage = region_stats
 fviz_pca(region_stats.pca, label = c("var"), repel = T, habillage = region_stats.naomit[,bray_positive_negative_coef], ggtheme = theme_classic())
 
 fviz_pca(region_stats.pca, label = c("var","ind"), repel = T, habillage = region_stats.naomit[,bray_positive_negative_coef], ggtheme = theme_classic())
+```
+
+Check some linear models
+```{r linear models}
+colnames(region_stats)
+
+
+```
+
+Regions that are differentiating tend to have lower overall gamma diversity than regions that are homogenizing 
+```{r spp num}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = spp_num, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = spp_num, y = bray_coef)) +
+  theme_classic()
+```
+More likely to detect both homogenization and differentation for longer study periods
+```{r study period}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = study_period, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = study_period, y = bray_coef)) +
+  theme_classic()
+```
+More likely to detect differentiation when fewer years are sampled and more likely to detect homogenization when more years are sampled
+```{r study duration}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = study_duration, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = study_duration, y = bray_coef)) +
+  theme_classic()
+```
+More likely to detect differentiation when a small latitudinal range is sampled, more likely to detect homogenization when a larger latitudinal range is sampled
+```{r latitude range}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = lat_range, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = lat_range, y = bray_coef)) +
+  theme_classic()
+```
+Differentiation occurs below 30 degrees latitude, homogenization and no change both common at higher latitudes in the northern hemisphere, NO homogenization below 30 degrees latitude
+```{r middle latitude}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = mid_lat, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = mid_lat, y = bray_coef)) +
+  theme_classic()
+```
+
+#NEED TO FIX FOR REGIONS THAT CROSS DATE LINE
+```{r longitudinal range}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = lon_range, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = lon_range, y = bray_coef)) +
+  theme_classic()
+```
+Areas that are differentiating tend to be smaller than areas that are homogenizing
+```{r area}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = area, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = area, y = bray_coef)) +
+  theme_classic()
+```
+
+
+```{r depth_range}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = depth_range, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = depth_range, y = bray_coef)) +
+  theme_classic()
+```
+```{r mid_depth}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = mid_depth, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = mid_depth, y = bray_coef)) +
+  theme_classic()
+```
+
+```{r mean_temp}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = mean_temp, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = mean_temp, y = bray_coef)) +
+  theme_classic()
+```
+
+```{r mean_landings}
+
+ggplot(region_stats) +
+  geom_boxplot(aes(x = `Significant Trends`, y = mean_landings, group = `Significant Trends`)) +
+  theme_classic()
+
+ggplot(region_stats) +
+  geom_point(aes(x = mean_landings, y = bray_coef)) +
+  theme_classic()
 ```
 

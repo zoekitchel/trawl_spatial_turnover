@@ -18,49 +18,96 @@ library(lmerTest)
 OISST_data_temp_avgs_full <- readRDS(here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
 
 #switch year to numeric
-OISST_data_temp_avgs_full[, year := as.numeric(as.character(year_for_avg))][, season_survey := as.character(survey_season)][,season := NULL][,survey := NULL]
+OISST_data_temp_avgs_full[, year := as.numeric(as.character(year))][, survey_unit := as.character(survey_unit)][,survey := NULL]
 
 #pull in average distance decay values
-distances_dissimilarities_allyears.year.models <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.year.models.rds"))
+distances_dissimilarities_allyears.r <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.r.rds"))
+
+#before, was
+
+#distances_dissimilarities_allyears.year.models <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.year.models.rds"))
 
 ```
 
 Put into one data table
 ```{r link temp to avg values}
-distances_dissimilarities_allyears.year.models.temp <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears.year.models, on = c("year","season_survey")]
+distances_dissimilarities_allyears.r.temp <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
 ```
+
+Include seasonality too
+```{r add seasonality}
+distances_dissimilarities_allyears.r.temp[,sst_seas := sst_max-sst_min][,sst_seas_scaled := scale(sst_seas),survey_unit]
+```
+
 
 How does mean temp and SD temp vary across regions?
 ```{r mean temp versus SD temp}
-(allreg_temperature_mean_v_SD <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
+distances_dissimilarities_allyears.r.temp[,sst_mean_scaled := scale(sst_mean), survey_unit][,sst_max_scaled := scale(sst_max), survey_unit][,sst_min_scaled := scale(sst_min), survey_unit][,sst_SD_scaled := scale(sst_SD), survey_unit]
+
+#not sure it makes sense to scale SD
+
+(allreg_temperature_mean_v_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp) +
   labs(x = "Mean of Annual SST Scaled (˚C)",  y = "SD of Annual SST (˚C)") +
-  geom_point(aes(x = sst_mean_scaled, y = sst_SD, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_mean_scaled, y = sst_SD, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
+  geom_point(aes(x = sst_mean_scaled, y = sst_SD, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = sst_mean_scaled, y = sst_SD, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values =  c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)) +
   geom_smooth(aes(x = sst_mean_scaled, y = sst_SD), method = "lm", se = F, color  = "black") +
   theme_classic())
 
 ggsave(allreg_temperature_mean_v_SD, path  = here::here("figures","distance_decay"), filename = "allreg_temperature_mean_v_SD.jpg", height = 4, width = 9, unit = "in") 
 
-allreg_temperature_mean_SD_mod <- lmer(sst_SD ~ sst_mean_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
+allreg_temperature_mean_SD_mod <- lmer(sst_SD ~ sst_mean_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp)
 
 summary(allreg_temperature_mean_SD_mod)
 ```
 
+No clear relationship between mean temp and temp SD
+
+#SKIP FOR NOW
 How does mean temp and temp difference vary across regions?
 ```{r mean temp versus temp difference}
-(allreg_temperature_mean_v_difference_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
+(allreg_temperature_mean_v_difference_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp) +
   labs(x = "Mean of Annual SST Scaled (˚C)",  y = "Avg Difference of Annual SST (˚C)") +
-  geom_point(aes(x = sst_mean_scaled, y = sst_difference_mean, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_mean_scaled, y = sst_difference_mean, color = season_survey), stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_mean_scaled, y = sst_difference_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = sst_mean_scaled, y = sst_difference_mean, color = survey_unit), stat="smooth", method = "lm") +
   scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
   "#16FF32","#3283FE","#FEAF16","#B00068", 
   "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
@@ -72,63 +119,63 @@ How does mean temp and temp difference vary across regions?
   "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
   geom_smooth(aes(x = sst_mean_scaled, y = sst_difference_mean), method = "lm", se = F, color  = "black") +
   theme_classic() +
-   facet_wrap(~season_survey, scales = "free"))
+   facet_wrap(~survey_unit, scales = "free"))
 
 ggsave(allreg_temperature_mean_v_difference_mean, path  = here::here("figures","distance_decay"), filename = "allreg_temperature_mean_v_difference_mean.jpg", height = 10, width = 10, unit = "in") 
 
-allreg_temperature_mean_difference_mean_mod <- lmer(sst_difference_mean ~ sst_mean_scaled + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
+allreg_temperature_mean_difference_mean_mod <- lmer(sst_difference_mean ~ sst_mean_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp)
 
 summary(allreg_temperature_mean_difference_mean_mod)
 ```
 
 
-Plotting with temp
-
+Plotting with temp individual regions
+#SKIP FOR NOW
 ```{r EBS temp}
 
 #for just EBS
-ebs_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",]) +
-  geom_smooth(aes(x = sst_mean, y = mean_yearly_bray), method = "lm", se = F, color  = "#3B00FB") +
+ebs_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",]) +
+  geom_smooth(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "#3B00FB") +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_mean, y = mean_yearly_bray), color  = "#3B00FB", alpha = 0.3) +
+  geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color  = "#3B00FB", alpha = 0.3) +
   theme_classic()
 
 ggsave(ebs_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "ebs_dissimilarity_temperature_mean.jpg") 
 
-ebs_dissimilarity_temperature_mean_mod <- lm(mean_yearly_bray ~ sst_mean, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",])
+ebs_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean, data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",])
 
 summary(ebs_dissimilarity_temperature_mean_mod)
 
 #for just EBS
-ebs_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",]) +
-  geom_smooth(aes(x = sst_max_scaled, y = mean_yearly_bray), method = "lm", se = F, color  = "#C4451C") +
+ebs_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",]) +
+  geom_smooth(aes(x = sst_max_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "#C4451C") +
   labs(x = "Scaled Maximum Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_max_scaled, y = mean_yearly_bray), color  = "#C4451C", alpha = 0.3) +
+  geom_point(aes(x = sst_max_scaled, y = bray_curtis_dissimilarity_balanced_mean), color  = "#C4451C", alpha = 0.3) +
   theme_classic()
 
 ggsave(ebs_dissimilarity_temperature_max, path  = here::here("figures","distance_decay"), filename = "ebs_dissimilarity_temperature_max.jpg") 
 
-ebs_dissimilarity_temperature_max_mod <- lm(mean_yearly_bray ~ sst_max, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",])
+ebs_dissimilarity_temperature_max_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_max, data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",])
 
 #for just EBS
-ebs_dissimilarity_temperature_min <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",]) +
-  geom_smooth(aes(x = sst_min, y = mean_yearly_bray), method = "lm", se = F, color  ="#325A9B") +
+ebs_dissimilarity_temperature_min <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",]) +
+  geom_smooth(aes(x = sst_min, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  ="#325A9B") +
   labs(x = "Minimum Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_min, y = mean_yearly_bray), color  ="#325A9B", alpha = 0.3) +
+  geom_point(aes(x = sst_min, y = bray_curtis_dissimilarity_balanced_mean), color  ="#325A9B", alpha = 0.3) +
   theme_classic()
 
 ggsave(ebs_dissimilarity_temperature_min, path  = here::here("figures","distance_decay"), filename = "ebs_dissimilarity_temperature_min.jpg") 
 
 #for just EBS
-ebs_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",]) +
-  geom_smooth(aes(x = sst_SD_scaled, y = mean_yearly_bray), method = "gam", se = F, color  ="#C075A6") +
+ebs_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",]) +
+  geom_smooth(aes(x = sst_SD_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "gam", se = F, color  ="#C075A6") +
   labs(x = "Scaled Standard Deviation SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_SD_scaled, y = mean_yearly_bray), color  = "#C075A6", alpha = 0.3) +
+  geom_point(aes(x = sst_SD_scaled, y = bray_curtis_dissimilarity_balanced_mean), color  = "#C075A6", alpha = 0.3) +
   theme_classic()
 
 ggsave(ebs_dissimilarity_temperature_SD, path  = here::here("figures","distance_decay"), filename = "ebs_dissimilarity_temperature_SD.jpg") 
 
-ebs_dissimilarity_temperature_SD_mod <- lm(mean_yearly_bray ~ sst_SD, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",])
+ebs_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",])
 
 
 ebs_dissimilarity_temperature_max
@@ -141,217 +188,283 @@ summary(ebs_dissimilarity_temperature_SD_mod)
 How does this trend hold up for all regions?
 ```{r temp all regions}
 #for all regions
-allreg_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
+allreg_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_mean, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_mean, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_smooth(aes(x = sst_mean, y = mean_yearly_bray), method = "lm", se = F, color  = "black") +
+  geom_point(aes(x = sst_mean_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = sst_mean_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)) +
+  geom_smooth(aes(x = sst_mean_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
 ggsave(allreg_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_mean.jpg", height = 4, width = 9, unit = "in") 
 
-allreg_dissimilarity_temperature_mean_mod <- lmer(mean_yearly_bray ~ sst_mean + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
+allreg_dissimilarity_temperature_mean_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp)
 
 summary(allreg_dissimilarity_temperature_mean_mod)
 
 #minimum all regions
-allreg_dissimilarity_temperature_min <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
+allreg_dissimilarity_temperature_min <- ggplot(data = distances_dissimilarities_allyears.r.temp) +
   labs(x = "Minimum Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_min, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_min, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_smooth(aes(x = sst_min, y = mean_yearly_bray), method = "lm", se = F, color  = "black") +
+  geom_point(aes(x = sst_min_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = sst_min_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values =  c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)) +
+  geom_smooth(aes(x = sst_min_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
 ggsave(allreg_dissimilarity_temperature_min, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_min.jpg", height = 4, width = 9, unit = "in") 
 
-allreg_dissimilarity_temperature_min_mod <- lmer(mean_yearly_bray ~ sst_min + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
+allreg_dissimilarity_temperature_min_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ sst_min_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp)
 
 summary(allreg_dissimilarity_temperature_min_mod)
 
 #maximum for all regions
-allreg_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
+allreg_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.r.temp) +
   labs(x = "Maximum Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_max, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_max, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_smooth(aes(x = sst_max, y = mean_yearly_bray), method = "lm", se = F, color  = "black") +
+  geom_point(aes(x = sst_max_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = sst_max_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values =  c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)) +
+  geom_smooth(aes(x = sst_max_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
 ggsave(allreg_dissimilarity_temperature_max, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_max.jpg", height = 4, width = 9, unit = "in") 
 
-allreg_dissimilarity_temperature_max_mod <- lmer(mean_yearly_bray ~ sst_max + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
+allreg_dissimilarity_temperature_max_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ sst_max_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp)
 
 summary(allreg_dissimilarity_temperature_max_mod)
 
 #SD all reg
-allreg_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
+allreg_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp) +
   labs(x = "SD of Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_SD, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_SD, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_smooth(aes(x = sst_SD, y = mean_yearly_bray), method = "lm", se = F, color  = "black") +
+  geom_point(aes(x = sst_SD_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = sst_SD_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)) +
+  geom_smooth(aes(x = sst_SD_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
 ggsave(allreg_dissimilarity_temperature_SD, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_SD.jpg", height = 4, width = 9, unit = "in") 
 
-allreg_dissimilarity_temperature_SD_mod <- lmer(mean_yearly_bray ~ sst_SD + (1|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
+allreg_dissimilarity_temperature_SD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ sst_SD_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp)
 
 summary(allreg_dissimilarity_temperature_SD_mod)
+
+#seasonality all regions
+allreg_dissimilarity_temperature_seas <- ggplot(data = distances_dissimilarities_allyears.r.temp) +
+  labs(x = "SST Seasonality (˚C)",  y = "Average Bray Curtis Dissimilarity") +
+  geom_point(aes(x = sst_seas_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = sst_seas_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)) +
+  geom_smooth(aes(x = sst_seas_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(allreg_dissimilarity_temperature_seas, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_seas.jpg", height = 4, width = 9, unit = "in") 
+
+allreg_dissimilarity_temperature_seas_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ sst_seas_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp)
+
+summary(allreg_dissimilarity_temperature_seas_mod)
+
 ```
 
-What about scaled within a region for all regions?
-
-```{r temp all regions but scaled}
-#for all regions
-allreg_dissimilarity_temperature_mean_scaled <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
-  labs(x = "Mean Annual SST Scaled",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_mean_scaled, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_mean_scaled, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_smooth(aes(x = sst_mean_scaled, y = mean_yearly_bray), method = "lm", se = F, color  = "black") +
-  theme_classic()
-
-ggsave(allreg_dissimilarity_temperature_mean_scaled, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_mean_scaled.jpg", height = 4, width = 9, unit = "in")
-
-#no legend
-ggsave(allreg_dissimilarity_temperature_mean_scaled + theme(legend.position = "none"), path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_mean_scaled_nolegend.jpg", height = 4, width = 9, unit = "in") 
-
-allreg_dissimilarity_temperature_mean_scaled_mod <- lmer(mean_yearly_bray ~ sst_mean_scaled + (1 + sst_mean_scaled|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
-
-summary(allreg_dissimilarity_temperature_mean_scaled_mod)
-
-#minimum all regions
-allreg_dissimilarity_temperature_min_scaled <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
-  labs(x = "Minimum Annual SST Scaled",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_min_scaled, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_min_scaled, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_smooth(aes(x = sst_min_scaled, y = mean_yearly_bray), method = "lm", se = F, color  = "black") +
-  theme_classic()
-
-ggsave(allreg_dissimilarity_temperature_min_scaled, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_min_scaled.jpg", height = 4, width = 9, unit = "in") 
-
-#no legend
-ggsave(allreg_dissimilarity_temperature_min_scaled + theme(legend.position = "none"), path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_min_scaled_nolegend.jpg", height = 4, width = 9, unit = "in") 
-
-allreg_dissimilarity_temperature_min_scaled_mod <- lmer(mean_yearly_bray ~ sst_min_scaled + (1 + sst_min_scaled|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
-
-summary(allreg_dissimilarity_temperature_min_scaled_mod)
-
-#maximum for all regions
-allreg_dissimilarity_temperature_max_scaled <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
-  labs(x = "Maximum Annual SST Scaled",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_max_scaled, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_max_scaled, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_abline(aes(slope = 1.380e-02, intercept = 5.752e-01), method = "lm", se = F, color  = "black", size = 1) +
-  theme_classic()
-
-ggsave(allreg_dissimilarity_temperature_max_scaled, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_max_scaled.jpg", height = 4, width = 9, unit = "in") 
-
-#no legend
-ggsave(allreg_dissimilarity_temperature_max_scaled + theme(legend.position = "none"), path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_max_scaled_nolegend.jpg", height = 4, width = 9, unit = "in") 
-
-allreg_dissimilarity_temperature_max_scaled_mod <- lmer(mean_yearly_bray ~ sst_max_scaled + (1 + sst_max_scaled|season_survey), data = distances_dissimilarities_allyears.year.models.temp)
-
-coefficients(allreg_dissimilarity_temperature_max_scaled_mod)
-
-summary(allreg_dissimilarity_temperature_max_scaled_mod)
-
-#SD all reg (not sure this makes sense scaled?)
-allreg_dissimilarity_temperature_SD_scaled <- ggplot(data = distances_dissimilarities_allyears.year.models.temp) +
-  labs(x = "SD of Annual SST Scaled",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_SD_scaled, y = mean_yearly_bray, color = season_survey), alpha = 0.3) +
-  geom_line(aes(x = sst_SD_scaled, y = mean_yearly_bray, color = season_survey), stat="smooth", method = "lm") +
-  scale_color_manual(values =  c("#5A5156","#E4E1E3","#F6222E","#FE00FA", 
-  "#16FF32","#3283FE","#FEAF16","#B00068", 
-  "#1CFFCE","#90AD1C","#2ED9FF","#DEA0FD", 
-  "#AA0DFE","#F8A19F","#325A9B","#C4451C", 
-  "#1C8356","#85660D","#B10DA1","#FBE426", 
-  "#1CBE4F","#FA0087","#FC1CBF","#F7E1A0", 
-  "#C075A6","#782AB6","#AAF400","#BDCDFF", 
-  "#822E1C","#B5EFB5","#7ED7D1","#1C7F93", 
-  "#D85FF7","#683B79","#66B0FF","#3B00FB")) +
-  geom_abline(aes(slope = 0.04259, intercept = 0.58837), method = "lm", se = F, color  = "black", size = 1) +
-  theme_classic()
-
-ggsave(allreg_dissimilarity_temperature_SD_scaled, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_SD_scaled.jpg", height = 4, width = 9, unit = "in") 
-
-#no legend
-ggsave(allreg_dissimilarity_temperature_SD_scaled + theme(legend.position = "none"), path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_temperature_SD_scaled_nolegend.jpg", height = 4, width = 9, unit = "in") 
-
-allreg_dissimilarity_temperature_SD_scaled_mod <- lmer(mean_yearly_bray ~ sst_SD_scaled + (1 + sst_SD_scaled | season_survey), data = distances_dissimilarities_allyears.year.models.temp)
-
-summary(allreg_dissimilarity_temperature_SD_scaled_mod)
-```
 Comparing temperature predictors
 ```{r compare temp predictors}
-AICc(allreg_dissimilarity_temperature_SD_scaled_mod, allreg_dissimilarity_temperature_max_scaled_mod, allreg_dissimilarity_temperature_min_scaled_mod, allreg_dissimilarity_temperature_mean_scaled_mod)
+library(MuMIn)
 
-summary(allreg_dissimilarity_temperature_SD_scaled_mod)
-summary(allreg_dissimilarity_temperature_max_scaled_mod)
+AICc(allreg_dissimilarity_temperature_mean_mod,allreg_dissimilarity_temperature_max_mod,allreg_dissimilarity_temperature_min_mod,allreg_dissimilarity_temperature_SD_mod,allreg_dissimilarity_temperature_seas_mod)
+
+summary(allreg_dissimilarity_temperature_min_mod)
 
 ```
 
-
+Haven't updated these below as of Tuesday January 17, 2023
 
 Zoomed in examples:
 * No change in dissimilarity w temp gulf of mexico fall 
@@ -363,15 +476,15 @@ GMEX FALL example
 ```{r zoom in on example regions gmex fall}
 
 #for just Gulf of mexico fall 
-GMEX_FALL_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "GMEX_Fall",]) +
+GMEX_FALL_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "GMEX_Fall",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_mean, y = mean_yearly_bray), color = "#7ED7D1", alpha = 0.8) +
-  geom_line(aes(x = sst_mean, y = mean_yearly_bray), color = "#7ED7D1", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1", alpha = 0.8) +
+  geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1", stat="smooth", method = "lm") +
   theme_classic()
 
 ggsave(GMEX_FALL_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "GMEX_FALL_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-GMEX_FALL_dissimilarity_temperature_mean_mod <- lm(mean_yearly_bray ~ sst_mean, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "GMEX_Fall",])
+GMEX_FALL_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean, data = distances_dissimilarities_allyears.r.temp[survey_unit == "GMEX_Fall",])
 
 summary(GMEX_FALL_dissimilarity_temperature_mean_mod)
 ```
@@ -381,15 +494,15 @@ EBS
 ```{r zoom in on example regions ebs}
 
 #for just ebs
-EBS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",]) +
+EBS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_mean, y = mean_yearly_bray), color = "#3283FE", alpha = 0.8) +
-  geom_line(aes(x = sst_mean, y = mean_yearly_bray), color = "#3283FE", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", alpha = 0.8) +
+  geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", stat="smooth", method = "lm") +
   theme_classic()
 
 ggsave(EBS_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "EBS_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-EBS_dissimilarity_temperature_mean_mod <- lm(mean_yearly_bray ~ sst_mean, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",])
+EBS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean, data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",])
 
 summary(EBS_dissimilarity_temperature_mean_mod)
 ```
@@ -399,15 +512,15 @@ EBS
 ```{r zoom in on example regions ebs againn}
 
 #for just ebs
-EBS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",]) +
+EBS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_mean, y = mean_yearly_bray), color = "#3283FE", alpha = 0.8) +
-  geom_line(aes(x = sst_mean, y = mean_yearly_bray), color = "#3283FE", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", alpha = 0.8) +
+  geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", stat="smooth", method = "lm") +
   theme_classic()
 
 ggsave(EBS_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "EBS_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-EBS_dissimilarity_temperature_mean_mod <- lm(mean_yearly_bray ~ sst_mean, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "EBS_NA",])
+EBS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean, data = distances_dissimilarities_allyears.r.temp[survey_unit == "EBS_NA",])
 
 summary(EBS_dissimilarity_temperature_mean_mod)
 ```
@@ -417,15 +530,15 @@ North Sea
 ```{r zoom in on example regions northsea}
 
 #for just ebs
-NS_IBTS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "NS-IBTS_NA",]) +
+NS_IBTS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_mean, y = mean_yearly_bray), color = "#F7E1A0") +
-  geom_line(aes(x = sst_mean, y = mean_yearly_bray), color = "#F7E1A0", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
+  geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
 ggsave(NS_IBTS_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "NS_IBTS_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-NS_IBTS_dissimilarity_temperature_mean_mod <- lm(mean_yearly_bray ~ sst_mean, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "NS-IBTS_NA",])
+NS_IBTS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean, data = distances_dissimilarities_allyears.r.temp[survey_unit == "NS-IBTS_NA",])
 
 summary(NS_IBTS_dissimilarity_temperature_mean_mod)
 ```
@@ -435,25 +548,25 @@ Scotian Shelf
 ```{r zoom in on example regions scotian shelf}
 
 #for just scotian shelf
-SCS_SUMMER_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "SCS_SUMMER",]) +
+SCS_SUMMER_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Max Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_max, y = mean_yearly_bray), color = "#F7E1A0") +
-  geom_line(aes(x = sst_max, y = mean_yearly_bray), color = "#F7E1A0", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_max, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
+  geom_line(aes(x = sst_max, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
-SCS_SUMMER_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "SCS_SUMMER",]) +
+SCS_SUMMER_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Standard Deviation of Temp",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_SD, y = mean_yearly_bray), color = "#F7E1A0") +
-  geom_line(aes(x = sst_SD, y = mean_yearly_bray), color = "#F7E1A0", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
+  geom_line(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
 ggsave(SCS_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "NS_IBTS_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-SCS_dissimilarity_temperature_mean_mod <- lm(mean_yearly_bray ~ sst_mean, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "SCS_SUMMER",])
+SCS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean, data = distances_dissimilarities_allyears.r.temp[survey_unit == "SCS_SUMMER",])
 
-SCS_dissimilarity_temperature_max_mod <- lm(mean_yearly_bray ~ sst_max, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "SCS_SUMMER",])
+SCS_dissimilarity_temperature_max_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_max, data = distances_dissimilarities_allyears.r.temp[survey_unit == "SCS_SUMMER",])
 
-SCS_dissimilarity_temperature_SD_mod <- lm(mean_yearly_bray ~ sst_SD, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "SCS_SUMMER",])
+SCS_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp[survey_unit == "SCS_SUMMER",])
 
 summary(NS_IBTS_dissimilarity_temperature_mean_mod)
 
@@ -467,25 +580,25 @@ ICELAND
 ```{r zoom in on example regions scotian shelf}
 
 #for just scotian shelf
-ICE_GFS_1_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "ICE-GFS_1",]) +
+ICE_GFS_1_dissimilarity_temperature_max <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "ICE-GFS_1",]) +
   labs(x = "Max Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_max, y = mean_yearly_bray), color = "#F7E1A0") +
-  geom_line(aes(x = sst_max, y = mean_yearly_bray), color = "#F7E1A0", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_max, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
+  geom_line(aes(x = sst_max, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
-ICE_GFS_1_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.year.models.temp[season_survey == "ICE-GFS_1",]) +
+ICE_GFS_1_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp[survey_unit == "ICE-GFS_1",]) +
   labs(x = "Standard Deviation of Temp",  y = "Average Bray Curtis Dissimilarity") +
-  geom_point(aes(x = sst_SD, y = mean_yearly_bray), color = "#F7E1A0") +
-  geom_line(aes(x = sst_SD, y = mean_yearly_bray), color = "#F7E1A0", stat="smooth", method = "lm") +
+  geom_point(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
+  geom_line(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
 
 
-ICE_dissimilarity_temperature_mean_mod <- lm(mean_yearly_bray ~ sst_mean, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "ICE-GFS_1",])
+ICE_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean, data = distances_dissimilarities_allyears.r.temp[survey_unit == "ICE-GFS_1",])
 
-ICE_dissimilarity_temperature_max_mod <- lm(mean_yearly_bray ~ sst_max, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "ICE-GFS_1",])
+ICE_dissimilarity_temperature_max_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_max, data = distances_dissimilarities_allyears.r.temp[survey_unit == "ICE-GFS_1",])
 
-ICE_dissimilarity_temperature_SD_mod <- lm(mean_yearly_bray ~ sst_SD, data = distances_dissimilarities_allyears.year.models.temp[season_survey == "ICE-GFS_1",])
+ICE_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp[survey_unit == "ICE-GFS_1",])
 
 
 ICE_GFS_1_dissimilarity_temperature_max

@@ -196,7 +196,7 @@ Merge Data Tables to Ease Plotting in Ggplot
 ```{r}
 full_mds.dt <- rbind(scs_summer_full_mds.dt, nz_wcsi_full_mds.dt, seus_full_mds.dt)
 
-name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),`Survey Unit` = c("West Coast South Island, NZ","Southeast US","Scotian Shelf"))
+name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),`Survey Unit` = c("West Coast\nSouth Island, NZ","Southeast US","Scotian Shelf"))
 
 full_mds.dt <- full_mds.dt[name_key, on = "survey_unit"]
 
@@ -210,7 +210,7 @@ mds_contrast <- ggplot(data = full_mds.dt) +
 mds_contrast
 
 ggsave(mds_contrast, path = here::here("figures"), filename = "mds_contrast_full.jpg",
-       height = 8, width = 6, unit = "in")
+       height = 7, width = 5, unit = "in")
 ```
 
 
