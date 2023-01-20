@@ -1,0 +1,477 @@
+---
+title: "Map of Surveys with Coefficient Values and Classifications"
+output: html_notebook
+---
+
+Here, I plan to make a global map showing how each survey region is classified (homogenization, differentiation, no significant change.)
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(ggspatial) #basemap
+library(rgdal)
+library(sp)
+library(rgeos)
+library(viridis)
+library(here)
+library(maps)
+library(mapproj)
+library(concaveman)
+library(dplyr)
+library(purrr)
+library(sf)
+
+```
+
+Pull in data
+```{r pull in data}
+region_stats <- readRDS(here::here("output","region_stats","region_stats.rds"))
+
+#raw data
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
+
+#Additional cleaning (first written in "dissim_metric_space_time.Rmd")*
+
+#Delete observations without CPUE except for MEDITS (we will do trends in abundance metrics for this region)
+FishGlob_clean.noNA <- FishGlob_clean[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS",]
+
+FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
+
+#combine with more helpful names
+
+```
+
+Key to combine with more helpful names
+```{r}
+name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
+                                    "Baltic Sea - Quarter 1",
+                                    "Baltic Sea - Quarter 4",
+                                    "Chile",
+                                    "Canada - Newfoundland",
+                                    "Canada - Queen Charlotte",
+                                    "Eastern Bering Sea",
+                                    "Bay of Biscay",
+                                    "English Channel",
+                                    "Gulf of Mexico",
+                                    "Gulf of Alaska",
+                                    "Greenland",
+                                    "Canada - Gulf of St. Lawrence - Northern",
+                                    "Canada - Gulf of St. Lawrence - Southern",
+                                    "Iceland",
+                                    "Irish Sea",
+                                    "Mediterranean",
+                                    "Namibia",
+                                    "Northeast US Fall",
+                                    "Northeast US Spring",
+                                    "Northern Ireland - Quarter 1",
+                                    "Northern Ireland - Quarter 4",
+                                    "Norway",
+                                    "North Sea - Quarter 1",
+                                    "North Sea - Quarter 3",
+                                    "New Zealand - Chatham Rise",
+                                    "New Zealand - East Coast S Island",
+                                    "New Zealand - West Coast S Island",
+                                    "Portugal",
+                                    "South Georgia Straight",
+                                  "Canada - Scotian Shelf",
+                                  "Southeast US Fall",
+                                  "Southeast US Spring",
+                                  "Southeast US Summer",
+                                  "West Coast US",
+                                  "South Africa - Atlantic Ocean",
+                                  "South Africa - Indian Ocean"),
+                          survey_unit = c(
+                                  "AI",        
+                                  "BITS-1",    
+                                  "BITS-4",    
+                                  "CHL",       
+                                  "DFO-NF",    
+                                  "DFO-QCS",   
+                                  "EBS",       
+                                  "EVHOE",     
+                                  "FR-CGFS",   
+                                  "GMEX-Summer",
+                                  "GOA",       
+                                  "GRL-DE",    
+                                  "GSL-N",     
+                                  "GSL-S",     
+                                  "ICE-GFS",   
+                                  "IE-IGFS",   
+                                  "MEDITS",    
+                                  "NAM",       
+                                  "NEUS-Fall", 
+                                  "NEUS-Spring",
+                                  "NIGFS-1",   
+                                  "NIGFS-4",   
+                                  "Nor-BTS-3", 
+                                  "NS-IBTS-1", 
+                                  "NS-IBTS-3", 
+                                  "NZ-CHAT",   
+                                  "NZ-ECSI",   
+                                  "NZ-WCSI",   
+                                  "PT-IBTS",   
+                                  "S-GEORG",   
+                                  "SCS-SUMMER",
+                                  "SEUS-fall", 
+                                  "SEUS-spring",
+                                  "SEUS-summer",
+                                  "WCANN",     
+                                  "ZAF-ATL",   
+                                  "ZAF-IND"   
+                          ))
+```
+
+
+Unique lat lon values
+```{r unique lat lon}
+unique_lat_lon_survey_units <- unique(FishGlob_clean.noNA[,.(survey_unit, survey, latitude, longitude)])
+#shift longitude for mapping
+unique_lat_lon_survey_units[,longitude_s := ifelse(longitude >160, longitude - 360, longitude)]
+
+unique_lat_lon_survey_units.spdf <- copy(unique_lat_lon_survey_units)
+#alternative to make spdf
+coordinates(unique_lat_lon_survey_units.spdf) <- c(5,3)
+
+unique_lat_lon_survey_units.spdf$long <- unique_lat_lon_survey_units$longitude_s
+unique_lat_lon_survey_units.spdf$lat <- unique_lat_lon_survey_units$latitude
+
+```
+
+Palette for plotting all 37 survey units
+```{r link colors to survey units}
+survey_unit.list <- levels(as.factor(FishGlob_clean.noNA[,survey_unit]))
+
+palette_37 <- c(
+  "#5A5156", #AI
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)
+
+color_link <- data.table(survey_unit = survey_unit.list,hex = palette_37)
+```
+
+Base map
+```{r}
+
+t <- map_data("world2",wrap=c(-200,160), ylim=c(-60,90))
+
+ggplot(t) + geom_polygon(aes(x = long, y = lat, group = group)) + coord_map()
+
+```
+
+Points and basemap
+```{r}
+basemap_points_color_survey_unit <- ggplot() +
+  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
+  geom_point(data = data.frame(unique_lat_lon_survey_units.spdf),
+             aes(x = long, y = lat, group = survey_unit, color = survey_unit), size = 0.001, alpha = 0.8) +
+  scale_color_manual(values = palette_37) +
+  coord_map() +
+  theme_classic() +
+  theme(legend.position = "null")
+
+basemap_points_color_survey_unit
+
+ggsave(basemap_points_color_survey_unit, path = here::here("figures"), filename = "basemap_points_color_survey_unit.pdf", height = 10, width = 20, unit = "in")
+```
+
+Convert points to simple feature, and then use concaveman to make corresponding polygons
+```{r points to simple feature}
+all_survey_units_sf <- unique_lat_lon_survey_units %>%
+          st_as_sf(coords = c("longitude_s","latitude"), crs = 4326)
+```
+
+
+```{r concaveman to make polygons}
+#maybe consider changing #concavity and length threshold
+all_survey_units_polygons <- purrr::map(unique(all_survey_units_sf$survey_unit),
+                       ~ concaveman(all_survey_units_sf[all_survey_units_sf$survey_unit %in% .,], concavity = 2, length_threshold = 3)
+                       ) %>%
+  map2(unique(all_survey_units_sf$survey_unit), ~ mutate(.x, survey_unit = .y)) %>%
+  reduce(rbind)
+
+#plot_polygons
+ggplot() +
+  geom_sf(data = all_survey_units_polygons, aes(fill = survey_unit), color = NA) +
+  scale_fill_manual(values = palette_37) +
+  theme_classic()
+```
+Link with name helper
+```{r}
+all_survey_units_polygons.names <- left_join(all_survey_units_polygons, name_helper, on = "survey_unit")
+```
+
+
+#Combine basemap and these regions
+```{r combine basemap and survey regions}
+(survey_unit_filled_polygons <- ggplot() +
+  geom_sf(data = all_survey_units_polygons.names, aes(fill = reorder(Survey_Name_Season,survey_unit)), color = NA, alpha = 0.3) +
+  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
+  scale_fill_manual(values = palette_37) +
+  coord_sf() +
+  lims(x = c(-200,60)) +
+  theme_classic() +
+  theme(axis.text = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()))
+
+ggsave(survey_unit_filled_polygons, path = here::here("figures"), filename = "survey_unit_filled_polygons.pdf", height =10, width = 18, unit = "in")
+
+#polygon outlines only
+(survey_unit_outline_polygons <- ggplot() +
+  geom_sf(data = all_survey_units_polygons.names, aes(color = reorder(Survey_Name_Season,survey_unit)), fill = NA, alpha = 0.5, linewidth = 0.1) +
+  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
+  scale_color_manual(values = palette_37) +
+  coord_sf() +
+  lims(x = c(-200,60)) +
+  theme_classic() +
+  theme(axis.text = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.title = element_blank()))
+
+ggsave(survey_unit_outline_polygons, path = here::here("figures"), filename = "survey_unit_outline_polygons.pdf", height =10, width = 18, unit = "in")
+```
+Instead color by change experienced
+```{r combine basemap and survey regions}
+#merge two data frames
+all_survey_units_polygons_stats <- left_join(all_survey_units_polygons, region_stats, on = "survey_unit")
+
+all_survey_units_polygons_stats.names <- left_join(all_survey_units_polygons_stats, name_helper, on = "survey_unit")
+
+#region_stats <- region_stats[,c(1,3:23)] only do once
+
+#merge lat lon points with characteristics
+unique_lat_lon_survey_units_stats <- unique_lat_lon_survey_units[region_stats, on = c("survey_unit")]
+
+map_bray_coef_trend <- ggplot() +
+  geom_sf(data = all_survey_units_polygons_stats, aes(fill = `Significant Trends`), color = "white", linewidth = 0.1) +
+  scale_fill_manual(values = c("#73BA4D","#E0962C","#7D62A7")) +
+  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
+  coord_sf() +
+  theme_classic() +
+  lims(x = c(-200,60)) +
+  guides(fill = guide_legend(title = "Trend in Spatial\nDissimilarity")) +
+  theme(axis.text = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.title = element_blank())
+
+map_bray_coef_trend
+
+ggsave(map_bray_coef_trend, path = here::here("figures"), filename = "map_bray_coef_trend.pdf", height = 4, width = 8, unit = "in")
+
+#with points and polygon outlines
+map_bray_coef_trend_withpoints <- ggplot() +
+  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
+  geom_point(data = unique_lat_lon_survey_units_stats, aes(x = longitude_s, y = latitude,color = `Significant Trends`),
+             alpha = 0.8, size = 0.01) +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#7D62A7")) +
+  geom_sf(data = all_survey_units_polygons_stats, fill = NA, color = "black", linewidth = 0.1) +
+  coord_sf() +
+  theme_classic() +
+  lims(x = c(-200,60)) +
+  guides(color = guide_legend(title = "Trend in Spatial\nDissimilarity",
+                              override.aes = list(size=10))) +
+  theme(axis.text = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.title = element_blank())
+
+map_bray_coef_trend_withpoints
+
+ggsave(map_bray_coef_trend_withpoints, path = here::here("figures"), filename = "map_bray_coef_trend_withpoints.pdf", height = 10, width = 20, unit = "in")
+
+library(ggnewscale)
+#with points and COLORED polygon outlines
+map_bray_coef_trend_withpoints_coloredpoly <- ggplot() +
+  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
+  geom_point(data = unique_lat_lon_survey_units_stats, aes(x = longitude_s, y = latitude,color = `Significant Trends`),
+             alpha = 0.8, size = 0.01) +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#7D62A7")) +
+  guides(color = guide_legend(title = "Trend in Spatial\nDissimilarity",
+                              override.aes = list(size=10))) +
+  new_scale_color() +
+  geom_sf(data = all_survey_units_polygons_stats.names, aes(color = reorder(Survey_Name_Season,survey_unit)), fill = NA, alpha = 0.5, linewidth = 0.1) +
+  scale_color_manual(values = palette_37) +
+  coord_sf() +
+  theme_classic() +
+  lims(x = c(-200,60)) +
+  guides(color = element_blank()) +
+  theme(axis.text = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.title = element_blank())
+
+map_bray_coef_trend_withpoints_coloredpoly
+
+ggsave(map_bray_coef_trend_withpoints_coloredpoly, path = here::here("figures"), filename = "map_bray_coef_trend_withpoints_coloredpoly.pdf", height = 9, width = 18, unit = "in")
+```
+
+Basemap of world
+
+```{r basemap of world}
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+  world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# ~~~~~~~~~~~ Download shapefile from www.naturalearthdata.com ~~~~~~~~~~~ #
+# Download countries data
+#download.file(url = "http://www.naturalearthdata.com/http//www.naturalearthdata.com/download/110m/cultural/ne_110m_admin_0_countries.zip", 
+  #            destfile = "ne_110m_admin_0_countries.zip")
+# unzip the shapefile in the directory mentioned with "exdir" argument
+#unzip(zipfile="ne_110m_admin_0_countries.zip", exdir = "ne_110m_admin_0_countries")
+# delete the zip file
+#file.remove("ne_110m_admin_0_countries.zip")
+# read the shapefile with readOGR from rgdal package
+NE_countries <- readOGR(dsn = here::here("raw_data","ne_110m_admin_0_countries"), layer = "ne_110m_admin_0_countries")
+class(NE_countries) # is a SpatialPolygonsDataFrame object
+
+Country.DT <- data.table(map_data(as(NE_countries, "SpatialPolygonsDataFrame")))
+
+
+# project coordinates 
+Country.DT[, c("X","Y") := data.table(project(cbind(long, lat), proj=PROJ))]
+```
+
+Convert LME's into plottable objects in ggplot
+```{r plottable objects}
+
+# turn SpatialPolygonsDataframe into a data frame
+# (note that the rgeos library is required to use fortify)
+
+LME_spdf_working_proj@data$id <- rownames(LME_spdf_working_proj@data)
+
+LME_spdf_working_proj.df <- fortify(LME_spdf_working_proj)#this only has the coordinates
+
+LME_spdf_working_proj.df <- merge(LME_spdf_working_proj@data, LME_spdf_working_proj.df,  by="id") # add the attributes back 
+
+#centroid of each polygon
+
+#extract a point on surface of each polygon
+label_points <- gPointOnSurface(LME_spdf_working_proj, byid = T, id = LME_spdf_working_proj$LME_NUMBER)
+
+
+#make into data frame
+label_points.df <- as.data.frame(label_points)
+label_points.df$LME_NUMBER <- rownames(label_points.df)
+
+```
+Extract columns from bathy stats data table
+```{r type columns from data table}
+LME_bathy_statistics_reduced <- LME_bathy_statistics[,.(lme_number, type)][, LME_NUMBER := lme_number][,lme_number := NULL]
+
+LME_spdf_working_proj.dt <- data.table(LME_spdf_working_proj.df)
+
+LME_spdf_working_proj.dt <- LME_spdf_working_proj.dt[LME_bathy_statistics_reduced, on = c("LME_NUMBER")]
+
+```
+
+Make map
+
+How many of each for %s?
+```{r percents}
+table(LME_bathy_statistics$type)
+table(LME_bathy_statistics$type)/nrow(LME_bathy_statistics)
+
+#mid dominant
+6/64
+#multimodal
+46/64
+#shallow dominant
+12/64
+```
+
+```{r global map}
+
+#type labels
+LME_spdf_working_proj.dt[,type:=factor(type, levels = c("Shallow Dominant", "Multimodal", "Mid Dominant"))]
+
+(global_LME_classification_map <- ggplot() + 
+  geom_polygon(data = LME_spdf_working_proj.dt, aes(x = long, y = lat, group = group, fill = as.factor(type)), color = "darkslategrey", size = 0.03, alpha = 0.7) +
+  scale_fill_manual(values = c("#4A9B7D","#3D4F88", "#FAA23D"), labels = c("Shallow Dominant: 19%", "Multimodal: 72%", "Mid Dominant: 9%")) +
+       # add projected countries
+    geom_polygon(data = Country.DT, 
+                 aes(x = long, y = lat, group = group), 
+                 colour = "gray70", 
+                 fill = "gray90", 
+                 size = 0.05) +
+  geom_text(data = label_points.df, aes(label = as.numeric(LME_NUMBER), x = x, y = y), size = 1.4, fontface = "bold") +
+    # ensures that one unit on the x-axis is the same length as one unit on the y-axis
+    coord_equal() +
+  labs( x = expression("Longitude ("*~degree*E*")"), y = expression("Latitude ("*~degree*N*")")) +
+  theme_classic() +
+   theme(legend.position = "top", legend.title = element_blank()))
+
+ggsave(global_LME_classification_map, path = here::here("Figures","Figure2"), filename = "map_global_type.jpg")
+ggsave(global_LME_classification_map, path = here::here("Figures","Figure2"), filename = "map_global_type.pdf")
+
+```
+
+And then again for altskew
+
+```{r map altskew}
+LME_bathy_statistics_altskew <- readRDS(here::here("output", "LME_bathy_statistics_full_altskew.rds"))
+
+LME_bathy_statistics_altskew_reduced <- LME_bathy_statistics_altskew[,.(lme_number, type)][, LME_NUMBER := lme_number][,lme_number := NULL]
+
+LME_spdf_working_proj_altskew.dt <- data.table(LME_spdf_working_proj.df)
+
+LME_spdf_working_proj_altskew.dt <- LME_spdf_working_proj_altskew.dt[LME_bathy_statistics_altskew_reduced, on = c("LME_NUMBER")]
+
+##how  many of each
+
+table(LME_bathy_statistics_altskew$type)
+table(LME_bathy_statistics_altskew$type)/nrow(LME_bathy_statistics_altskew)
+
+#mid dominant
+3/64
+#multimodal
+46/64
+#shallow dominant
+15/64
+
+
+#type labels
+LME_spdf_working_proj_altskew.dt[,type_altskew:=factor(type, levels = c("Shallow Dominant", "Multimodal", "Mid Dominant"))]
+
+(global_LME_classification_map_altskew <- ggplot() + 
+  geom_polygon(data = LME_spdf_working_proj_altskew.dt, aes(x = long, y = lat, group = group, fill = as.factor(type_altskew)), color = "darkslategrey", size = 0.03, alpha = 0.7) +
+  scale_fill_manual(values = c("#4A9B7D","#3D4F88", "#FAA23D"), labels = c("Shallow Dominant: 23%", "Multimodal: 72%", "Mid Dominant: 5%")) +
+       # add projected countries
+    geom_polygon(data = Country.DT, 
+                 aes(x = long, y = lat, group = group), 
+                 colour = "gray70", 
+                 fill = "gray90", 
+                 size = 0.05) +
+  geom_text(data = label_points.df, aes(label = as.numeric(LME_NUMBER), x = x, y = y), size = 1.4, fontface = "bold") +
+    # ensures that one unit on the x-axis is the same length as one unit on the y-axis
+    coord_equal() +
+  labs( x = expression("Longitude ("*~degree*E*")"), y = expression("Latitude ("*~degree*N*")")) +
+  theme_classic() +
+   theme(legend.position = "top", legend.title = element_blank()))
+
+ggsave(global_LME_classification_map_altskew, path = here::here("Figures","Figure2"), filename = "map_global_type_altskew.jpg")
+ggsave(global_LME_classification_map_altskew, path = here::here("Figures","Figure2"), filename = "map_global_type_altskew.pdf")
+```
