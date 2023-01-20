@@ -12,6 +12,7 @@ library(sf)
 library(rgeos)
 library(concaveman)
 library(raster)
+library(stringr)
 
 
 #raw data
@@ -63,6 +64,12 @@ FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, s
 
 #make depth numeric
 FishGlob_clean.noNA[,depth := as.numeric(depth)]
+
+#add column for yearly summed biomass (note that MEDITS doesn't have biomass, so it will be excluded from these plots)
+FishGlob_clean.noNA[,wgt_cpue_annual := sum(wgt_cpue,na.rm = T),.(year, survey_unit)]
+
+#add column for yearly summed # of hauls
+FishGlob_clean.noNA[,haul_id_count_annual := uniqueN(haul_id),.(year, survey_unit)]
 ```
 
 Pull in avg temp values and pull in avg fishing values
@@ -86,7 +93,7 @@ year_survey_unit_characteristics <- model_coefs_reduced_length.unique[avg_temp_a
 #survey_unit
 region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][, study_period := as.numeric(V1)][, study_duration := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_annual_biomass := as.numeric()][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][, study_duration := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
 
   region_stats[,V1:=NULL]
 
@@ -107,17 +114,21 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"survey_unit"] <- paste0(all_survey_units[i])
                   region_stats[i,"survey"] <- word(all_survey_units[i],1, sep = "_")
                   region_stats[i,"spp_num"] <- length(unique(reduced_FishGlob_cleaned.10year[,accepted_name]))
+                  region_stats[i,"mean_annual_biomass"] <- mean(reduced_FishGlob_cleaned.10year[,wgt_cpue_annual])
+                  region_stats[i,"mean_haul_id_count_annual"] <- mean(reduced_FishGlob_cleaned.10year[,haul_id_count_annual])
                   region_stats[i,"study_period"] <- max(reduced_FishGlob_cleaned.10year$year)-min(reduced_FishGlob_cleaned.10year$year)
                   region_stats[i,"study_duration"] <- length(unique(reduced_FishGlob_cleaned.10year$year))
                   region_stats[i,"lat_range"] <- max(reduced_FishGlob_cleaned.10year$latitude)-min(reduced_FishGlob_cleaned.10year$latitude)
                   region_stats[i,"mid_lat"] <- mean(reduced_FishGlob_cleaned.10year$latitude)
                   region_stats[i,"lon_range"] <- max(reduced_FishGlob_cleaned.10year$longitude)-min(reduced_FishGlob_cleaned.10year$longitude)
-                  region_stats[i,"area"] <- area
+                  region_stats[i,"area_km"] <- area/(1000^2)
                   region_stats[i,"depth_range"] <- max(reduced_FishGlob_cleaned.10year$depth, na.rm = T)-min(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
                   region_stats[i,"mid_depth"] <- mean(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
                   region_stats[i,"mean_temp"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_temp_allyears]
                   region_stats[i,"mean_landings"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_fishing_allyears]
                   region_stats[i,"bray_coef"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],year_adj]
+                  region_stats[i,"bray_coef_lwr"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],lwr]
+                  region_stats[i,"bray_coef_upr"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],upr]
                   region_stats[i,"Directional_Change"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],Directional_Change]
                   region_stats[i,"significant"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],significant]
 }
@@ -127,6 +138,9 @@ invisible(lapply(names(region_stats),function(.name) set(region_stats, which(is.
 
 #add significant directions column
 region_stats[,"Significant Trends" := ifelse(significant==T, Directional_Change, "No Directional Change")]
+
+#add column for avg # of hauls per area
+region_stats[,avg_hauls_area := mean_haul_id_count_annual/area_km]
 
 
 saveRDS(region_stats, here::here("output","region_stats","region_stats.rds"))
@@ -182,57 +196,97 @@ colnames(region_stats)
 Regions that are differentiating tend to have lower overall gamma diversity than regions that are homogenizing 
 ```{r spp num}
 
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = spp_num, group = `Significant Trends`)) +
+spp_num_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = spp_num, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = spp_num , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = spp_num , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Gamma Diversity of Survey Unit") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = spp_num, y = bray_coef)) +
-  theme_classic()
+spp_num_vs_coef
+
+ggsave(spp_num_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "spp_num_vs_coef.jpg", height =7, width = 5, unit = "in")
+
 ```
+
 More likely to detect both homogenization and differentation for longer study periods
 ```{r study period}
 
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = study_period, group = `Significant Trends`)) +
+study_period_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = study_period, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = study_period , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = study_period , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Survey Period (First-Last)") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = study_period, y = bray_coef)) +
-  theme_classic()
+study_period_vs_coef
+
+ggsave(study_period_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "study_period_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
+
 More likely to detect differentiation when fewer years are sampled and more likely to detect homogenization when more years are sampled
 ```{r study duration}
 
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = study_duration, group = `Significant Trends`)) +
+study_duration_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = study_duration, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = study_duration , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = study_duration , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Total Years Sampled") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = study_duration, y = bray_coef)) +
-  theme_classic()
+study_duration_vs_coef
+
+ggsave(study_duration_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "study_duration_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
+
 More likely to detect differentiation when a small latitudinal range is sampled, more likely to detect homogenization when a larger latitudinal range is sampled
 ```{r latitude range}
-
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = lat_range, group = `Significant Trends`)) +
+lat_range_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = lat_range, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5, position = "jitter") + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = lat_range , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1, position = "jitter") +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = lat_range , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1, position = "jitter") +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Latitudinal Range") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = lat_range, y = bray_coef)) +
-  theme_classic()
+lat_range_vs_coef
+
+ggsave(lat_range_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "lat_range_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
+
 Differentiation occurs below 30 degrees latitude, homogenization and no change both common at higher latitudes in the northern hemisphere, NO homogenization below 30 degrees latitude
 ```{r middle latitude}
 
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = mid_lat, group = `Significant Trends`)) +
+
+mid_lat_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = mid_lat, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = mid_lat , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = mid_lat , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Latitude") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = mid_lat, y = bray_coef)) +
-  theme_classic()
+mid_lat_vs_coef
+
+ggsave(mid_lat_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "mid_lat_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
 
 #NEED TO FIX FOR REGIONS THAT CROSS DATE LINE
@@ -246,59 +300,114 @@ ggplot(region_stats) +
   geom_point(aes(x = lon_range, y = bray_coef)) +
   theme_classic()
 ```
+
 Areas that are differentiating tend to be smaller than areas that are homogenizing
 ```{r area}
-
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = area, group = `Significant Trends`)) +
+#note two largest surveys are Norway and MEDITS
+area_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = area_km, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = area_km , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = area_km , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Study Area (km^2)") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = area, y = bray_coef)) +
+area_vs_coef
+
+ggsave(area_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "area_vs_coef.jpg", height =7, width = 5, unit = "in")
+
+```
+
+```{r number of hauls vs area}
+#note high value is SEUS summer survey
+avg_hauls_area_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = avg_hauls_area, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = avg_hauls_area , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = avg_hauls_area , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Avg Annual Hauls per Area (km^2)") +
+  coord_flip() +
   theme_classic()
+
+avg_hauls_area_vs_coef
+
+ggsave(avg_hauls_area_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "avg_hauls_area_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
 
 
 ```{r depth_range}
 
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = depth_range, group = `Significant Trends`)) +
+depth_range_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = depth_range, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = depth_range , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = depth_range , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Depth Range (m)") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = depth_range, y = bray_coef)) +
-  theme_classic()
+depth_range_vs_coef
+
+ggsave(depth_range_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "depth_range_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
+
 ```{r mid_depth}
 
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = mid_depth, group = `Significant Trends`)) +
+mid_depth_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = mid_depth, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = mid_depth , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = mid_depth , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Average Sampling Depth (m)") +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = mid_depth, y = bray_coef)) +
-  theme_classic()
+mid_depth_vs_coef
+
+ggsave(mid_depth_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "mid_depth_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
 
 ```{r mean_temp}
-
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = mean_temp, group = `Significant Trends`)) +
+mean_temp_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = mean_temp, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = mean_temp , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = mean_temp , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab(paste0("Mean Temperature (","\u00B0"," C)")) +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = mean_temp, y = bray_coef)) +
-  theme_classic()
+mean_temp_vs_coef
+
+ggsave(mean_temp_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "mean_temp_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
 
 ```{r mean_landings}
 
-ggplot(region_stats) +
-  geom_boxplot(aes(x = `Significant Trends`, y = mean_landings, group = `Significant Trends`)) +
+mean_landings_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = mean_landings, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr), color = "grey", alpha = 0.8, width = 0.5) + #add confidence intervals
+    geom_point(data = region_stats[`Significant Trends` == "No Directional Change",], aes(x = mean_landings , y = bray_coef), stat = 'identity', fill = "grey",color = "grey", shape = 21, size = 1) +
+        geom_point(data = region_stats[`Significant Trends` != "No Directional Change",], aes(x = mean_landings , y = bray_coef, fill = Directional_Change), stat = 'identity', shape = 21, color = "black", size = 1) +
+    scale_fill_manual(values = c("white","black"), name = "Directional Change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab(paste0("Average Annual Landings (tonnes)")) +
+  coord_flip() +
   theme_classic()
 
-ggplot(region_stats) +
-  geom_point(aes(x = mean_landings, y = bray_coef)) +
-  theme_classic()
+mean_landings_vs_coef
+
+ggsave(mean_landings_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "mean_landings_vs_coef.jpg", height =7, width = 5, unit = "in")
 ```
 

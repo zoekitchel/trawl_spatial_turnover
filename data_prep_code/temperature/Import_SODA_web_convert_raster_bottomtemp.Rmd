@@ -1,0 +1,310 @@
+---
+title: "Extracting SODA Bottom Temperature from both 2.2.4 and 3.3.1"
+output: html_notebook
+---
+
+```{r setup}
+library(data.table)
+library(here)
+library(ncdf4)
+```
+```{r pull in data}
+#pull in data for year and lat lon restrictions
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
+```
+
+Unique Lat Lon Year for each Survey/season
+```{r unique lat lon}
+unique_lat_lon_year <- unique(FishGlob_clean[,.(latitude, longitude, year, survey, survey_unit)])
+
+#data range for this data is (-179.875, 179.875), so I will trim to this
+unique_lat_lon_year[,longitude_trim := ifelse(longitude < -179.875, -179.875, ifelse(longitude > 179.875, 179.875, longitude))]
+
+#save to pull up to server to extract temperatures
+saveRDS(unique_lat_lon_year, here::here("output","unique_lat_lon_year.rds"))
+```
+
+#Run next steps on server ideally to improve efficiency
+
+We need to follow Jim's lead (Morley et al. 2019),  and use SODA 2.2.4 for pre1980,  and then SODA 3.3.1 for post1980. Unfortunately,  they're accessible in different ways. We will start with 1980+ (SODA 3.3.1).
+
+NCO and CDO packages must be installed. For local install, we recommend using Miniconda. 
+
+SODA data was pulled from web on remote server, accessed through terminal. 
+
+SODA 3.3.1 not pulling as of Jan 18 2023, so I will try 3.3.2
+
+```{bash import SODA post1980}
+
+#make text file from https://www.atmos.umd.edu/~ocean/index_files/soda3.3.1_mn_ocean_reg.txt
+#add "/ocean"after regrided error on their part
+
+#doesn't work any more
+#wget -i soda3.3.1_mn_ocean_reg_import.txt
+
+wget -r -l1 --no-parent --progress=bar -nd -A.nc https://dsrs.atmos.umd.edu/DATA/soda3.3.2/REGRIDED/ocean/
+
+```
+
+This takes a while,  as it's ~800 GB of data across 2600 files each 286 MB.
+
+```{bash make empty text file}
+touch soda3.3.2_all.txt
+```
+
+
+```{get file names}
+#get file names (made in excel on desktop)
+soda.3.3.2_all.txt
+
+```
+
+Seeing now that these files in their current state actually contain multiple variables, and I only want one temp
+```{bash extracting only temp from 1980 to 2019}
+#bottom (for now, this is all depths, but will reduce once in R)
+#navigate to file where all .nc's are stored. (here, it's cd soda3.3.2_5dy_ocean_reg/)
+for i in *
+do
+  ncks -v temp -O "${i}" "${i%.*}_sbt.nc"
+done
+
+```
+
+I will now merge these files along time. Ensure that there are no other files that match `soda3.3.2*sst.nc` syntax because then it won't work.
+```{bash merge1980-2017 files for sbt and sst}
+ncrcat soda3.3.2*sbt.nc -O soda3.3.2_1980_2019_sbt.nc
+```
+
+Let's now crop down to actual points we need:
+-55.28333 lat
+81.693 lat
+
+#check this
+But, currently, this 3.3.2 data is in 0-360, or technically 0.25-359.75 which is equal to 0.25 to -0.25
+
+To match what we will extract from 2.2.4, we need -189.75E and -43.25E. So, we need to keep 170.25-316.75**
+
+Let's crop into two pieces, and then remerge.
+
+Crop to correct lat lon.
+```{bash crop points to those we actually need from 0-360 from 3.3.2}
+#bottom
+ncks -O -d latitude,-55.28333,81.693 -d longitude,170.25,316.75 soda3.3.2_1980_2019_sbt.nc soda3.3.2_1980_2019_sbt_crop.nc
+
+
+```
+
+
+*The first command ncks shifts the data,  the second command ncap2 recalibrates the coordinate to the newly shifted data. One comment on applying this algorithm: Be careful to specify hemispheres that do not overlap,  e.g.,  by inadvertently specifying coordinate ranges in the first command that both include the date line. Some users will find using index-based rather than coordinate-based hyperslabs makes this clearer. Examine a plot of the field to make sure your rotation was correct.*
+
+```{bash convert grid}
+
+#bottom
+ncap2 -O -s 'longitude=longitude-360' soda3.3.2_1980_2019_sbt_crop.nc soda3.3.2_1980_2019_sbt_final.nc
+```
+
+
+Change names of dimensions to match earlier time files
+```{bash change names of dimensions and variables for 1980+}
+
+#bottom
+ncrename -d latitude,lat -v latitude,lat soda3.3.2_1980_2019_sbt_final.nc
+ncrename -d longitude,lon -v longitude,lon soda3.3.2_1980_2019_sbt_final.nc
+```
+*Done with 1980-2019 from SODA 3.3.2*
+
+----------
+
+Maximum depth = 1504 meters, so only up to 1625.7 in SODA data
+```{bash limit to depths included in trawl survey 3.3.2}
+
+#only look at temperature variable
+for i in `cat soda3.3.2_mn_ocean_reg_import.txt`; do ncks -v temp -O "${i%.*}_bottom_trawl.nc" "${i%.*}_sbt_trawl.nc";done
+
+#now merge these files over time
+ncrcat soda3.3.2*sbt_trawl.nc -O soda3.3.1_1980_2015_sbt_trawl.nc
+
+#crop to points we need lat lon
+ncks -O -d latitude,24.25,62.25 -d longitude,170.25,316.75 soda3.3.2_1980_2015_sbt_trawl.nc soda3.3.1_1980_2015_sbt_trawl_crop.nc
+
+#change grid from 0 360 - -180-180
+ncap2 -O -s 'longitude=longitude-360' soda3.3.1_1980_2015_sbt_trawl_crop.nc soda3.3.1_1980_2015_sbt_trawl_final.nc
+
+#change names to lat/lon
+ncrename -d latitude,lat -v latitude,lat soda3.3.1_1980_2015_sbt_trawl_final.nc
+ncrename -d longitude,lon -v longitude,lon soda3.3.1_1980_2015_sbt_trawl_final.nc
+```
+---------
+
+**********
+
+Now,  we will import netcdf data for pre1980 from SODA 2.4.
+
+Unfortunately,  It looks like I'm going to have to import files one by one for chunks of depth.
+
+File names going in as data.nc.x etc.
+[5.01-2375.0: data.nc](https://iridl.ldeo.columbia.edu/SOURCES/.CARTON-GIESE/.SODA/.v2p2p4/.temp/lat/%2855.28333S%29%2881.693N%29RANGEEDGES/time/%28Jan%201967%29%28Dec%201972%29RANGEEDGES/depth/%285.01%29%282375.0%29RANGEEDGES/datafiles.html)
+
+[2625.0-5375.0: data.nc.1](https://iridl.ldeo.columbia.edu/SOURCES/.CARTON-GIESE/.SODA/.v2p2p4/.temp/lat/%2855.28333S%29%2881.693N%29RANGEEDGES/time/%28Jan%201967%29%28Dec%201972%29RANGEEDGES/depth/%282625.0%29%285375.0%29RANGEEDGES/datafiles.html)
+
+These files were manually downloaded
+
+Latitudes: 55.5S - 82N
+Years:1967-1972
+
+Merge depth chunks
+```{bash merge SODA files pre 1980}
+#merge all depth chunks
+cdo merge data.n* data.pre1980.nc #(merges data.nc and data.nc1)
+
+#only bottom layer
+ncks -d depth,-1 data.pre1980.nc soda2.2.4_1967_1972_sbt.nc #NCO ncks with a negative hyperslab
+
+```
+
+#POSSIBLY SKIP BELOW
+We have to match time units, soda2.2.4 in 360 day and 3.3.1 in gregorian
+START HERE, maybe import first, and then play with time
+```{bash fixing time units}
+
+cdo -a setcalendar,standard soda3.3.2_1980_2019_sbt_final.nc soda3.3.2_1980_2019_sbt_final_timefix.nc
+cdo -a setcalendar,standard soda2.2.4_1967_1972_sbt.nc soda2.2.4_1967_1972_sbt_timefix.nc
+```
+
+************
+
+Now I have 2 files for surface temperature (3 dimensions) and surface-deepest trawls (bottom temperature, 4 dimensions). Surface temperature should be straight forward enough. However, I think the next step for bottom temperature is to split them both into monthly files, and these will be of three dimensions (depth, lat, lon). Then, I can extract depth, lat, lon, data and loop through all month files.
+
+
+Done with surface temperature.
+
+START HERE
+Now, we have to do the same for bottom temperature, will use Ryan and Becca's code.
+
+First, 2.2.4 `soda2.2.4_1967_1972_sbt.nc`
+```{r bring in bottom 2.2.4}
+
+# =========================================
+# = Function to Read in SODA, Grab Bottom =
+# =========================================
+get.soda.bot.2.2.4 <- function(file){
+  
+  soda.info <- nc_open(file)
+   name.soda.sizes <- sapply(soda.info$var$temp$dim, function(x)x$name)
+  soda.sizes <- soda.info$var$temp$size
+  dim.units <- sapply(soda.info$var$temp$dim, function(x)x$units)
+  print(dim.units)
+  stopifnot(grepl("months since ", dim.units[4])) # make sure time is in correct units and in right place
+  names(soda.sizes) <- name.soda.sizes
+  ntime <- soda.sizes["time"]
+  ndepth <- soda.sizes["depth"]
+  
+  soda.time0 <- soda.info$var$temp$dim[[4]]$vals
+  ref.date <- as.Date(gsub("months since ", "", dim.units[4]))
+  start.before.ref <- grepl("-", soda.time0[1]) # is the first date before ref.date?
+  n.month.before <- ceiling(abs(soda.time0[1])) + as.integer(start.before.ref)
+  start.increment <- ifelse(start.before.ref, "-1 month", "1 month")
+  time.start <- rev(seq.Date(ref.date, by=start.increment, length.out=n.month.before))[1]
+  soda.time <- seq.Date(time.start, by="1 month", length.out=ntime)
+  
+  
+  pb <- txtProgressBar(min=1, max=ntime, style=3)
+  for(i in 1:ntime){
+    
+    t.soda <- brick(file, lvar=4, level=i)
+    # need to switch missing value to actual NA # TODO is this automatically done by brick()? I think so.
+    
+    soda.depths <- as.numeric(gsub("X", "", names(t.soda))) # does weird rounding that I don't understand
+    
+    # get the deepest available temperature in each grid cell
+    t.soda.bot <- subset(t.soda, length(soda.depths):1)
+    
+    names(t.soda.bot) <- soda.time[i]
+    # the subsetting piece flips the order of the layers (so that deepest is first layer)
+    # by unstacking I reformat from raster with layers, to list of rasters
+    # that list can be used as the list of arguments to a function taking ...
+    # cover keeps the values in the first object of the ..., and replaces the NA's with values from the second ...
+    # that process repeats until through all object listed in the ...
+    # in other words, the final value will be the value in the first layer that has a non-NA value in that cell
+    
+    # accumulate over time periods (monthly in original data sets I'm using)
+    # this will be for the first time period (1958-1978)
+    if(i==1){
+      soda.bot <- t.soda.bot
+    }else{
+      soda.bot <- addLayer(soda.bot, t.soda.bot)
+    }
+    setTxtProgressBar(pb, i)
+  }
+  close(pb)
+  
+  return(soda.bot)
+  
+}
+
+soda_bottom_2.2.4 <- get.soda.bot.2.2.4("soda2.2.4_1967_1972_sbt.nc")
+
+```
+
+Then, 3.3.1 `soda3.3.1_1980_2019_sbt_trawl_final_timefix.nc`
+```{r bring in bottom 3.3.1}
+# =========================================
+# = Function to Read in SODA, Grab Bottom =
+# =========================================
+get.soda.bot.3.3.1 <- function(file){
+
+	soda.info <- nc_open(file)
+	name.soda.sizes <- sapply(soda.info$var$temp$dim, function(x)x$name)
+	soda.sizes <- soda.info$var$temp$size
+	dim.units <- sapply(soda.info$var$temp$dim, function(x)x$units)
+	print(dim.units)
+	names(soda.sizes) <- name.soda.sizes
+	ntime <- soda.sizes["time"]
+	ndepth <- soda.sizes["depth"]
+
+  time.start <- as.Date("1980-01-01") #set this to date you want to start at
+	soda.time <- seq.Date(time.start, by="1 month", length.out=ntime)
+
+
+	pb <- txtProgressBar(min=1, max=ntime, style=3)
+	for(i in 1:ntime){
+		t.soda <- brick(file, lvar=4, level=i)
+		# need to switch missing value to actual NA # TODO is this automatically done by brick()? I think so.
+		
+		soda.depths <- as.numeric(gsub("X", "", names(t.soda))) # does weird rounding that I don't understand
+	
+		# get the deepest available temperature in each gridd cell
+		t.soda.bot <- do.call(cover, unstack(subset(t.soda, length(soda.depths):1)))
+		names(t.soda.bot) <- soda.time[i]
+		# the subsetting piece flips the order of the layers (so that deepest is first layer)
+		# by unstacking I reformat from raster with layers, to list of rasters
+		# that list can be used as the list of arguments to a function taking ...
+		# cover keeps the values in the first object of the ..., and replaces the NA's with values from the second ...
+		# that process repeats until through all object listed in the ...
+		# in other words, the final value will be the value in the first layer that has a non-NA value in that cell
+		
+		# accumulate over time periods (monthly in original data sets I'm using)
+		# this will be for the first time period (1958-1978)
+		if(i==1){
+			soda.bot <- t.soda.bot
+		}else{
+			soda.bot <- addLayer(soda.bot, t.soda.bot)
+		}
+		setTxtProgressBar(pb, i)
+	}
+	close(pb)
+	
+	return(soda.bot)
+	
+}
+
+soda_bottom_3.3.1 <- get.soda.bot.3.3.1("soda3.3.1_1980_2015_sbt_trawl_final_timefix.nc")
+
+```
+
+Now, in R, merge these two raster bricks
+```{r merge stacks for bottom temperature across time}
+soda_bottom <- stack(soda_bottom_2.2.4, soda_bottom_3.3.1)
+#save
+writeRaster(soda_bottom, "soda_bottom_sep2019.grd", overwrite = T)
+```
