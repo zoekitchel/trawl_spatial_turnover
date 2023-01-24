@@ -86,7 +86,7 @@ seus_2019_mds.dt[,survey_unit := "SEUS-summer"][,year := 2019]
 seus_full_mds.dt <- rbind(seus_1993_mds.dt, seus_2019_mds.dt)
 
 seus_summer_mds_contrast <- ggplot(data = seus_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#FCE100") +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#e7ac5b") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -135,7 +135,7 @@ nz_wcsi_2019_mds.dt[,survey_unit := "NZ-WCSI"][,year := 2019]
 nz_wcsi_full_mds.dt <- rbind(nz_wcsi_2000_mds.dt, nz_wcsi_2019_mds.dt)
 
 nz_wcsi_mds_contrast <- ggplot(data = nz_wcsi_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#AAF400") +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#91c874") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -184,7 +184,7 @@ scs_summer_2019_mds.dt[,survey_unit := "SCS-SUMMER"][,year := 2019]
 scs_summer_full_mds.dt <- rbind(scs_summer_1988_mds.dt, scs_summer_2019_mds.dt)
 
 scs_summer_mds_contrast <- ggplot(data = scs_summer_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#DEA0FD") +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#cbbfde") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -196,20 +196,24 @@ Merge Data Tables to Ease Plotting in Ggplot
 ```{r}
 full_mds.dt <- rbind(scs_summer_full_mds.dt, nz_wcsi_full_mds.dt, seus_full_mds.dt)
 
-name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),`Survey Unit` = c("West Coast\nSouth Island, NZ","Southeast US","Scotian Shelf"))
+name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),`Survey Unit` = c("W Coast S Island, NZ","SE US","Scotian Shelf, CA"))
 
 full_mds.dt <- full_mds.dt[name_key, on = "survey_unit"]
+
+#change factor order to match other components of manuscript
+full_mds.dt[,`Survey Unit` := factor(`Survey Unit`, levels = c("W Coast S Island, NZ","SE US","Scotian Shelf, CA"))]
 
 mds_contrast <- ggplot(data = full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2, color = `Survey Unit`), size = 0.5) +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(vars(`Survey Unit`, year), nrow = 3, ncol = 2) +
-  scale_color_manual(values = c("#AAF400","#DEA0FD","#FCE100")) +
-  theme_classic()
+  scale_color_manual(values = c("#91c874","#e7ac5b", "#cbbfde")) +
+  theme_classic() +
+  theme(legend.position = "null")
 
 mds_contrast
 
-ggsave(mds_contrast, path = here::here("figures"), filename = "mds_contrast_full.jpg",
+ggsave(mds_contrast, path = here::here("figures"), filename = "mds_contrast.jpg",
        height = 7, width = 5, unit = "in")
 ```
 
