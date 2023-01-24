@@ -87,9 +87,49 @@ To match what we will extract from 2.2.4, we need -189.75E and -43.25E. So, we n
 Let's crop into two pieces, and then remerge.
 
 Crop to correct lat lon.
+
+netcdf soda3.3.2_5dy_ocean_reg_2019_01_03_sbt {
+dimensions:
+        st_ocean = 50 ;
+        time = UNLIMITED ; // (1 currently)
+        yt_ocean = 330 ;
+        xt_ocean = 720 ;
+variables:
+        double st_ocean(st_ocean) ;
+                st_ocean:long_name = "tcell zstar depth" ;
+                st_ocean:units = "meters" ;
+                st_ocean:positive = "down" ;
+                st_ocean:axis = "Z" ;
+                st_ocean:cartesian_axis = "Z" ;
+                st_ocean:edges = "st_edges_ocean" ;
+        float temp(time, st_ocean, yt_ocean, xt_ocean) ;
+                temp:standard_name = "sea_water_potential_temperature" ;
+                temp:long_name = "Potential temperature" ;
+                temp:units = "degrees C" ;
+                temp:_FillValue = -1.e+20f ;
+                temp:missing_value = -1.e+20f ;
+                temp:cell_methods = "time: mean" ;
+                temp:time_avg_info = "average_T1,average_T2,average_DT" ;
+        double time(time) ;
+                time:standard_name = "time" ;
+                time:long_name = "time" ;
+                time:units = "days since 1980-01-01 00:00:00" ;
+                time:calendar = "standard" ;
+                time:axis = "T" ;
+        double xt_ocean(xt_ocean) ;
+                xt_ocean:standard_name = "longitude" ;
+                xt_ocean:long_name = "tcell longitude" ;
+                xt_ocean:units = "degrees_E" ;
+                xt_ocean:axis = "X" ;
+        double yt_ocean(yt_ocean) ;
+                yt_ocean:standard_name = "latitude" ;
+                yt_ocean:long_name = "tcell latitude" ;
+                yt_ocean:units = "degrees_N" ;
+                yt_ocean:axis = "Y" ;
+                
 ```{bash crop points to those we actually need from 0-360 from 3.3.2}
 #bottom
-ncks -O -d latitude,-55.28333,81.693 -d longitude,170.25,316.75 soda3.3.2_1980_2019_sbt.nc soda3.3.2_1980_2019_sbt_crop.nc
+ncks -O -d yt_ocean,-55.28333,81.693 -d xt_ocean,0,360 soda3.3.2_1980_2019_sbt.nc soda3.3.2_1980_2019_sbt_crop.nc
 
 
 ```

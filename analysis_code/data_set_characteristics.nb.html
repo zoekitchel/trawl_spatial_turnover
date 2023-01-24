@@ -11,7 +11,7 @@
 
 
 
-<title>Extracting SODA Bottom Temperature from both 2.2.4 and 3.3.1</title>
+<title>Data Set Statistics</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1746,326 +1746,120 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Extracting SODA Bottom Temperature from
-both 2.2.4 and 3.3.1</h1>
+<h1 class="title toc-ignore">Data Set Statistics</h1>
 
 </div>
 
 
 <!-- rnb-text-begin -->
+<p>This code produces a set of data set statistics included in the
+manuscript</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShoZXJlKVxuXG5gYGAifQ== -->
-<pre class="r"><code>library(here)
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiaGVyZSgpIHN0YXJ0cyBhdCAvVXNlcnMvem9la2l0Y2hlbC9Eb2N1bWVudHMvZ3JhZF9zY2hvb2wvUnV0Z2Vycy9SZXBvc2l0b3JpZXMvdHJhd2xfc3BhdGlhbF90dXJub3Zlcl9naXRcbiJ9 -->
-<pre><code>here() starts at /Users/zoekitchel/Documents/grad_school/Rutgers/Repositories/trawl_spatial_turnover_git</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI3B1bGwgaW4gZGF0YSBmb3IgeWVhciBhbmQgbGF0IGxvbiByZXN0cmljdGlvbnNcbkZpc2hHbG9iX2NsZWFuIDwtIHJlYWRSRFMoaGVyZTo6aGVyZShcImRhdGFcIiwgXCJjbGVhbmVkXCIsIFwiRmlzaEdsb2Iud2VsbHNhbXBsZWR5ZWFyc2NlbGxzX2NvbXBsZXRlLmZpbmFsLnJkc1wiKSlcbmBgYCJ9 -->
-<pre class="r"><code>#pull in data for year and lat lon restrictions
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5saWJyYXJ5KGRhdGEudGFibGUpXG5cblxuRmlzaEdsb2JfY2xlYW4gPC0gcmVhZFJEUyhoZXJlOjpoZXJlKFwiZGF0YVwiLCBcImNsZWFuZWRcIiwgXCJGaXNoR2xvYi53ZWxsc2FtcGxlZHllYXJzY2VsbHNfY29tcGxldGUuZmluYWwucmRzXCIpKVxuYGBgIn0= -->
+<pre class="r"><code>
+library(data.table)
+
+
 FishGlob_clean &lt;- readRDS(here::here(&quot;data&quot;, &quot;cleaned&quot;, &quot;FishGlob.wellsampledyearscells_complete.final.rds&quot;))</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>Unique Lat Lon Year for each Survey/season</p>
+<p>Additional cleaning from dissim_metric_space_time_3.Rmd</p>
+<p>Delete these observations above except for MEDITS (we will do trends
+in abundance metrics for this region)</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudW5pcXVlX2xhdF9sb25feWVhciA8LSB1bmlxdWUoRmlzaEdsb2JfY2xlYW5bLC4obGF0aXR1ZGUsIGxvbmdpdHVkZSwgeWVhciwgc3VydmV5LCBzdXJ2ZXlfdW5pdCldKVxuXG4jZGF0YSByYW5nZSBmb3IgdGhpcyBkYXRhIGlzICgtMTc5Ljg3NSwgMTc5Ljg3NSksIHNvIEkgd2lsbCB0cmltIHRvIHRoaXNcbnVuaXF1ZV9sYXRfbG9uX3llYXJbLGxvbmdpdHVkZV90cmltIDo9IGlmZWxzZShsb25naXR1ZGUgPCAtMTc5Ljg3NSwgLTE3OS44NzUsIGlmZWxzZShsb25naXR1ZGUgPiAxNzkuODc1LCAxNzkuODc1LCBsb25naXR1ZGUpKV1cblxuYGBgIn0= -->
-<pre class="r"><code>unique_lat_lon_year &lt;- unique(FishGlob_clean[,.(latitude, longitude, year, survey, survey_unit)])
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2RlbGV0ZSBhbGwgcm93cyB3aGVyZSB3Z3RfY3B1ZSBpcyBOQSwgIHVubGVzcyBpdCBpcyBNRURJVFMgcmVnaW9uXG5GaXNoR2xvYl9jbGVhbi5ub05BIDwtIEZpc2hHbG9iX2NsZWFuWyhzdXJ2ZXkgIT0gXCJNRURJVFNcIiAmICFpcy5uYSh3Z3RfY3B1ZSkpIHwgc3VydmV5ID09IFwiTUVESVRTXCJdXG5cbiNjaGVja1xuc3VtbWFyeShGaXNoR2xvYl9jbGVhbi5ub05BWywgd2d0X2NwdWVdKSAjd2h5IGluZj8gMTMgb2JzZXJ2YXRpb25zIGZyb20gR1NMLU4sICBJIHdpbGwgZGVsZXRlIHRoZXNlXG5gYGAifQ== -->
+<pre class="r"><code>#delete all rows where wgt_cpue is NA,  unless it is MEDITS region
+FishGlob_clean.noNA &lt;- FishGlob_clean[(survey != &quot;MEDITS&quot; &amp; !is.na(wgt_cpue)) | survey == &quot;MEDITS&quot;]
 
-#data range for this data is (-179.875, 179.875), so I will trim to this
-unique_lat_lon_year[,longitude_trim := ifelse(longitude &lt; -179.875, -179.875, ifelse(longitude &gt; 179.875, 179.875, longitude))]
+#check
+summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiICAgTWluLiAxc3QgUXUuICBNZWRpYW4gICAgTWVhbiAzcmQgUXUuICAgIE1heC4gICAgTkEncyBcbiAgICAwLjAgICAgIDQuMiAgICAyNi45ICAgICBJbmYgICAxNjkuNSAgICAgSW5mICAzNTA5MTEgXG4ifQ== -->
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+    0.0     4.2    26.9     Inf   169.5     Inf  350911 </code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuRmlzaEdsb2JfY2xlYW4ubm9OQSA8LSBjb3B5KEZpc2hHbG9iX2NsZWFuLm5vTkEpWyFpcy5pbmZpbml0ZSh3Z3RfY3B1ZSksIF1cblxuYGBgIn0= -->
+<pre class="r"><code>FishGlob_clean.noNA &lt;- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
 </code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>#Run next steps on server ideally to improve efficiency</p>
-<p>We need to follow Jim’s lead (Morley et al. 2019), and use SODA 2.2.4
-for pre1980, and then SODA 3.3.1 for post1980. Unfortunately, they’re
-accessible in different ways. We will start with 1980+ (SODA 3.3.1).</p>
-<p>NCO and CDO packages must be installed. For local install, we
-recommend using Miniconda.</p>
-<p>SODA data was pulled from web on remote server, accessed through
-terminal.</p>
-<p>SODA 3.3.1 not pulling as of Jan 18 2023, so I will try 3.3.2</p>
+<p>For NZ-CHAT, we want to lump December observations with next year of
+observations (January, February)</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuXG4jbWFrZSB0ZXh0IGZpbGUgZnJvbSBodHRwczovL3d3dy5hdG1vcy51bWQuZWR1L35vY2Vhbi9pbmRleF9maWxlcy9zb2RhMy4zLjFfbW5fb2NlYW5fcmVnLnR4dFxuI2FkZCBcIi9vY2VhblwiYWZ0ZXIgcmVncmlkZWQgZXJyb3Igb24gdGhlaXIgcGFydFxuXG4jZG9lc24ndCB3b3JrIGFueSBtb3JlXG4jd2dldCAtaSBzb2RhMy4zLjFfbW5fb2NlYW5fcmVnX2ltcG9ydC50eHRcblxud2dldCAtciAtbDEgLS1uby1wYXJlbnQgLS1wcm9ncmVzcz1iYXIgLW5kIC1BLm5jIGh0dHBzOi8vZHNycy5hdG1vcy51bWQuZWR1L0RBVEEvc29kYTMuMy4yL1JFR1JJREVEL29jZWFuL1xuXG5gYGAifQ== -->
-<pre class="bash"><code>
-#make text file from https://www.atmos.umd.edu/~ocean/index_files/soda3.3.1_mn_ocean_reg.txt
-#add &quot;/ocean&quot;after regrided error on their part
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuRmlzaEdsb2JfY2xlYW4ubm9OQVtzdXJ2ZXlfdW5pdCA9PSBcIk5aLUNIQVRcIiAmIG1vbnRoID09IDEyLCAgeWVhciA6PSB5ZWFyKzEsIF1cbmBgYCJ9 -->
+<pre class="r"><code>FishGlob_clean.noNA[survey_unit == &quot;NZ-CHAT&quot; &amp; month == 12,  year := year+1, ]</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Some spp are duplicated within a haul. In all cases, this is due to
+verbatim names matching to a single accepted name. Therefore, we will
+sum these wgts and abundances</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuRmlzaEdsb2JfY2xlYW4ubm9OQVssIHdndCA6PSBzdW0od2d0LCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldWywgXG4gICAgICAgICAgICAgICAgICAgICB3Z3RfaCA6PSBzdW0od2d0X2gsICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV1bLCBcbiAgICAgICAgICAgICAgICAgICAgIHdndF9jcHVlIDo9IHN1bSh3Z3RfY3B1ZSwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIFxuICAgICAgICAgICAgICAgICAgICAgbnVtIDo9IHN1bShudW0sICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV1bLCBcbiAgICAgICAgICAgICAgICAgICAgIG51bV9oIDo9IHN1bShudW1faCwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIFxuICAgICAgICAgICAgICAgICAgICAgbnVtX2NwdWUgOj0gc3VtKG51bV9jcHVlLCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldXG5cbkZpc2hHbG9iX2NsZWFuLm5vTkEgPC0gdW5pcXVlKEZpc2hHbG9iX2NsZWFuLm5vTkFbLC4oc3VydmV5LCBoYXVsX2lkLCBjb3VudHJ5LCBzdWJfYXJlYSwgY29udGluZW50LCBzdGF0X3JlYywgc3RhdGlvbiwgc3RyYXR1bSwgeWVhciwgbW9udGgsIGRheSwgcXVhcnRlciwgc2Vhc29uLCBsYXRpdHVkZSwgbG9uZ2l0dWRlLCBoYXVsX2R1ciwgYXJlYV9zd2VwdCwgZ2VhciwgZGVwdGgsIHNidCwgc3N0LCBudW0sIG51bV9oLCBudW1fY3B1ZSwgd2d0LCB3Z3RfaCwgd2d0X2NwdWUsIHZlcmJhdGltX2FwaGlhX2lkLCBhY2NlcHRlZF9uYW1lLCBhcGhpYV9pZCwgU3BlY0NvZGUsIGtpbmdkb20sIHBoeWx1bSwgY2xhc3MsIG9yZGVyLCBmYW1pbHksIGdlbnVzLCByYW5rLCBzdXJ2ZXlfdW5pdCwgeWVhcnNfc2FtcGxlZCwgY2VsbF9JRCwgY2VsbF95ZWFyX2NvdW50LCB5ZWFyX2NlbGxfY291bnQsIHllYXJzX3NhbXBsZWRfdXBkYXRlKV0pXG5gYGAifQ== -->
+<pre class="r"><code>FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num := sum(num,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_h := sum(num_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_cpue := sum(num_cpue,  na.rm = T), .(accepted_name,  haul_id)]
 
-#doesn&#39;t work any more
-#wget -i soda3.3.1_mn_ocean_reg_import.txt
-
-wget -r -l1 --no-parent --progress=bar -nd -A.nc https://dsrs.atmos.umd.edu/DATA/soda3.3.2/REGRIDED/ocean/
-</code></pre>
+FishGlob_clean.noNA &lt;- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>This takes a while, as it’s ~800 GB of data across 2600 files each
-286 MB.</p>
+<p>Total observations?</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxudG91Y2ggc29kYTMuMy4yX2FsbC50eHRcbmBgYCJ9 -->
-<pre class="bash"><code>touch soda3.3.2_all.txt</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubnJvdyhGaXNoR2xvYl9jbGVhbi5ub05BKVxuYGBgIn0= -->
+<pre class="r"><code>nrow(FishGlob_clean.noNA)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgZ2V0XG4jZ2V0IGZpbGUgbmFtZXMgKG1hZGUgaW4gZXhjZWwgb24gZGVza3RvcClcbnNvZGEuMy4zLjJfYWxsLnR4dFxuXG5gYGAifQ== -->
-<pre class="get"><code>#get file names (made in excel on desktop)
-soda.3.3.2_all.txt
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>Seeing now that these files in their current state actually contain
-multiple variables, and I only want one temp</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuI2JvdHRvbSAoZm9yIG5vdywgdGhpcyBpcyBhbGwgZGVwdGhzLCBidXQgd2lsbCByZWR1Y2Ugb25jZSBpbiBSKVxuI25hdmlnYXRlIHRvIGZpbGUgd2hlcmUgYWxsIC5uYydzIGFyZSBzdG9yZWQuIChoZXJlLCBpdCdzIGNkIHNvZGEzLjMuMl81ZHlfb2NlYW5fcmVnLylcbmZvciBpIGluICpcbmRvXG4gIG5ja3MgLXYgdGVtcCAtTyBcIiR7aX1cIiBcIiR7aSUuKn1fc2J0Lm5jXCJcbmRvbmVcblxuYGBgIn0= -->
-<pre class="bash"><code>#bottom (for now, this is all depths, but will reduce once in R)
-#navigate to file where all .nc&#39;s are stored. (here, it&#39;s cd soda3.3.2_5dy_ocean_reg/)
-for i in *
-do
-  ncks -v temp -O &quot;${i}&quot; &quot;${i%.*}_sbt.nc&quot;
-done
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>I will now merge these files along time. Ensure that there are no
-other files that match <code>soda3.3.2*sst.nc</code> syntax because then
-it won’t work.</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxubmNyY2F0IHNvZGEzLjMuMipzYnQubmMgLU8gc29kYTMuMy4yXzE5ODBfMjAxOV9zYnQubmNcbmBgYCJ9 -->
-<pre class="bash"><code>ncrcat soda3.3.2*sbt.nc -O soda3.3.2_1980_2019_sbt.nc</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>Let’s now crop down to actual points we need: -55.28333 lat 81.693
-lat</p>
-<p>#check this But, currently, this 3.3.2 data is in 0-360, or
-technically 0.25-359.75 which is equal to 0.25 to -0.25</p>
-<p>To match what we will extract from 2.2.4, we need -189.75E and
--43.25E. So, we need to keep 170.25-316.75**</p>
-<p>Let’s crop into two pieces, and then remerge.</p>
-<p>Crop to correct lat lon.</p>
-<p>netcdf soda3.3.2_5dy_ocean_reg_2019_01_03_sbt { dimensions: st_ocean
-= 50 ; time = UNLIMITED ; // (1 currently) yt_ocean = 330 ; xt_ocean =
-720 ; variables: double st_ocean(st_ocean) ; st_ocean:long_name = “tcell
-zstar depth” ; st_ocean:units = “meters” ; st_ocean:positive = “down” ;
-st_ocean:axis = “Z” ; st_ocean:cartesian_axis = “Z” ; st_ocean:edges =
-“st_edges_ocean” ; float temp(time, st_ocean, yt_ocean, xt_ocean) ;
-temp:standard_name = “sea_water_potential_temperature” ; temp:long_name
-= “Potential temperature” ; temp:units = “degrees C” ; temp:_FillValue =
--1.e+20f ; temp:missing_value = -1.e+20f ; temp:cell_methods = “time:
-mean” ; temp:time_avg_info = “average_T1,average_T2,average_DT” ; double
-time(time) ; time:standard_name = “time” ; time:long_name = “time” ;
-time:units = “days since 1980-01-01 00:00:00” ; time:calendar =
-“standard” ; time:axis = “T” ; double xt_ocean(xt_ocean) ;
-xt_ocean:standard_name = “longitude” ; xt_ocean:long_name = “tcell
-longitude” ; xt_ocean:units = “degrees_E” ; xt_ocean:axis = “X” ; double
-yt_ocean(yt_ocean) ; yt_ocean:standard_name = “latitude” ;
-yt_ocean:long_name = “tcell latitude” ; yt_ocean:units = “degrees_N” ;
-yt_ocean:axis = “Y” ;</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuI2JvdHRvbVxubmNrcyAtTyAtZCB5dF9vY2VhbiwtNTUuMjgzMzMsODEuNjkzIC1kIHh0X29jZWFuLDAsMzYwIHNvZGEzLjMuMl8xOTgwXzIwMTlfc2J0Lm5jIHNvZGEzLjMuMl8xOTgwXzIwMTlfc2J0X2Nyb3AubmNcblxuXG5gYGAifQ== -->
-<pre class="bash"><code>#bottom
-ncks -O -d yt_ocean,-55.28333,81.693 -d xt_ocean,0,360 soda3.3.2_1980_2019_sbt.nc soda3.3.2_1980_2019_sbt_crop.nc
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p><em>The first command ncks shifts the data, the second command ncap2
-recalibrates the coordinate to the newly shifted data. One comment on
-applying this algorithm: Be careful to specify hemispheres that do not
-overlap, e.g., by inadvertently specifying coordinate ranges in the
-first command that both include the date line. Some users will find
-using index-based rather than coordinate-based hyperslabs makes this
-clearer. Examine a plot of the field to make sure your rotation was
-correct.</em></p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuXG4jYm90dG9tXG5uY2FwMiAtTyAtcyAnbG9uZ2l0dWRlPWxvbmdpdHVkZS0zNjAnIHNvZGEzLjMuMl8xOTgwXzIwMTlfc2J0X2Nyb3AubmMgc29kYTMuMy4yXzE5ODBfMjAxOV9zYnRfZmluYWwubmNcbmBgYCJ9 -->
-<pre class="bash"><code>
-#bottom
-ncap2 -O -s &#39;longitude=longitude-360&#39; soda3.3.2_1980_2019_sbt_crop.nc soda3.3.2_1980_2019_sbt_final.nc</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>Change names of dimensions to match earlier time files</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuXG4jYm90dG9tXG5uY3JlbmFtZSAtZCBsYXRpdHVkZSxsYXQgLXYgbGF0aXR1ZGUsbGF0IHNvZGEzLjMuMl8xOTgwXzIwMTlfc2J0X2ZpbmFsLm5jXG5uY3JlbmFtZSAtZCBsb25naXR1ZGUsbG9uIC12IGxvbmdpdHVkZSxsb24gc29kYTMuMy4yXzE5ODBfMjAxOV9zYnRfZmluYWwubmNcbmBgYCJ9 -->
-<pre class="bash"><code>
-#bottom
-ncrename -d latitude,lat -v latitude,lat soda3.3.2_1980_2019_sbt_final.nc
-ncrename -d longitude,lon -v longitude,lon soda3.3.2_1980_2019_sbt_final.nc</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p><em>Done with 1980-2019 from SODA 3.3.2</em></p>
-<hr />
-<p>Maximum depth = 1504 meters, so only up to 1625.7 in SODA data</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuXG4jb25seSBsb29rIGF0IHRlbXBlcmF0dXJlIHZhcmlhYmxlXG5mb3IgaSBpbiBgY2F0IHNvZGEzLjMuMl9tbl9vY2Vhbl9yZWdfaW1wb3J0LnR4dGA7IGRvIG5ja3MgLXYgdGVtcCAtTyBcIiR7aSUuKn1fYm90dG9tX3RyYXdsLm5jXCIgXCIke2klLip9X3NidF90cmF3bC5uY1wiO2RvbmVcblxuI25vdyBtZXJnZSB0aGVzZSBmaWxlcyBvdmVyIHRpbWVcbm5jcmNhdCBzb2RhMy4zLjIqc2J0X3RyYXdsLm5jIC1PIHNvZGEzLjMuMV8xOTgwXzIwMTVfc2J0X3RyYXdsLm5jXG5cbiNjcm9wIHRvIHBvaW50cyB3ZSBuZWVkIGxhdCBsb25cbm5ja3MgLU8gLWQgbGF0aXR1ZGUsMjQuMjUsNjIuMjUgLWQgbG9uZ2l0dWRlLDE3MC4yNSwzMTYuNzUgc29kYTMuMy4yXzE5ODBfMjAxNV9zYnRfdHJhd2wubmMgc29kYTMuMy4xXzE5ODBfMjAxNV9zYnRfdHJhd2xfY3JvcC5uY1xuXG4jY2hhbmdlIGdyaWQgZnJvbSAwIDM2MCAtIC0xODAtMTgwXG5uY2FwMiAtTyAtcyAnbG9uZ2l0dWRlPWxvbmdpdHVkZS0zNjAnIHNvZGEzLjMuMV8xOTgwXzIwMTVfc2J0X3RyYXdsX2Nyb3AubmMgc29kYTMuMy4xXzE5ODBfMjAxNV9zYnRfdHJhd2xfZmluYWwubmNcblxuI2NoYW5nZSBuYW1lcyB0byBsYXQvbG9uXG5uY3JlbmFtZSAtZCBsYXRpdHVkZSxsYXQgLXYgbGF0aXR1ZGUsbGF0IHNvZGEzLjMuMV8xOTgwXzIwMTVfc2J0X3RyYXdsX2ZpbmFsLm5jXG5uY3JlbmFtZSAtZCBsb25naXR1ZGUsbG9uIC12IGxvbmdpdHVkZSxsb24gc29kYTMuMy4xXzE5ODBfMjAxNV9zYnRfdHJhd2xfZmluYWwubmNcbmBgYCJ9 -->
-<pre class="bash"><code>
-#only look at temperature variable
-for i in `cat soda3.3.2_mn_ocean_reg_import.txt`; do ncks -v temp -O &quot;${i%.*}_bottom_trawl.nc&quot; &quot;${i%.*}_sbt_trawl.nc&quot;;done
-
-#now merge these files over time
-ncrcat soda3.3.2*sbt_trawl.nc -O soda3.3.1_1980_2015_sbt_trawl.nc
-
-#crop to points we need lat lon
-ncks -O -d latitude,24.25,62.25 -d longitude,170.25,316.75 soda3.3.2_1980_2015_sbt_trawl.nc soda3.3.1_1980_2015_sbt_trawl_crop.nc
-
-#change grid from 0 360 - -180-180
-ncap2 -O -s &#39;longitude=longitude-360&#39; soda3.3.1_1980_2015_sbt_trawl_crop.nc soda3.3.1_1980_2015_sbt_trawl_final.nc
-
-#change names to lat/lon
-ncrename -d latitude,lat -v latitude,lat soda3.3.1_1980_2015_sbt_trawl_final.nc
-ncrename -d longitude,lon -v longitude,lon soda3.3.1_1980_2015_sbt_trawl_final.nc</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<hr />
-<hr />
-<p>Now, we will import netcdf data for pre1980 from SODA 2.4.</p>
-<p>Unfortunately, It looks like I’m going to have to import files one by
-one for chunks of depth.</p>
-<p>File names going in as data.nc.x etc. <a href="https://iridl.ldeo.columbia.edu/SOURCES/.CARTON-GIESE/.SODA/.v2p2p4/.temp/lat/%2855.28333S%29%2881.693N%29RANGEEDGES/time/%28Jan%201967%29%28Dec%201972%29RANGEEDGES/depth/%285.01%29%282375.0%29RANGEEDGES/datafiles.html">5.01-2375.0:
-data.nc</a></p>
-<p><a href="https://iridl.ldeo.columbia.edu/SOURCES/.CARTON-GIESE/.SODA/.v2p2p4/.temp/lat/%2855.28333S%29%2881.693N%29RANGEEDGES/time/%28Jan%201967%29%28Dec%201972%29RANGEEDGES/depth/%282625.0%29%285375.0%29RANGEEDGES/datafiles.html">2625.0-5375.0:
-data.nc.1</a></p>
-<p>These files were manually downloaded</p>
-<p>Latitudes: 55.5S - 82N Years:1967-1972</p>
-<p>Merge depth chunks</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuI21lcmdlIGFsbCBkZXB0aCBjaHVua3NcbmNkbyBtZXJnZSBkYXRhLm4qIGRhdGEucHJlMTk4MC5uYyAjKG1lcmdlcyBkYXRhLm5jIGFuZCBkYXRhLm5jMSlcblxuI29ubHkgYm90dG9tIGxheWVyXG5uY2tzIC1kIGRlcHRoLC0xIGRhdGEucHJlMTk4MC5uYyBzb2RhMi4yLjRfMTk2N18xOTcyX3NidC5uYyAjTkNPIG5ja3Mgd2l0aCBhIG5lZ2F0aXZlIGh5cGVyc2xhYlxuXG5gYGAifQ== -->
-<pre class="bash"><code>#merge all depth chunks
-cdo merge data.n* data.pre1980.nc #(merges data.nc and data.nc1)
-
-#only bottom layer
-ncks -d depth,-1 data.pre1980.nc soda2.2.4_1967_1972_sbt.nc #NCO ncks with a negative hyperslab
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>#POSSIBLY SKIP BELOW We have to match time units, soda2.2.4 in 360
-day and 3.3.1 in gregorian START HERE, maybe import first, and then play
-with time</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgYmFzaFxuXG5jZG8gLWEgc2V0Y2FsZW5kYXIsc3RhbmRhcmQgc29kYTMuMy4yXzE5ODBfMjAxOV9zYnRfZmluYWwubmMgc29kYTMuMy4yXzE5ODBfMjAxOV9zYnRfZmluYWxfdGltZWZpeC5uY1xuY2RvIC1hIHNldGNhbGVuZGFyLHN0YW5kYXJkIHNvZGEyLjIuNF8xOTY3XzE5NzJfc2J0Lm5jIHNvZGEyLjIuNF8xOTY3XzE5NzJfc2J0X3RpbWVmaXgubmNcbmBgYCJ9 -->
-<pre class="bash"><code>
-cdo -a setcalendar,standard soda3.3.2_1980_2019_sbt_final.nc soda3.3.2_1980_2019_sbt_final_timefix.nc
-cdo -a setcalendar,standard soda2.2.4_1967_1972_sbt.nc soda2.2.4_1967_1972_sbt_timefix.nc</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<hr />
-<p>Now I have 2 files for surface temperature (3 dimensions) and
-surface-deepest trawls (bottom temperature, 4 dimensions). Surface
-temperature should be straight forward enough. However, I think the next
-step for bottom temperature is to split them both into monthly files,
-and these will be of three dimensions (depth, lat, lon). Then, I can
-extract depth, lat, lon, data and loop through all month files.</p>
-<p>Done with surface temperature.</p>
-<p>START HERE Now, we have to do the same for bottom temperature, will
-use Ryan and Becca’s code.</p>
-<p>First, 2.2.4 <code>soda2.2.4_1967_1972_sbt.nc</code></p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc29kYV9ib3R0b21fMi4yLjQgPC0gZ2V0LnNvZGEuYm90LjIuMi40KFwic29kYTIuMi40XzE5NjdfMTk3Ml9zYnQubmNcIilcblxuYGBgIn0= -->
-<pre class="r"><code>soda_bottom_2.2.4 &lt;- get.soda.bot.2.2.4(&quot;soda2.2.4_1967_1972_sbt.nc&quot;)
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gbmNfb3BlbihmaWxlKSA6IGNvdWxkIG5vdCBmaW5kIGZ1bmN0aW9uIFwibmNfb3BlblwiXG4ifQ== -->
-<pre><code>Error in nc_open(file) : could not find function &quot;nc_open&quot;</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDI1NDUzMDBcbiJ9 -->
+<pre><code>[1] 2545300</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>Then, 3.3.1
-<code>soda3.3.1_1980_2019_sbt_trawl_final_timefix.nc</code></p>
+<p>Total hauls?</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PVxuIyA9IEZ1bmN0aW9uIHRvIFJlYWQgaW4gU09EQSwgR3JhYiBCb3R0b20gPVxuIyA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PVxuZ2V0LnNvZGEuYm90LjMuMy4xIDwtIGZ1bmN0aW9uKGZpbGUpe1xuXG5cdHNvZGEuaW5mbyA8LSBuY19vcGVuKGZpbGUpXG5cdG5hbWUuc29kYS5zaXplcyA8LSBzYXBwbHkoc29kYS5pbmZvJHZhciR0ZW1wJGRpbSwgZnVuY3Rpb24oeCl4JG5hbWUpXG5cdHNvZGEuc2l6ZXMgPC0gc29kYS5pbmZvJHZhciR0ZW1wJHNpemVcblx0ZGltLnVuaXRzIDwtIHNhcHBseShzb2RhLmluZm8kdmFyJHRlbXAkZGltLCBmdW5jdGlvbih4KXgkdW5pdHMpXG5cdHByaW50KGRpbS51bml0cylcblx0bmFtZXMoc29kYS5zaXplcykgPC0gbmFtZS5zb2RhLnNpemVzXG5cdG50aW1lIDwtIHNvZGEuc2l6ZXNbXCJ0aW1lXCJdXG5cdG5kZXB0aCA8LSBzb2RhLnNpemVzW1wiZGVwdGhcIl1cblxuICB0aW1lLnN0YXJ0IDwtIGFzLkRhdGUoXCIxOTgwLTAxLTAxXCIpICNzZXQgdGhpcyB0byBkYXRlIHlvdSB3YW50IHRvIHN0YXJ0IGF0XG5cdHNvZGEudGltZSA8LSBzZXEuRGF0ZSh0aW1lLnN0YXJ0LCBieT1cIjEgbW9udGhcIiwgbGVuZ3RoLm91dD1udGltZSlcblxuXG5cdHBiIDwtIHR4dFByb2dyZXNzQmFyKG1pbj0xLCBtYXg9bnRpbWUsIHN0eWxlPTMpXG5cdGZvcihpIGluIDE6bnRpbWUpe1xuXHRcdHQuc29kYSA8LSBicmljayhmaWxlLCBsdmFyPTQsIGxldmVsPWkpXG5cdFx0IyBuZWVkIHRvIHN3aXRjaCBtaXNzaW5nIHZhbHVlIHRvIGFjdHVhbCBOQSAjIFRPRE8gaXMgdGhpcyBhdXRvbWF0aWNhbGx5IGRvbmUgYnkgYnJpY2soKT8gSSB0aGluayBzby5cblx0XHRcblx0XHRzb2RhLmRlcHRocyA8LSBhcy5udW1lcmljKGdzdWIoXCJYXCIsIFwiXCIsIG5hbWVzKHQuc29kYSkpKSAjIGRvZXMgd2VpcmQgcm91bmRpbmcgdGhhdCBJIGRvbid0IHVuZGVyc3RhbmRcblx0XG5cdFx0IyBnZXQgdGhlIGRlZXBlc3QgYXZhaWxhYmxlIHRlbXBlcmF0dXJlIGluIGVhY2ggZ3JpZGQgY2VsbFxuXHRcdHQuc29kYS5ib3QgPC0gZG8uY2FsbChjb3ZlciwgdW5zdGFjayhzdWJzZXQodC5zb2RhLCBsZW5ndGgoc29kYS5kZXB0aHMpOjEpKSlcblx0XHRuYW1lcyh0LnNvZGEuYm90KSA8LSBzb2RhLnRpbWVbaV1cblx0XHQjIHRoZSBzdWJzZXR0aW5nIHBpZWNlIGZsaXBzIHRoZSBvcmRlciBvZiB0aGUgbGF5ZXJzIChzbyB0aGF0IGRlZXBlc3QgaXMgZmlyc3QgbGF5ZXIpXG5cdFx0IyBieSB1bnN0YWNraW5nIEkgcmVmb3JtYXQgZnJvbSByYXN0ZXIgd2l0aCBsYXllcnMsIHRvIGxpc3Qgb2YgcmFzdGVyc1xuXHRcdCMgdGhhdCBsaXN0IGNhbiBiZSB1c2VkIGFzIHRoZSBsaXN0IG9mIGFyZ3VtZW50cyB0byBhIGZ1bmN0aW9uIHRha2luZyAuLi5cblx0XHQjIGNvdmVyIGtlZXBzIHRoZSB2YWx1ZXMgaW4gdGhlIGZpcnN0IG9iamVjdCBvZiB0aGUgLi4uLCBhbmQgcmVwbGFjZXMgdGhlIE5BJ3Mgd2l0aCB2YWx1ZXMgZnJvbSB0aGUgc2Vjb25kIC4uLlxuXHRcdCMgdGhhdCBwcm9jZXNzIHJlcGVhdHMgdW50aWwgdGhyb3VnaCBhbGwgb2JqZWN0IGxpc3RlZCBpbiB0aGUgLi4uXG5cdFx0IyBpbiBvdGhlciB3b3JkcywgdGhlIGZpbmFsIHZhbHVlIHdpbGwgYmUgdGhlIHZhbHVlIGluIHRoZSBmaXJzdCBsYXllciB0aGF0IGhhcyBhIG5vbi1OQSB2YWx1ZSBpbiB0aGF0IGNlbGxcblx0XHRcblx0XHQjIGFjY3VtdWxhdGUgb3ZlciB0aW1lIHBlcmlvZHMgKG1vbnRobHkgaW4gb3JpZ2luYWwgZGF0YSBzZXRzIEknbSB1c2luZylcblx0XHQjIHRoaXMgd2lsbCBiZSBmb3IgdGhlIGZpcnN0IHRpbWUgcGVyaW9kICgxOTU4LTE5NzgpXG5cdFx0aWYoaT09MSl7XG5cdFx0XHRzb2RhLmJvdCA8LSB0LnNvZGEuYm90XG5cdFx0fWVsc2V7XG5cdFx0XHRzb2RhLmJvdCA8LSBhZGRMYXllcihzb2RhLmJvdCwgdC5zb2RhLmJvdClcblx0XHR9XG5cdFx0c2V0VHh0UHJvZ3Jlc3NCYXIocGIsIGkpXG5cdH1cblx0Y2xvc2UocGIpXG5cdFxuXHRyZXR1cm4oc29kYS5ib3QpXG5cdFxufVxuXG5zb2RhX2JvdHRvbV8zLjMuMSA8LSBnZXQuc29kYS5ib3QuMy4zLjEoXCJzb2RhMy4zLjFfMTk4MF8yMDE1X3NidF90cmF3bF9maW5hbF90aW1lZml4Lm5jXCIpXG5cbmBgYCJ9 -->
-<pre class="r"><code># =========================================
-# = Function to Read in SODA, Grab Bottom =
-# =========================================
-get.soda.bot.3.3.1 &lt;- function(file){
-
-    soda.info &lt;- nc_open(file)
-    name.soda.sizes &lt;- sapply(soda.info$var$temp$dim, function(x)x$name)
-    soda.sizes &lt;- soda.info$var$temp$size
-    dim.units &lt;- sapply(soda.info$var$temp$dim, function(x)x$units)
-    print(dim.units)
-    names(soda.sizes) &lt;- name.soda.sizes
-    ntime &lt;- soda.sizes[&quot;time&quot;]
-    ndepth &lt;- soda.sizes[&quot;depth&quot;]
-
-  time.start &lt;- as.Date(&quot;1980-01-01&quot;) #set this to date you want to start at
-    soda.time &lt;- seq.Date(time.start, by=&quot;1 month&quot;, length.out=ntime)
-
-
-    pb &lt;- txtProgressBar(min=1, max=ntime, style=3)
-    for(i in 1:ntime){
-        t.soda &lt;- brick(file, lvar=4, level=i)
-        # need to switch missing value to actual NA # TODO is this automatically done by brick()? I think so.
-        
-        soda.depths &lt;- as.numeric(gsub(&quot;X&quot;, &quot;&quot;, names(t.soda))) # does weird rounding that I don&#39;t understand
-    
-        # get the deepest available temperature in each gridd cell
-        t.soda.bot &lt;- do.call(cover, unstack(subset(t.soda, length(soda.depths):1)))
-        names(t.soda.bot) &lt;- soda.time[i]
-        # the subsetting piece flips the order of the layers (so that deepest is first layer)
-        # by unstacking I reformat from raster with layers, to list of rasters
-        # that list can be used as the list of arguments to a function taking ...
-        # cover keeps the values in the first object of the ..., and replaces the NA&#39;s with values from the second ...
-        # that process repeats until through all object listed in the ...
-        # in other words, the final value will be the value in the first layer that has a non-NA value in that cell
-        
-        # accumulate over time periods (monthly in original data sets I&#39;m using)
-        # this will be for the first time period (1958-1978)
-        if(i==1){
-            soda.bot &lt;- t.soda.bot
-        }else{
-            soda.bot &lt;- addLayer(soda.bot, t.soda.bot)
-        }
-        setTxtProgressBar(pb, i)
-    }
-    close(pb)
-    
-    return(soda.bot)
-    
-}
-
-soda_bottom_3.3.1 &lt;- get.soda.bot.3.3.1(&quot;soda3.3.1_1980_2015_sbt_trawl_final_timefix.nc&quot;)
-</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGVuZ3RoKHVuaXF1ZShGaXNoR2xvYl9jbGVhbi5ub05BWyxoYXVsX2lkXSkpXG5gYGAifQ== -->
+<pre class="r"><code>length(unique(FishGlob_clean.noNA[,haul_id]))</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDIwNjQ1N1xuIn0= -->
+<pre><code>[1] 206457</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>Now, in R, merge these two raster bricks</p>
+<p>Total survey units?</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc29kYV9ib3R0b20gPC0gc3RhY2soc29kYV9ib3R0b21fMi4yLjQsIHNvZGFfYm90dG9tXzMuMy4xKVxuI3NhdmVcbndyaXRlUmFzdGVyKHNvZGFfYm90dG9tLCBcInNvZGFfYm90dG9tX3NlcDIwMTkuZ3JkXCIsIG92ZXJ3cml0ZSA9IFQpXG5gYGAifQ== -->
-<pre class="r"><code>soda_bottom &lt;- stack(soda_bottom_2.2.4, soda_bottom_3.3.1)
-#save
-writeRaster(soda_bottom, &quot;soda_bottom_sep2019.grd&quot;, overwrite = T)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGVuZ3RoKHVuaXF1ZShGaXNoR2xvYl9jbGVhbi5ub05BWyxzdXJ2ZXlfdW5pdF0pKVxuYGBgIn0= -->
+<pre class="r"><code>length(unique(FishGlob_clean.noNA[,survey_unit]))</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDM3XG4ifQ== -->
+<pre><code>[1] 37</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Total species?</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGVuZ3RoKHVuaXF1ZShGaXNoR2xvYl9jbGVhbi5ub05BWyxhY2NlcHRlZF9uYW1lXSkpXG5gYGAifQ== -->
+<pre class="r"><code>length(unique(FishGlob_clean.noNA[,accepted_name]))</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDE5ODdcbiJ9 -->
+<pre><code>[1] 1987</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiRXh0cmFjdGluZyBTT0RBIEJvdHRvbSBUZW1wZXJhdHVyZSBmcm9tIGJvdGggMi4yLjQgYW5kIDMuMy4xIgpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sKLS0tCgpgYGB7ciBzZXR1cH0KbGlicmFyeShkYXRhLnRhYmxlKQpsaWJyYXJ5KGhlcmUpCmxpYnJhcnkobmNkZjQpCmBgYApgYGB7ciBwdWxsIGluIGRhdGF9CiNwdWxsIGluIGRhdGEgZm9yIHllYXIgYW5kIGxhdCBsb24gcmVzdHJpY3Rpb25zCkZpc2hHbG9iX2NsZWFuIDwtIHJlYWRSRFMoaGVyZTo6aGVyZSgiZGF0YSIsICJjbGVhbmVkIiwgIkZpc2hHbG9iLndlbGxzYW1wbGVkeWVhcnNjZWxsc19jb21wbGV0ZS5maW5hbC5yZHMiKSkKYGBgCgpVbmlxdWUgTGF0IExvbiBZZWFyIGZvciBlYWNoIFN1cnZleS9zZWFzb24KYGBge3IgdW5pcXVlIGxhdCBsb259CnVuaXF1ZV9sYXRfbG9uX3llYXIgPC0gdW5pcXVlKEZpc2hHbG9iX2NsZWFuWywuKGxhdGl0dWRlLCBsb25naXR1ZGUsIHllYXIsIHN1cnZleSwgc3VydmV5X3VuaXQpXSkKCiNkYXRhIHJhbmdlIGZvciB0aGlzIGRhdGEgaXMgKC0xNzkuODc1LCAxNzkuODc1KSwgc28gSSB3aWxsIHRyaW0gdG8gdGhpcwp1bmlxdWVfbGF0X2xvbl95ZWFyWyxsb25naXR1ZGVfdHJpbSA6PSBpZmVsc2UobG9uZ2l0dWRlIDwgLTE3OS44NzUsIC0xNzkuODc1LCBpZmVsc2UobG9uZ2l0dWRlID4gMTc5Ljg3NSwgMTc5Ljg3NSwgbG9uZ2l0dWRlKSldCgojc2F2ZSB0byBwdWxsIHVwIHRvIHNlcnZlciB0byBleHRyYWN0IHRlbXBlcmF0dXJlcwpzYXZlUkRTKHVuaXF1ZV9sYXRfbG9uX3llYXIsIGhlcmU6OmhlcmUoIm91dHB1dCIsInVuaXF1ZV9sYXRfbG9uX3llYXIucmRzIikpCmBgYAoKI1J1biBuZXh0IHN0ZXBzIG9uIHNlcnZlciBpZGVhbGx5IHRvIGltcHJvdmUgZWZmaWNpZW5jeQoKV2UgbmVlZCB0byBmb2xsb3cgSmltJ3MgbGVhZCAoTW9ybGV5IGV0IGFsLiAyMDE5KSwgIGFuZCB1c2UgU09EQSAyLjIuNCBmb3IgcHJlMTk4MCwgIGFuZCB0aGVuIFNPREEgMy4zLjEgZm9yIHBvc3QxOTgwLiBVbmZvcnR1bmF0ZWx5LCAgdGhleSdyZSBhY2Nlc3NpYmxlIGluIGRpZmZlcmVudCB3YXlzLiBXZSB3aWxsIHN0YXJ0IHdpdGggMTk4MCsgKFNPREEgMy4zLjEpLgoKTkNPIGFuZCBDRE8gcGFja2FnZXMgbXVzdCBiZSBpbnN0YWxsZWQuIEZvciBsb2NhbCBpbnN0YWxsLCB3ZSByZWNvbW1lbmQgdXNpbmcgTWluaWNvbmRhLiAKClNPREEgZGF0YSB3YXMgcHVsbGVkIGZyb20gd2ViIG9uIHJlbW90ZSBzZXJ2ZXIsIGFjY2Vzc2VkIHRocm91Z2ggdGVybWluYWwuIAoKU09EQSAzLjMuMSBub3QgcHVsbGluZyBhcyBvZiBKYW4gMTggMjAyMywgc28gSSB3aWxsIHRyeSAzLjMuMgoKYGBge2Jhc2ggaW1wb3J0IFNPREEgcG9zdDE5ODB9CgojbWFrZSB0ZXh0IGZpbGUgZnJvbSBodHRwczovL3d3dy5hdG1vcy51bWQuZWR1L35vY2Vhbi9pbmRleF9maWxlcy9zb2RhMy4zLjFfbW5fb2NlYW5fcmVnLnR4dAojYWRkICIvb2NlYW4iYWZ0ZXIgcmVncmlkZWQgZXJyb3Igb24gdGhlaXIgcGFydAoKI2RvZXNuJ3Qgd29yayBhbnkgbW9yZQojd2dldCAtaSBzb2RhMy4zLjFfbW5fb2NlYW5fcmVnX2ltcG9ydC50eHQKCndnZXQgLXIgLWwxIC0tbm8tcGFyZW50IC0tcHJvZ3Jlc3M9YmFyIC1uZCAtQS5uYyBodHRwczovL2RzcnMuYXRtb3MudW1kLmVkdS9EQVRBL3NvZGEzLjMuMi9SRUdSSURFRC9vY2Vhbi8KCmBgYAoKVGhpcyB0YWtlcyBhIHdoaWxlLCAgYXMgaXQncyB+ODAwIEdCIG9mIGRhdGEgYWNyb3NzIDI2MDAgZmlsZXMgZWFjaCAyODYgTUIuCgpgYGB7YmFzaCBtYWtlIGVtcHR5IHRleHQgZmlsZX0KdG91Y2ggc29kYTMuMy4yX2FsbC50eHQKYGBgCgoKYGBge2dldCBmaWxlIG5hbWVzfQojZ2V0IGZpbGUgbmFtZXMgKG1hZGUgaW4gZXhjZWwgb24gZGVza3RvcCkKc29kYS4zLjMuMl9hbGwudHh0CgpgYGAKClNlZWluZyBub3cgdGhhdCB0aGVzZSBmaWxlcyBpbiB0aGVpciBjdXJyZW50IHN0YXRlIGFjdHVhbGx5IGNvbnRhaW4gbXVsdGlwbGUgdmFyaWFibGVzLCBhbmQgSSBvbmx5IHdhbnQgb25lIHRlbXAKYGBge2Jhc2ggZXh0cmFjdGluZyBvbmx5IHRlbXAgZnJvbSAxOTgwIHRvIDIwMTl9CiNib3R0b20gKGZvciBub3csIHRoaXMgaXMgYWxsIGRlcHRocywgYnV0IHdpbGwgcmVkdWNlIG9uY2UgaW4gUikKI25hdmlnYXRlIHRvIGZpbGUgd2hlcmUgYWxsIC5uYydzIGFyZSBzdG9yZWQuIChoZXJlLCBpdCdzIGNkIHNvZGEzLjMuMl81ZHlfb2NlYW5fcmVnLykKZm9yIGkgaW4gKgpkbwogIG5ja3MgLXYgdGVtcCAtTyAiJHtpfSIgIiR7aSUuKn1fc2J0Lm5jIgpkb25lCgpgYGAKCkkgd2lsbCBub3cgbWVyZ2UgdGhlc2UgZmlsZXMgYWxvbmcgdGltZS4gRW5zdXJlIHRoYXQgdGhlcmUgYXJlIG5vIG90aGVyIGZpbGVzIHRoYXQgbWF0Y2ggYHNvZGEzLjMuMipzc3QubmNgIHN5bnRheCBiZWNhdXNlIHRoZW4gaXQgd29uJ3Qgd29yay4KYGBge2Jhc2ggbWVyZ2UxOTgwLTIwMTcgZmlsZXMgZm9yIHNidCBhbmQgc3N0fQpuY3JjYXQgc29kYTMuMy4yKnNidC5uYyAtTyBzb2RhMy4zLjJfMTk4MF8yMDE5X3NidC5uYwpgYGAKCkxldCdzIG5vdyBjcm9wIGRvd24gdG8gYWN0dWFsIHBvaW50cyB3ZSBuZWVkOgotNTUuMjgzMzMgbGF0CjgxLjY5MyBsYXQKCiNjaGVjayB0aGlzCkJ1dCwgY3VycmVudGx5LCB0aGlzIDMuMy4yIGRhdGEgaXMgaW4gMC0zNjAsIG9yIHRlY2huaWNhbGx5IDAuMjUtMzU5Ljc1IHdoaWNoIGlzIGVxdWFsIHRvIDAuMjUgdG8gLTAuMjUKClRvIG1hdGNoIHdoYXQgd2Ugd2lsbCBleHRyYWN0IGZyb20gMi4yLjQsIHdlIG5lZWQgLTE4OS43NUUgYW5kIC00My4yNUUuIFNvLCB3ZSBuZWVkIHRvIGtlZXAgMTcwLjI1LTMxNi43NSoqCgpMZXQncyBjcm9wIGludG8gdHdvIHBpZWNlcywgYW5kIHRoZW4gcmVtZXJnZS4KCkNyb3AgdG8gY29ycmVjdCBsYXQgbG9uLgoKbmV0Y2RmIHNvZGEzLjMuMl81ZHlfb2NlYW5fcmVnXzIwMTlfMDFfMDNfc2J0IHsKZGltZW5zaW9uczoKICAgICAgICBzdF9vY2VhbiA9IDUwIDsKICAgICAgICB0aW1lID0gVU5MSU1JVEVEIDsgLy8gKDEgY3VycmVudGx5KQogICAgICAgIHl0X29jZWFuID0gMzMwIDsKICAgICAgICB4dF9vY2VhbiA9IDcyMCA7CnZhcmlhYmxlczoKICAgICAgICBkb3VibGUgc3Rfb2NlYW4oc3Rfb2NlYW4pIDsKICAgICAgICAgICAgICAgIHN0X29jZWFuOmxvbmdfbmFtZSA9ICJ0Y2VsbCB6c3RhciBkZXB0aCIgOwogICAgICAgICAgICAgICAgc3Rfb2NlYW46dW5pdHMgPSAibWV0ZXJzIiA7CiAgICAgICAgICAgICAgICBzdF9vY2Vhbjpwb3NpdGl2ZSA9ICJkb3duIiA7CiAgICAgICAgICAgICAgICBzdF9vY2VhbjpheGlzID0gIloiIDsKICAgICAgICAgICAgICAgIHN0X29jZWFuOmNhcnRlc2lhbl9heGlzID0gIloiIDsKICAgICAgICAgICAgICAgIHN0X29jZWFuOmVkZ2VzID0gInN0X2VkZ2VzX29jZWFuIiA7CiAgICAgICAgZmxvYXQgdGVtcCh0aW1lLCBzdF9vY2VhbiwgeXRfb2NlYW4sIHh0X29jZWFuKSA7CiAgICAgICAgICAgICAgICB0ZW1wOnN0YW5kYXJkX25hbWUgPSAic2VhX3dhdGVyX3BvdGVudGlhbF90ZW1wZXJhdHVyZSIgOwogICAgICAgICAgICAgICAgdGVtcDpsb25nX25hbWUgPSAiUG90ZW50aWFsIHRlbXBlcmF0dXJlIiA7CiAgICAgICAgICAgICAgICB0ZW1wOnVuaXRzID0gImRlZ3JlZXMgQyIgOwogICAgICAgICAgICAgICAgdGVtcDpfRmlsbFZhbHVlID0gLTEuZSsyMGYgOwogICAgICAgICAgICAgICAgdGVtcDptaXNzaW5nX3ZhbHVlID0gLTEuZSsyMGYgOwogICAgICAgICAgICAgICAgdGVtcDpjZWxsX21ldGhvZHMgPSAidGltZTogbWVhbiIgOwogICAgICAgICAgICAgICAgdGVtcDp0aW1lX2F2Z19pbmZvID0gImF2ZXJhZ2VfVDEsYXZlcmFnZV9UMixhdmVyYWdlX0RUIiA7CiAgICAgICAgZG91YmxlIHRpbWUodGltZSkgOwogICAgICAgICAgICAgICAgdGltZTpzdGFuZGFyZF9uYW1lID0gInRpbWUiIDsKICAgICAgICAgICAgICAgIHRpbWU6bG9uZ19uYW1lID0gInRpbWUiIDsKICAgICAgICAgICAgICAgIHRpbWU6dW5pdHMgPSAiZGF5cyBzaW5jZSAxOTgwLTAxLTAxIDAwOjAwOjAwIiA7CiAgICAgICAgICAgICAgICB0aW1lOmNhbGVuZGFyID0gInN0YW5kYXJkIiA7CiAgICAgICAgICAgICAgICB0aW1lOmF4aXMgPSAiVCIgOwogICAgICAgIGRvdWJsZSB4dF9vY2Vhbih4dF9vY2VhbikgOwogICAgICAgICAgICAgICAgeHRfb2NlYW46c3RhbmRhcmRfbmFtZSA9ICJsb25naXR1ZGUiIDsKICAgICAgICAgICAgICAgIHh0X29jZWFuOmxvbmdfbmFtZSA9ICJ0Y2VsbCBsb25naXR1ZGUiIDsKICAgICAgICAgICAgICAgIHh0X29jZWFuOnVuaXRzID0gImRlZ3JlZXNfRSIgOwogICAgICAgICAgICAgICAgeHRfb2NlYW46YXhpcyA9ICJYIiA7CiAgICAgICAgZG91YmxlIHl0X29jZWFuKHl0X29jZWFuKSA7CiAgICAgICAgICAgICAgICB5dF9vY2VhbjpzdGFuZGFyZF9uYW1lID0gImxhdGl0dWRlIiA7CiAgICAgICAgICAgICAgICB5dF9vY2Vhbjpsb25nX25hbWUgPSAidGNlbGwgbGF0aXR1ZGUiIDsKICAgICAgICAgICAgICAgIHl0X29jZWFuOnVuaXRzID0gImRlZ3JlZXNfTiIgOwogICAgICAgICAgICAgICAgeXRfb2NlYW46YXhpcyA9ICJZIiA7CiAgICAgICAgICAgICAgICAKYGBge2Jhc2ggY3JvcCBwb2ludHMgdG8gdGhvc2Ugd2UgYWN0dWFsbHkgbmVlZCBmcm9tIDAtMzYwIGZyb20gMy4zLjJ9CiNib3R0b20KbmNrcyAtTyAtZCB5dF9vY2VhbiwtNTUuMjgzMzMsODEuNjkzIC1kIHh0X29jZWFuLDAsMzYwIHNvZGEzLjMuMl8xOTgwXzIwMTlfc2J0Lm5jIHNvZGEzLjMuMl8xOTgwXzIwMTlfc2J0X2Nyb3AubmMKCgpgYGAKCgoqVGhlIGZpcnN0IGNvbW1hbmQgbmNrcyBzaGlmdHMgdGhlIGRhdGEsICB0aGUgc2Vjb25kIGNvbW1hbmQgbmNhcDIgcmVjYWxpYnJhdGVzIHRoZSBjb29yZGluYXRlIHRvIHRoZSBuZXdseSBzaGlmdGVkIGRhdGEuIE9uZSBjb21tZW50IG9uIGFwcGx5aW5nIHRoaXMgYWxnb3JpdGhtOiBCZSBjYXJlZnVsIHRvIHNwZWNpZnkgaGVtaXNwaGVyZXMgdGhhdCBkbyBub3Qgb3ZlcmxhcCwgIGUuZy4sICBieSBpbmFkdmVydGVudGx5IHNwZWNpZnlpbmcgY29vcmRpbmF0ZSByYW5nZXMgaW4gdGhlIGZpcnN0IGNvbW1hbmQgdGhhdCBib3RoIGluY2x1ZGUgdGhlIGRhdGUgbGluZS4gU29tZSB1c2VycyB3aWxsIGZpbmQgdXNpbmcgaW5kZXgtYmFzZWQgcmF0aGVyIHRoYW4gY29vcmRpbmF0ZS1iYXNlZCBoeXBlcnNsYWJzIG1ha2VzIHRoaXMgY2xlYXJlci4gRXhhbWluZSBhIHBsb3Qgb2YgdGhlIGZpZWxkIHRvIG1ha2Ugc3VyZSB5b3VyIHJvdGF0aW9uIHdhcyBjb3JyZWN0LioKCmBgYHtiYXNoIGNvbnZlcnQgZ3JpZH0KCiNib3R0b20KbmNhcDIgLU8gLXMgJ2xvbmdpdHVkZT1sb25naXR1ZGUtMzYwJyBzb2RhMy4zLjJfMTk4MF8yMDE5X3NidF9jcm9wLm5jIHNvZGEzLjMuMl8xOTgwXzIwMTlfc2J0X2ZpbmFsLm5jCmBgYAoKCkNoYW5nZSBuYW1lcyBvZiBkaW1lbnNpb25zIHRvIG1hdGNoIGVhcmxpZXIgdGltZSBmaWxlcwpgYGB7YmFzaCBjaGFuZ2UgbmFtZXMgb2YgZGltZW5zaW9ucyBhbmQgdmFyaWFibGVzIGZvciAxOTgwK30KCiNib3R0b20KbmNyZW5hbWUgLWQgbGF0aXR1ZGUsbGF0IC12IGxhdGl0dWRlLGxhdCBzb2RhMy4zLjJfMTk4MF8yMDE5X3NidF9maW5hbC5uYwpuY3JlbmFtZSAtZCBsb25naXR1ZGUsbG9uIC12IGxvbmdpdHVkZSxsb24gc29kYTMuMy4yXzE5ODBfMjAxOV9zYnRfZmluYWwubmMKYGBgCipEb25lIHdpdGggMTk4MC0yMDE5IGZyb20gU09EQSAzLjMuMioKCi0tLS0tLS0tLS0KCk1heGltdW0gZGVwdGggPSAxNTA0IG1ldGVycywgc28gb25seSB1cCB0byAxNjI1LjcgaW4gU09EQSBkYXRhCmBgYHtiYXNoIGxpbWl0IHRvIGRlcHRocyBpbmNsdWRlZCBpbiB0cmF3bCBzdXJ2ZXkgMy4zLjJ9Cgojb25seSBsb29rIGF0IHRlbXBlcmF0dXJlIHZhcmlhYmxlCmZvciBpIGluIGBjYXQgc29kYTMuMy4yX21uX29jZWFuX3JlZ19pbXBvcnQudHh0YDsgZG8gbmNrcyAtdiB0ZW1wIC1PICIke2klLip9X2JvdHRvbV90cmF3bC5uYyIgIiR7aSUuKn1fc2J0X3RyYXdsLm5jIjtkb25lCgojbm93IG1lcmdlIHRoZXNlIGZpbGVzIG92ZXIgdGltZQpuY3JjYXQgc29kYTMuMy4yKnNidF90cmF3bC5uYyAtTyBzb2RhMy4zLjFfMTk4MF8yMDE1X3NidF90cmF3bC5uYwoKI2Nyb3AgdG8gcG9pbnRzIHdlIG5lZWQgbGF0IGxvbgpuY2tzIC1PIC1kIGxhdGl0dWRlLDI0LjI1LDYyLjI1IC1kIGxvbmdpdHVkZSwxNzAuMjUsMzE2Ljc1IHNvZGEzLjMuMl8xOTgwXzIwMTVfc2J0X3RyYXdsLm5jIHNvZGEzLjMuMV8xOTgwXzIwMTVfc2J0X3RyYXdsX2Nyb3AubmMKCiNjaGFuZ2UgZ3JpZCBmcm9tIDAgMzYwIC0gLTE4MC0xODAKbmNhcDIgLU8gLXMgJ2xvbmdpdHVkZT1sb25naXR1ZGUtMzYwJyBzb2RhMy4zLjFfMTk4MF8yMDE1X3NidF90cmF3bF9jcm9wLm5jIHNvZGEzLjMuMV8xOTgwXzIwMTVfc2J0X3RyYXdsX2ZpbmFsLm5jCgojY2hhbmdlIG5hbWVzIHRvIGxhdC9sb24KbmNyZW5hbWUgLWQgbGF0aXR1ZGUsbGF0IC12IGxhdGl0dWRlLGxhdCBzb2RhMy4zLjFfMTk4MF8yMDE1X3NidF90cmF3bF9maW5hbC5uYwpuY3JlbmFtZSAtZCBsb25naXR1ZGUsbG9uIC12IGxvbmdpdHVkZSxsb24gc29kYTMuMy4xXzE5ODBfMjAxNV9zYnRfdHJhd2xfZmluYWwubmMKYGBgCi0tLS0tLS0tLQoKKioqKioqKioqKgoKTm93LCAgd2Ugd2lsbCBpbXBvcnQgbmV0Y2RmIGRhdGEgZm9yIHByZTE5ODAgZnJvbSBTT0RBIDIuNC4KClVuZm9ydHVuYXRlbHksICBJdCBsb29rcyBsaWtlIEknbSBnb2luZyB0byBoYXZlIHRvIGltcG9ydCBmaWxlcyBvbmUgYnkgb25lIGZvciBjaHVua3Mgb2YgZGVwdGguCgpGaWxlIG5hbWVzIGdvaW5nIGluIGFzIGRhdGEubmMueCBldGMuCls1LjAxLTIzNzUuMDogZGF0YS5uY10oaHR0cHM6Ly9pcmlkbC5sZGVvLmNvbHVtYmlhLmVkdS9TT1VSQ0VTLy5DQVJUT04tR0lFU0UvLlNPREEvLnYycDJwNC8udGVtcC9sYXQvJTI4NTUuMjgzMzNTJTI5JTI4ODEuNjkzTiUyOVJBTkdFRURHRVMvdGltZS8lMjhKYW4lMjAxOTY3JTI5JTI4RGVjJTIwMTk3MiUyOVJBTkdFRURHRVMvZGVwdGgvJTI4NS4wMSUyOSUyODIzNzUuMCUyOVJBTkdFRURHRVMvZGF0YWZpbGVzLmh0bWwpCgpbMjYyNS4wLTUzNzUuMDogZGF0YS5uYy4xXShodHRwczovL2lyaWRsLmxkZW8uY29sdW1iaWEuZWR1L1NPVVJDRVMvLkNBUlRPTi1HSUVTRS8uU09EQS8udjJwMnA0Ly50ZW1wL2xhdC8lMjg1NS4yODMzM1MlMjklMjg4MS42OTNOJTI5UkFOR0VFREdFUy90aW1lLyUyOEphbiUyMDE5NjclMjklMjhEZWMlMjAxOTcyJTI5UkFOR0VFREdFUy9kZXB0aC8lMjgyNjI1LjAlMjklMjg1Mzc1LjAlMjlSQU5HRUVER0VTL2RhdGFmaWxlcy5odG1sKQoKVGhlc2UgZmlsZXMgd2VyZSBtYW51YWxseSBkb3dubG9hZGVkCgpMYXRpdHVkZXM6IDU1LjVTIC0gODJOClllYXJzOjE5NjctMTk3MgoKTWVyZ2UgZGVwdGggY2h1bmtzCmBgYHtiYXNoIG1lcmdlIFNPREEgZmlsZXMgcHJlIDE5ODB9CiNtZXJnZSBhbGwgZGVwdGggY2h1bmtzCmNkbyBtZXJnZSBkYXRhLm4qIGRhdGEucHJlMTk4MC5uYyAjKG1lcmdlcyBkYXRhLm5jIGFuZCBkYXRhLm5jMSkKCiNvbmx5IGJvdHRvbSBsYXllcgpuY2tzIC1kIGRlcHRoLC0xIGRhdGEucHJlMTk4MC5uYyBzb2RhMi4yLjRfMTk2N18xOTcyX3NidC5uYyAjTkNPIG5ja3Mgd2l0aCBhIG5lZ2F0aXZlIGh5cGVyc2xhYgoKYGBgCgojUE9TU0lCTFkgU0tJUCBCRUxPVwpXZSBoYXZlIHRvIG1hdGNoIHRpbWUgdW5pdHMsIHNvZGEyLjIuNCBpbiAzNjAgZGF5IGFuZCAzLjMuMSBpbiBncmVnb3JpYW4KU1RBUlQgSEVSRSwgbWF5YmUgaW1wb3J0IGZpcnN0LCBhbmQgdGhlbiBwbGF5IHdpdGggdGltZQpgYGB7YmFzaCBmaXhpbmcgdGltZSB1bml0c30KCmNkbyAtYSBzZXRjYWxlbmRhcixzdGFuZGFyZCBzb2RhMy4zLjJfMTk4MF8yMDE5X3NidF9maW5hbC5uYyBzb2RhMy4zLjJfMTk4MF8yMDE5X3NidF9maW5hbF90aW1lZml4Lm5jCmNkbyAtYSBzZXRjYWxlbmRhcixzdGFuZGFyZCBzb2RhMi4yLjRfMTk2N18xOTcyX3NidC5uYyBzb2RhMi4yLjRfMTk2N18xOTcyX3NidF90aW1lZml4Lm5jCmBgYAoKKioqKioqKioqKioqCgpOb3cgSSBoYXZlIDIgZmlsZXMgZm9yIHN1cmZhY2UgdGVtcGVyYXR1cmUgKDMgZGltZW5zaW9ucykgYW5kIHN1cmZhY2UtZGVlcGVzdCB0cmF3bHMgKGJvdHRvbSB0ZW1wZXJhdHVyZSwgNCBkaW1lbnNpb25zKS4gU3VyZmFjZSB0ZW1wZXJhdHVyZSBzaG91bGQgYmUgc3RyYWlnaHQgZm9yd2FyZCBlbm91Z2guIEhvd2V2ZXIsIEkgdGhpbmsgdGhlIG5leHQgc3RlcCBmb3IgYm90dG9tIHRlbXBlcmF0dXJlIGlzIHRvIHNwbGl0IHRoZW0gYm90aCBpbnRvIG1vbnRobHkgZmlsZXMsIGFuZCB0aGVzZSB3aWxsIGJlIG9mIHRocmVlIGRpbWVuc2lvbnMgKGRlcHRoLCBsYXQsIGxvbikuIFRoZW4sIEkgY2FuIGV4dHJhY3QgZGVwdGgsIGxhdCwgbG9uLCBkYXRhIGFuZCBsb29wIHRocm91Z2ggYWxsIG1vbnRoIGZpbGVzLgoKCkRvbmUgd2l0aCBzdXJmYWNlIHRlbXBlcmF0dXJlLgoKU1RBUlQgSEVSRQpOb3csIHdlIGhhdmUgdG8gZG8gdGhlIHNhbWUgZm9yIGJvdHRvbSB0ZW1wZXJhdHVyZSwgd2lsbCB1c2UgUnlhbiBhbmQgQmVjY2EncyBjb2RlLgoKRmlyc3QsIDIuMi40IGBzb2RhMi4yLjRfMTk2N18xOTcyX3NidC5uY2AKYGBge3IgYnJpbmcgaW4gYm90dG9tIDIuMi40fQoKIyA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQojID0gRnVuY3Rpb24gdG8gUmVhZCBpbiBTT0RBLCBHcmFiIEJvdHRvbSA9CiMgPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KZ2V0LnNvZGEuYm90LjIuMi40IDwtIGZ1bmN0aW9uKGZpbGUpewogIAogIHNvZGEuaW5mbyA8LSBuY19vcGVuKGZpbGUpCiAgIG5hbWUuc29kYS5zaXplcyA8LSBzYXBwbHkoc29kYS5pbmZvJHZhciR0ZW1wJGRpbSwgZnVuY3Rpb24oeCl4JG5hbWUpCiAgc29kYS5zaXplcyA8LSBzb2RhLmluZm8kdmFyJHRlbXAkc2l6ZQogIGRpbS51bml0cyA8LSBzYXBwbHkoc29kYS5pbmZvJHZhciR0ZW1wJGRpbSwgZnVuY3Rpb24oeCl4JHVuaXRzKQogIHByaW50KGRpbS51bml0cykKICBzdG9waWZub3QoZ3JlcGwoIm1vbnRocyBzaW5jZSAiLCBkaW0udW5pdHNbNF0pKSAjIG1ha2Ugc3VyZSB0aW1lIGlzIGluIGNvcnJlY3QgdW5pdHMgYW5kIGluIHJpZ2h0IHBsYWNlCiAgbmFtZXMoc29kYS5zaXplcykgPC0gbmFtZS5zb2RhLnNpemVzCiAgbnRpbWUgPC0gc29kYS5zaXplc1sidGltZSJdCiAgbmRlcHRoIDwtIHNvZGEuc2l6ZXNbImRlcHRoIl0KICAKICBzb2RhLnRpbWUwIDwtIHNvZGEuaW5mbyR2YXIkdGVtcCRkaW1bWzRdXSR2YWxzCiAgcmVmLmRhdGUgPC0gYXMuRGF0ZShnc3ViKCJtb250aHMgc2luY2UgIiwgIiIsIGRpbS51bml0c1s0XSkpCiAgc3RhcnQuYmVmb3JlLnJlZiA8LSBncmVwbCgiLSIsIHNvZGEudGltZTBbMV0pICMgaXMgdGhlIGZpcnN0IGRhdGUgYmVmb3JlIHJlZi5kYXRlPwogIG4ubW9udGguYmVmb3JlIDwtIGNlaWxpbmcoYWJzKHNvZGEudGltZTBbMV0pKSArIGFzLmludGVnZXIoc3RhcnQuYmVmb3JlLnJlZikKICBzdGFydC5pbmNyZW1lbnQgPC0gaWZlbHNlKHN0YXJ0LmJlZm9yZS5yZWYsICItMSBtb250aCIsICIxIG1vbnRoIikKICB0aW1lLnN0YXJ0IDwtIHJldihzZXEuRGF0ZShyZWYuZGF0ZSwgYnk9c3RhcnQuaW5jcmVtZW50LCBsZW5ndGgub3V0PW4ubW9udGguYmVmb3JlKSlbMV0KICBzb2RhLnRpbWUgPC0gc2VxLkRhdGUodGltZS5zdGFydCwgYnk9IjEgbW9udGgiLCBsZW5ndGgub3V0PW50aW1lKQogIAogIAogIHBiIDwtIHR4dFByb2dyZXNzQmFyKG1pbj0xLCBtYXg9bnRpbWUsIHN0eWxlPTMpCiAgZm9yKGkgaW4gMTpudGltZSl7CiAgICAKICAgIHQuc29kYSA8LSBicmljayhmaWxlLCBsdmFyPTQsIGxldmVsPWkpCiAgICAjIG5lZWQgdG8gc3dpdGNoIG1pc3NpbmcgdmFsdWUgdG8gYWN0dWFsIE5BICMgVE9ETyBpcyB0aGlzIGF1dG9tYXRpY2FsbHkgZG9uZSBieSBicmljaygpPyBJIHRoaW5rIHNvLgogICAgCiAgICBzb2RhLmRlcHRocyA8LSBhcy5udW1lcmljKGdzdWIoIlgiLCAiIiwgbmFtZXModC5zb2RhKSkpICMgZG9lcyB3ZWlyZCByb3VuZGluZyB0aGF0IEkgZG9uJ3QgdW5kZXJzdGFuZAogICAgCiAgICAjIGdldCB0aGUgZGVlcGVzdCBhdmFpbGFibGUgdGVtcGVyYXR1cmUgaW4gZWFjaCBncmlkIGNlbGwKICAgIHQuc29kYS5ib3QgPC0gc3Vic2V0KHQuc29kYSwgbGVuZ3RoKHNvZGEuZGVwdGhzKToxKQogICAgCiAgICBuYW1lcyh0LnNvZGEuYm90KSA8LSBzb2RhLnRpbWVbaV0KICAgICMgdGhlIHN1YnNldHRpbmcgcGllY2UgZmxpcHMgdGhlIG9yZGVyIG9mIHRoZSBsYXllcnMgKHNvIHRoYXQgZGVlcGVzdCBpcyBmaXJzdCBsYXllcikKICAgICMgYnkgdW5zdGFja2luZyBJIHJlZm9ybWF0IGZyb20gcmFzdGVyIHdpdGggbGF5ZXJzLCB0byBsaXN0IG9mIHJhc3RlcnMKICAgICMgdGhhdCBsaXN0IGNhbiBiZSB1c2VkIGFzIHRoZSBsaXN0IG9mIGFyZ3VtZW50cyB0byBhIGZ1bmN0aW9uIHRha2luZyAuLi4KICAgICMgY292ZXIga2VlcHMgdGhlIHZhbHVlcyBpbiB0aGUgZmlyc3Qgb2JqZWN0IG9mIHRoZSAuLi4sIGFuZCByZXBsYWNlcyB0aGUgTkEncyB3aXRoIHZhbHVlcyBmcm9tIHRoZSBzZWNvbmQgLi4uCiAgICAjIHRoYXQgcHJvY2VzcyByZXBlYXRzIHVudGlsIHRocm91Z2ggYWxsIG9iamVjdCBsaXN0ZWQgaW4gdGhlIC4uLgogICAgIyBpbiBvdGhlciB3b3JkcywgdGhlIGZpbmFsIHZhbHVlIHdpbGwgYmUgdGhlIHZhbHVlIGluIHRoZSBmaXJzdCBsYXllciB0aGF0IGhhcyBhIG5vbi1OQSB2YWx1ZSBpbiB0aGF0IGNlbGwKICAgIAogICAgIyBhY2N1bXVsYXRlIG92ZXIgdGltZSBwZXJpb2RzIChtb250aGx5IGluIG9yaWdpbmFsIGRhdGEgc2V0cyBJJ20gdXNpbmcpCiAgICAjIHRoaXMgd2lsbCBiZSBmb3IgdGhlIGZpcnN0IHRpbWUgcGVyaW9kICgxOTU4LTE5NzgpCiAgICBpZihpPT0xKXsKICAgICAgc29kYS5ib3QgPC0gdC5zb2RhLmJvdAogICAgfWVsc2V7CiAgICAgIHNvZGEuYm90IDwtIGFkZExheWVyKHNvZGEuYm90LCB0LnNvZGEuYm90KQogICAgfQogICAgc2V0VHh0UHJvZ3Jlc3NCYXIocGIsIGkpCiAgfQogIGNsb3NlKHBiKQogIAogIHJldHVybihzb2RhLmJvdCkKICAKfQoKc29kYV9ib3R0b21fMi4yLjQgPC0gZ2V0LnNvZGEuYm90LjIuMi40KCJzb2RhMi4yLjRfMTk2N18xOTcyX3NidC5uYyIpCgpgYGAKClRoZW4sIDMuMy4xIGBzb2RhMy4zLjFfMTk4MF8yMDE5X3NidF90cmF3bF9maW5hbF90aW1lZml4Lm5jYApgYGB7ciBicmluZyBpbiBib3R0b20gMy4zLjF9CiMgPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KIyA9IEZ1bmN0aW9uIHRvIFJlYWQgaW4gU09EQSwgR3JhYiBCb3R0b20gPQojID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CmdldC5zb2RhLmJvdC4zLjMuMSA8LSBmdW5jdGlvbihmaWxlKXsKCglzb2RhLmluZm8gPC0gbmNfb3BlbihmaWxlKQoJbmFtZS5zb2RhLnNpemVzIDwtIHNhcHBseShzb2RhLmluZm8kdmFyJHRlbXAkZGltLCBmdW5jdGlvbih4KXgkbmFtZSkKCXNvZGEuc2l6ZXMgPC0gc29kYS5pbmZvJHZhciR0ZW1wJHNpemUKCWRpbS51bml0cyA8LSBzYXBwbHkoc29kYS5pbmZvJHZhciR0ZW1wJGRpbSwgZnVuY3Rpb24oeCl4JHVuaXRzKQoJcHJpbnQoZGltLnVuaXRzKQoJbmFtZXMoc29kYS5zaXplcykgPC0gbmFtZS5zb2RhLnNpemVzCgludGltZSA8LSBzb2RhLnNpemVzWyJ0aW1lIl0KCW5kZXB0aCA8LSBzb2RhLnNpemVzWyJkZXB0aCJdCgogIHRpbWUuc3RhcnQgPC0gYXMuRGF0ZSgiMTk4MC0wMS0wMSIpICNzZXQgdGhpcyB0byBkYXRlIHlvdSB3YW50IHRvIHN0YXJ0IGF0Cglzb2RhLnRpbWUgPC0gc2VxLkRhdGUodGltZS5zdGFydCwgYnk9IjEgbW9udGgiLCBsZW5ndGgub3V0PW50aW1lKQoKCglwYiA8LSB0eHRQcm9ncmVzc0JhcihtaW49MSwgbWF4PW50aW1lLCBzdHlsZT0zKQoJZm9yKGkgaW4gMTpudGltZSl7CgkJdC5zb2RhIDwtIGJyaWNrKGZpbGUsIGx2YXI9NCwgbGV2ZWw9aSkKCQkjIG5lZWQgdG8gc3dpdGNoIG1pc3NpbmcgdmFsdWUgdG8gYWN0dWFsIE5BICMgVE9ETyBpcyB0aGlzIGF1dG9tYXRpY2FsbHkgZG9uZSBieSBicmljaygpPyBJIHRoaW5rIHNvLgoJCQoJCXNvZGEuZGVwdGhzIDwtIGFzLm51bWVyaWMoZ3N1YigiWCIsICIiLCBuYW1lcyh0LnNvZGEpKSkgIyBkb2VzIHdlaXJkIHJvdW5kaW5nIHRoYXQgSSBkb24ndCB1bmRlcnN0YW5kCgkKCQkjIGdldCB0aGUgZGVlcGVzdCBhdmFpbGFibGUgdGVtcGVyYXR1cmUgaW4gZWFjaCBncmlkZCBjZWxsCgkJdC5zb2RhLmJvdCA8LSBkby5jYWxsKGNvdmVyLCB1bnN0YWNrKHN1YnNldCh0LnNvZGEsIGxlbmd0aChzb2RhLmRlcHRocyk6MSkpKQoJCW5hbWVzKHQuc29kYS5ib3QpIDwtIHNvZGEudGltZVtpXQoJCSMgdGhlIHN1YnNldHRpbmcgcGllY2UgZmxpcHMgdGhlIG9yZGVyIG9mIHRoZSBsYXllcnMgKHNvIHRoYXQgZGVlcGVzdCBpcyBmaXJzdCBsYXllcikKCQkjIGJ5IHVuc3RhY2tpbmcgSSByZWZvcm1hdCBmcm9tIHJhc3RlciB3aXRoIGxheWVycywgdG8gbGlzdCBvZiByYXN0ZXJzCgkJIyB0aGF0IGxpc3QgY2FuIGJlIHVzZWQgYXMgdGhlIGxpc3Qgb2YgYXJndW1lbnRzIHRvIGEgZnVuY3Rpb24gdGFraW5nIC4uLgoJCSMgY292ZXIga2VlcHMgdGhlIHZhbHVlcyBpbiB0aGUgZmlyc3Qgb2JqZWN0IG9mIHRoZSAuLi4sIGFuZCByZXBsYWNlcyB0aGUgTkEncyB3aXRoIHZhbHVlcyBmcm9tIHRoZSBzZWNvbmQgLi4uCgkJIyB0aGF0IHByb2Nlc3MgcmVwZWF0cyB1bnRpbCB0aHJvdWdoIGFsbCBvYmplY3QgbGlzdGVkIGluIHRoZSAuLi4KCQkjIGluIG90aGVyIHdvcmRzLCB0aGUgZmluYWwgdmFsdWUgd2lsbCBiZSB0aGUgdmFsdWUgaW4gdGhlIGZpcnN0IGxheWVyIHRoYXQgaGFzIGEgbm9uLU5BIHZhbHVlIGluIHRoYXQgY2VsbAoJCQoJCSMgYWNjdW11bGF0ZSBvdmVyIHRpbWUgcGVyaW9kcyAobW9udGhseSBpbiBvcmlnaW5hbCBkYXRhIHNldHMgSSdtIHVzaW5nKQoJCSMgdGhpcyB3aWxsIGJlIGZvciB0aGUgZmlyc3QgdGltZSBwZXJpb2QgKDE5NTgtMTk3OCkKCQlpZihpPT0xKXsKCQkJc29kYS5ib3QgPC0gdC5zb2RhLmJvdAoJCX1lbHNlewoJCQlzb2RhLmJvdCA8LSBhZGRMYXllcihzb2RhLmJvdCwgdC5zb2RhLmJvdCkKCQl9CgkJc2V0VHh0UHJvZ3Jlc3NCYXIocGIsIGkpCgl9CgljbG9zZShwYikKCQoJcmV0dXJuKHNvZGEuYm90KQoJCn0KCnNvZGFfYm90dG9tXzMuMy4xIDwtIGdldC5zb2RhLmJvdC4zLjMuMSgic29kYTMuMy4xXzE5ODBfMjAxNV9zYnRfdHJhd2xfZmluYWxfdGltZWZpeC5uYyIpCgpgYGAKCk5vdywgaW4gUiwgbWVyZ2UgdGhlc2UgdHdvIHJhc3RlciBicmlja3MKYGBge3IgbWVyZ2Ugc3RhY2tzIGZvciBib3R0b20gdGVtcGVyYXR1cmUgYWNyb3NzIHRpbWV9CnNvZGFfYm90dG9tIDwtIHN0YWNrKHNvZGFfYm90dG9tXzIuMi40LCBzb2RhX2JvdHRvbV8zLjMuMSkKI3NhdmUKd3JpdGVSYXN0ZXIoc29kYV9ib3R0b20sICJzb2RhX2JvdHRvbV9zZXAyMDE5LmdyZCIsIG92ZXJ3cml0ZSA9IFQpCmBgYA==</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiRGF0YSBTZXQgU3RhdGlzdGljcyIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKVGhpcyBjb2RlIHByb2R1Y2VzIGEgc2V0IG9mIGRhdGEgc2V0IHN0YXRpc3RpY3MgaW5jbHVkZWQgaW4gdGhlIG1hbnVzY3JpcHQKCmBgYHtyIHNldHVwfQoKbGlicmFyeShkYXRhLnRhYmxlKQoKCkZpc2hHbG9iX2NsZWFuIDwtIHJlYWRSRFMoaGVyZTo6aGVyZSgiZGF0YSIsICJjbGVhbmVkIiwgIkZpc2hHbG9iLndlbGxzYW1wbGVkeWVhcnNjZWxsc19jb21wbGV0ZS5maW5hbC5yZHMiKSkKYGBgCgoKQWRkaXRpb25hbCBjbGVhbmluZyBmcm9tIGRpc3NpbV9tZXRyaWNfc3BhY2VfdGltZV8zLlJtZAoKRGVsZXRlIHRoZXNlIG9ic2VydmF0aW9ucyBhYm92ZSBleGNlcHQgZm9yIE1FRElUUyAod2Ugd2lsbCBkbyB0cmVuZHMgaW4gYWJ1bmRhbmNlIG1ldHJpY3MgZm9yIHRoaXMgcmVnaW9uKQpgYGB7cn0KI2RlbGV0ZSBhbGwgcm93cyB3aGVyZSB3Z3RfY3B1ZSBpcyBOQSwgIHVubGVzcyBpdCBpcyBNRURJVFMgcmVnaW9uCkZpc2hHbG9iX2NsZWFuLm5vTkEgPC0gRmlzaEdsb2JfY2xlYW5bKHN1cnZleSAhPSAiTUVESVRTIiAmICFpcy5uYSh3Z3RfY3B1ZSkpIHwgc3VydmV5ID09ICJNRURJVFMiXQoKI2NoZWNrCnN1bW1hcnkoRmlzaEdsb2JfY2xlYW4ubm9OQVssIHdndF9jcHVlXSkgI3doeSBpbmY/IDEzIG9ic2VydmF0aW9ucyBmcm9tIEdTTC1OLCAgSSB3aWxsIGRlbGV0ZSB0aGVzZQpGaXNoR2xvYl9jbGVhbi5ub05BIDwtIGNvcHkoRmlzaEdsb2JfY2xlYW4ubm9OQSlbIWlzLmluZmluaXRlKHdndF9jcHVlKSwgXQoKYGBgCgpGb3IgTlotQ0hBVCwgd2Ugd2FudCB0byBsdW1wIERlY2VtYmVyIG9ic2VydmF0aW9ucyB3aXRoIG5leHQgeWVhciBvZiBvYnNlcnZhdGlvbnMgKEphbnVhcnksICBGZWJydWFyeSkKYGBge3J9CkZpc2hHbG9iX2NsZWFuLm5vTkFbc3VydmV5X3VuaXQgPT0gIk5aLUNIQVQiICYgbW9udGggPT0gMTIsICB5ZWFyIDo9IHllYXIrMSwgXQpgYGAKClNvbWUgc3BwIGFyZSBkdXBsaWNhdGVkIHdpdGhpbiBhIGhhdWwuIEluIGFsbCBjYXNlcywgIHRoaXMgaXMgZHVlIHRvIHZlcmJhdGltIG5hbWVzIG1hdGNoaW5nIHRvIGEgc2luZ2xlIGFjY2VwdGVkIG5hbWUuIFRoZXJlZm9yZSwgIHdlIHdpbGwgc3VtIHRoZXNlIHdndHMgYW5kIGFidW5kYW5jZXMKYGBge3J9CkZpc2hHbG9iX2NsZWFuLm5vTkFbLCB3Z3QgOj0gc3VtKHdndCwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIAogICAgICAgICAgICAgICAgICAgICB3Z3RfaCA6PSBzdW0od2d0X2gsICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV1bLCAKICAgICAgICAgICAgICAgICAgICAgd2d0X2NwdWUgOj0gc3VtKHdndF9jcHVlLCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldWywgCiAgICAgICAgICAgICAgICAgICAgIG51bSA6PSBzdW0obnVtLCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldWywgCiAgICAgICAgICAgICAgICAgICAgIG51bV9oIDo9IHN1bShudW1faCwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIAogICAgICAgICAgICAgICAgICAgICBudW1fY3B1ZSA6PSBzdW0obnVtX2NwdWUsICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV0KCkZpc2hHbG9iX2NsZWFuLm5vTkEgPC0gdW5pcXVlKEZpc2hHbG9iX2NsZWFuLm5vTkFbLC4oc3VydmV5LCBoYXVsX2lkLCBjb3VudHJ5LCBzdWJfYXJlYSwgY29udGluZW50LCBzdGF0X3JlYywgc3RhdGlvbiwgc3RyYXR1bSwgeWVhciwgbW9udGgsIGRheSwgcXVhcnRlciwgc2Vhc29uLCBsYXRpdHVkZSwgbG9uZ2l0dWRlLCBoYXVsX2R1ciwgYXJlYV9zd2VwdCwgZ2VhciwgZGVwdGgsIHNidCwgc3N0LCBudW0sIG51bV9oLCBudW1fY3B1ZSwgd2d0LCB3Z3RfaCwgd2d0X2NwdWUsIHZlcmJhdGltX2FwaGlhX2lkLCBhY2NlcHRlZF9uYW1lLCBhcGhpYV9pZCwgU3BlY0NvZGUsIGtpbmdkb20sIHBoeWx1bSwgY2xhc3MsIG9yZGVyLCBmYW1pbHksIGdlbnVzLCByYW5rLCBzdXJ2ZXlfdW5pdCwgeWVhcnNfc2FtcGxlZCwgY2VsbF9JRCwgY2VsbF95ZWFyX2NvdW50LCB5ZWFyX2NlbGxfY291bnQsIHllYXJzX3NhbXBsZWRfdXBkYXRlKV0pCmBgYAoKVG90YWwgb2JzZXJ2YXRpb25zPwpgYGB7cn0KbnJvdyhGaXNoR2xvYl9jbGVhbi5ub05BKQpgYGAKClRvdGFsIGhhdWxzPwpgYGB7cn0KbGVuZ3RoKHVuaXF1ZShGaXNoR2xvYl9jbGVhbi5ub05BWyxoYXVsX2lkXSkpCmBgYAoKVG90YWwgc3VydmV5IHVuaXRzPwpgYGB7cn0KbGVuZ3RoKHVuaXF1ZShGaXNoR2xvYl9jbGVhbi5ub05BWyxzdXJ2ZXlfdW5pdF0pKQpgYGAKClRvdGFsIHNwZWNpZXM/CmBgYHtyfQpsZW5ndGgodW5pcXVlKEZpc2hHbG9iX2NsZWFuLm5vTkFbLGFjY2VwdGVkX25hbWVdKSkKYGBgCgo=</div>
 
 
 
@@ -2112,7 +1906,7 @@ $(document).ready(function () {
 <!-- code folding -->
 <script>
 $(document).ready(function () {
-  window.initializeSourceEmbed("Import_SODA_web_convert_raster_bottomtemp.Rmd");
+  window.initializeSourceEmbed("data_set_characteristics.Rmd");
   window.initializeCodeFolding("show" === "show");
 });
 </script>
