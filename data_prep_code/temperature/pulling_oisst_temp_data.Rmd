@@ -14,6 +14,8 @@ SESSION INFO TO DO
 
 Daily SST Temperature
 
+Currently not sure why
+
 ```{r setup}
 library(dplyr) # A staple for modern data management in R
 library(lubridate) # Useful functions for dealing with dates
@@ -25,6 +27,12 @@ library(data.table)
 
 #pull in data for year and lat lon restrictions
 FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
+
+#names of all survey units
+all_survey_units <- unique(FishGlob_clean[,.(survey_unit)])
+#for annotate (HPC)
+#FishGlob_clean <- readRDS(here::here("OISST_temp_data_homogenization","FishGlob.wellsampledyearscells_complete.final.rds"))
+
 ```
 
 Unique Lat Lon Year for each Survey/season
@@ -149,69 +157,91 @@ First go from daily temp to average monthly temp. We need mean temp 12 months be
 * mean
 * max
 * min
-* SD
-* difference (avg difference, mean(dist(v, method = "manhattan")) )
+* seas
+* SD of mean
+* SD of max
+* SD of min 
+* SD of seas
 
 And now all other regions
 ```{r loop for average values}
 
+#to maximize memory, remove FishGlob_clean except for min_month
+FishGlob_clean.months_surveys <- unique(FishGlob_clean[,.(survey_unit, month)])
+
+rm(FishGlob_clean)
+
 OISST_data_temp_avgs_full <- data.table()
 
 for (i in 1:length(all_survey_units)) {
-  min_month <- min(FishGlob_clean[survey_unit == all_survey_units[i]]$month)
+  min_month <- min(FishGlob_clean.months_surveys[survey_unit == all_survey_units[i]]$month)
   
   #pull in data from rds files if not already in console
   
-  assign(paste0("OISST_data_",all_survey_units[i]), readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
+  OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
   
-  OISST_data <- data.table(get(paste0("OISST_data_",all_survey_units[i])))
+  #for annotate (HPC)
+  OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
   
   OISST_data[,month := month(t)][,year := year(t)]
   
-  #for each region, how does temp compare to avg temp for that region
-  OISST_data[,temp_scaled := scale(temp)]
+#set year for taking temp measurements (12 months before first haul for that survey unit)
 
-  OISST_data[, year_for_avg := ifelse(month >= min_month, year+1, year)][, yearly_mean_bypoint := mean(temp), .(year_for_avg, lat, lon)][, yearly_max_bypoint := max(temp), .(year_for_avg, lat, lon)][, yearly_min_bypoint := min(temp), .(year_for_avg, lat, lon)][, montly_mean_bypoint := mean(temp),.(year_for_avg,lat,lon,month)][, yearly_mean_bypoint_scaled := mean(temp_scaled), .(year_for_avg, lat, lon)][, montly_mean_bypoint_scaled := mean(temp_scaled),.(year_for_avg,lat,lon,month)]
+  OISST_data[, year_for_avg := ifelse(month >= min_month, year+1, year)]
   
-  #for min, max, and mean, first temp is avg by month at each lat/lon, THEN we take mean, max, and min monthly temp per year (balances out any weird values)
-  #for SD, we calculate a yearly mean by lat/lon, and then look at standard deviation
-  OISST_data[, sst_min := min(montly_mean_bypoint), year_for_avg][, sst_max := max(montly_mean_bypoint), year_for_avg][, sst_mean := mean(montly_mean_bypoint), year_for_avg][, sst_SD_mean := sd(yearly_mean_bypoint), year_for_avg][, sst_SD_max := sd(yearly_max_bypoint), year_for_avg][, sst_SD_min := sd(yearly_min_bypoint), year_for_avg] #this doesn't take into consideration spatial component for sst min max or mean, I want to calculate mean at each point, and THEN take SD I think
+  #next two steps take a lot of time
+  
+#take mean, min, max, and seas of each lat long point for each year 
+  OISST_data[, yearly_mean_bypoint := mean(temp), .(year_for_avg, lat, lon)][,
+              yearly_max_bypoint := max(temp), .(year_for_avg, lat, lon)][,                                                                yearly_min_bypoint := min(temp), .(year_for_avg, lat, lon)][,   
+              yearly_seas_bypoint := yearly_max_bypoint-yearly_min_bypoint]
+  
+  #cuts down size of object from hundreds of millions to 
+  OISST_data <- unique(OISST_data[,.(yearly_mean_bypoint, yearly_max_bypoint, yearly_min_bypoint, yearly_seas_bypoint, lat, lon, year_for_avg)])
+  
+#next, we want yearly avg of mean, min, max, and seas
+    OISST_data[, yearly_mean_bypoint_avg := mean(yearly_mean_bypoint), .(year_for_avg)][,
+              yearly_max_bypoint_avg := mean(yearly_max_bypoint), .(year_for_avg)][,                                                       yearly_min_bypoint_avg := mean(yearly_min_bypoint), .(year_for_avg)][,   
+              yearly_seas_bypoint_avg := mean(yearly_seas_bypoint), .(year_for_avg)]
+  
+  #next, to calculate SD of mean, take mean of each cell in each year, and then calculate the SD of the means
+  #to calculate SD of max, take max of each cell in each year, and then calculate the SD of the maxes, etc.
+    OISST_data[, yearly_mean_bypoint_SD := sd(yearly_mean_bypoint), .(year_for_avg)][,
+              yearly_max_bypoint_SD := sd(yearly_max_bypoint), .(year_for_avg)][,                                                       yearly_min_bypoint_SD := sd(yearly_min_bypoint), .(year_for_avg)][,   
+              yearly_seas_bypoint_SD := sd(yearly_seas_bypoint), .(year_for_avg)]
+
    
-  #scaled versions
-     #for min, max, and mean, first temp is avg by month at each lat/lon, THEN we take mean, max, and min monthly temp per year (balances out any weird values)
-  #for SD, we calculate a yearly mean by lat/lon, calculate standard deviation, and then scale standard deviation
-  OISST_data[, sst_min_scaled := min(montly_mean_bypoint_scaled), year_for_avg][, sst_max_scaled := max(montly_mean_bypoint_scaled), year_for_avg][, sst_mean_scaled := mean(montly_mean_bypoint_scaled), year_for_avg][, sst_SD_scaled := sd(yearly_mean_bypoint_scaled), year_for_avg]
+  #finally, scaled versions by region
+#next, we want yearly avg of mean, min, max, and seas
+    OISST_data[, yearly_mean_bypoint_avg.s := scale(yearly_mean_bypoint_avg)][,
+                 yearly_max_bypoint_avg.s := scale(yearly_max_bypoint_avg)][,                                                                        yearly_min_bypoint_avg.s := scale(yearly_min_bypoint_avg)][,   
+                 yearly_seas_bypoint_avg.s := scale(yearly_seas_bypoint_avg)]
   
-  #for difference to calculate with limited memory, I will need to first simplify datatable
-  OISST_data_simplified <- unique(OISST_data[,.(yearly_mean_bypoint, yearly_mean_bypoint_scaled, year_for_avg)])
-                                  
-OISST_data_simplified[, sst_difference_mean := mean(dist(yearly_mean_bypoint, method = "manhattan")), year_for_avg][, sst_difference_mean_scaled := mean(dist(yearly_mean_bypoint_scaled, method = "manhattan")), year_for_avg]
+  #next, to calculate SD of mean, take mean of each cell in each year, and then calculate the SD of the means
+  #to calculate SD of max, take max of each cell in each year, and then calculate the SD of the maxes, etc.
+    OISST_data[, yearly_mean_bypoint_SD.s := scale(yearly_mean_bypoint_SD)][,
+              yearly_max_bypoint_SD.s := scale(yearly_max_bypoint_SD)][,                                                                           yearly_min_bypoint_SD.s := scale(yearly_min_bypoint_SD)][,   
+              yearly_seas_bypoint_SD.s := scale(yearly_seas_bypoint_SD)]
   
-#unique values
-  OISST_data_temp_avgs <- unique(OISST_data[,.(year_for_avg, sst_min, sst_max, sst_mean, sst_SD, sst_min_scaled, sst_max_scaled, sst_mean_scaled, sst_SD_scaled)])
-  
-  OISST_data_simplified_avgs <- unique(OISST_data_simplified[,.(year_for_avg, sst_difference_mean, sst_difference_mean_scaled)])
-  
-  #link with raw temperature differences created with dist()
-  OISST_data_temp_avgs <- OISST_data_temp_avgs[OISST_data_simplified_avgs, on = c("year_for_avg")]
+#uniquevalues
+    OISST_data_temp_avgs <- unique(OISST_data[, .(year_for_avg, yearly_mean_bypoint_avg, yearly_max_bypoint_avg, yearly_min_bypoint_avg, yearly_seas_bypoint_avg, yearly_mean_bypoint_SD, yearly_max_bypoint_SD, yearly_min_bypoint_SD, yearly_seas_bypoint_SD, yearly_mean_bypoint_avg.s, yearly_max_bypoint_avg.s, yearly_min_bypoint_avg.s, yearly_seas_bypoint_avg.s, yearly_mean_bypoint_SD.s, yearly_max_bypoint_SD.s, yearly_min_bypoint_SD.s, yearly_seas_bypoint_SD.s)])
   
   OISST_data_temp_avgs[, survey_unit := all_survey_units[i]]
-  OISST_data_temp_avgs[, season := word(all_survey_units[i],2, sep = "_")]
-  OISST_data_temp_avgs[, survey := word(all_survey_units[i],1, sep = "_")]
   
   OISST_data_temp_avgs_full <- rbind(OISST_data_temp_avgs_full, OISST_data_temp_avgs)
+
   
-#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_mean)
-#  abline()
-#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_max)
-#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_min)
-#  plot(OISST_data_temp_avgs$year, OISST_data_temp_avgs$sst_SD)
+  print(all_survey_units[[i]]) #to help keep track
+
 
 }
 
 
 #save summary table!!!
 saveRDS(OISST_data_temp_avgs_full, here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
+
+#annotate
+saveRDS(OISST_data_temp_avgs_full, here::here("OISST_data_temp_avgs_full.rds"))
 
 ```
 

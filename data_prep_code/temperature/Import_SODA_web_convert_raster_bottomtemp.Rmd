@@ -8,6 +8,7 @@ library(data.table)
 library(here)
 library(ncdf4)
 ```
+
 ```{r pull in data}
 #pull in data for year and lat lon restrictions
 FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
@@ -140,7 +141,7 @@ ncks -O -d yt_ocean,-55.28333,81.693 -d xt_ocean,0,360 soda3.3.2_1980_2019_sbt.n
 ```{bash convert grid}
 
 #bottom
-ncap2 -O -s 'longitude=longitude-360' soda3.3.2_1980_2019_sbt_crop.nc soda3.3.2_1980_2019_sbt_final.nc
+ncap2 -O -s 'longitude=xt_ocean-360' soda3.3.2_1980_2019_sbt_crop.nc soda3.3.2_1980_2019_sbt_final.nc
 ```
 
 
@@ -148,33 +149,10 @@ Change names of dimensions to match earlier time files
 ```{bash change names of dimensions and variables for 1980+}
 
 #bottom
-ncrename -d latitude,lat -v latitude,lat soda3.3.2_1980_2019_sbt_final.nc
+ncrename -d yt_ocean,lat -v yt_ocean,lat soda3.3.2_1980_2019_sbt_final.nc
 ncrename -d longitude,lon -v longitude,lon soda3.3.2_1980_2019_sbt_final.nc
 ```
 *Done with 1980-2019 from SODA 3.3.2*
-
-----------
-
-Maximum depth = 1504 meters, so only up to 1625.7 in SODA data
-```{bash limit to depths included in trawl survey 3.3.2}
-
-#only look at temperature variable
-for i in `cat soda3.3.2_mn_ocean_reg_import.txt`; do ncks -v temp -O "${i%.*}_bottom_trawl.nc" "${i%.*}_sbt_trawl.nc";done
-
-#now merge these files over time
-ncrcat soda3.3.2*sbt_trawl.nc -O soda3.3.1_1980_2015_sbt_trawl.nc
-
-#crop to points we need lat lon
-ncks -O -d latitude,24.25,62.25 -d longitude,170.25,316.75 soda3.3.2_1980_2015_sbt_trawl.nc soda3.3.1_1980_2015_sbt_trawl_crop.nc
-
-#change grid from 0 360 - -180-180
-ncap2 -O -s 'longitude=longitude-360' soda3.3.1_1980_2015_sbt_trawl_crop.nc soda3.3.1_1980_2015_sbt_trawl_final.nc
-
-#change names to lat/lon
-ncrename -d latitude,lat -v latitude,lat soda3.3.1_1980_2015_sbt_trawl_final.nc
-ncrename -d longitude,lon -v longitude,lon soda3.3.1_1980_2015_sbt_trawl_final.nc
-```
----------
 
 **********
 

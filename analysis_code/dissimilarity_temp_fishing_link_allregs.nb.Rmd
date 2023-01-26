@@ -16,8 +16,8 @@ library(lmerTest)
 
 OISST_data_temp_avgs_full <- readRDS(here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
 
-#switch year to numeric
-OISST_data_temp_avgs_full[, year := as.numeric(as.character(year))][, survey_unit := as.character(survey_unit)][,season := NULL][,survey := NULL]
+OISST_data_temp_avgs_full[,year := year_for_avg]
+
 
 #pull in average distance decay values
 distances_dissimilarities_allyears.r <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.r.rds"))
@@ -36,15 +36,11 @@ Put into one data table
 #temp
 distances_dissimilarities_allyears.r.temp <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
 
-distances_dissimilarities_allyears.r.temp[,sst_mean_scaled := scale(sst_mean), survey_unit][,sst_max_scaled := scale(sst_max), survey_unit][,sst_min_scaled := scale(sst_min), survey_unit][,sst_SD_scaled := scale(sst_SD), survey_unit]
-
-distances_dissimilarities_allyears.r.temp[,sst_seas := sst_max-sst_min][,sst_seas_scaled := scale(sst_seas),survey_unit]
-
 #fishing
-distances_dissimilarities_allyears.r.temp.fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.r.temp, on = c("year", "survey_unit")]
+dissimilarities_temp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.r.temp, on = c("year", "survey_unit")]
 
 #save avg values
-saveRDS(distances_dissimilarities_allyears.r.temp.fishing, here::here("output","distance_decay","distances_dissimilarities_allyears.r.temp.fishing.rds"))
+saveRDS(dissimilarities_temp_fishing, here::here("output","distance_decay","dissimilarities_temp_fishing.rds"))
 ```
 
 Plotting with fishing
@@ -52,13 +48,13 @@ Plotting with fishing
 ```{r EBS fishing}
 
 #fishing over time
-ebs_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS",]) +
+ebs_fishing <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS",]) +
   geom_point(aes(x = year, y = summed_tonnes), color  = "#325A9B") +
   labs(x = "Year",  y = "Total Landings (tonnes)") +
   theme_classic()
 
 #for just EBS
-(ebs_dissimilarity_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS",]) +
+(ebs_dissimilarity_fishing <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS",]) +
   geom_smooth(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "#325A9B") +
   labs(x = "Total Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color  = "#325A9B", alpha = 0.3) +
@@ -66,7 +62,7 @@ ebs_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[s
 
 ggsave(ebs_dissimilarity_fishing, path  = here::here("figures","distance_decay"), filename = "ebs_dissimilarity_fishing.jpg") 
 
-ebs_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS",])
+ebs_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = dissimilarities_temp_fishing[survey_unit == "EBS",])
 
 summary(ebs_dissimilarity_fishing_mod)
 ```
@@ -74,7 +70,7 @@ summary(ebs_dissimilarity_fishing_mod)
 How does this trend hold up for all regions?
 ```{r temp all regions}
 #for all regions
-(allreg_dissimilarity_fishing_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing) +
+(allreg_dissimilarity_fishing_mean <- ggplot(data = dissimilarities_temp_fishing) +
   labs(x = "Scaled Landings by Survey Unit (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
@@ -122,7 +118,7 @@ How does this trend hold up for all regions?
     theme(legend.position = "none"))
 
 #all one color points
-(allreg_dissimilarity_fishing_mean_SIMPLIFIED <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing) +
+(allreg_dissimilarity_fishing_mean_SIMPLIFIED <- ggplot(data = dissimilarities_temp_fishing) +
   labs(x = "Scaled Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes_scaled, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.3) +
   geom_smooth(aes(x = summed_tonnes_scaled, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
@@ -132,10 +128,10 @@ How does this trend hold up for all regions?
 ggsave(allreg_dissimilarity_fishing_mean, path  = here::here("figures","distance_decay"), filename = "allreg_dissimilarity_fishing_mean.jpg", height = 4, width = 9, unit = "in") 
 
 #random effect for survey
-allreg_dissimilarity_fishing_mean_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp.fishing)
+allreg_dissimilarity_fishing_mean_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1|survey_unit), data = dissimilarities_temp_fishing)
 
 #no random effect for survey
-allreg_dissimilarity_fishing_mean_mod_lm <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg, data = distances_dissimilarities_allyears.r.temp.fishing)
+allreg_dissimilarity_fishing_mean_mod_lm <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing)
 
 #In years of higher than average fishing pressure, dissimilarity is lower (homogenization)
 
@@ -151,25 +147,29 @@ Full mods (temp * fishing)
 ```{r}
 
 #BEST MODEL with minimum temp
-allreg_dissimilarity_fishing_temp_mod_1 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_min_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp.fishing)
+allreg_dissimilarity_fishing_temp_mod_1 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_min_bypoint_avg*yearly_min_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp_fishing)
 
   #what if we delete interaction? 
-  allreg_dissimilarity_fishing_temp_mod_1.1 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + sst_min_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp.fishing)
+  allreg_dissimilarity_fishing_temp_mod_1.1 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + sst_min_scaled + (1|survey_unit), data = dissimilarities_temp_fishing)
 
-allreg_dissimilarity_fishing_temp_mod_2 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_max_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp.fishing)
+allreg_dissimilarity_fishing_temp_mod_2 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_max_scaled + (1|survey_unit), data = dissimilarities_temp_fishing)
 
-allreg_dissimilarity_fishing_temp_mod_3 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_mean_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp.fishing)
+allreg_dissimilarity_fishing_temp_mod_3 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_mean_scaled + (1|survey_unit), data = dissimilarities_temp_fishing)
 
-allreg_dissimilarity_fishing_temp_mod_4 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_seas_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp.fishing)
+allreg_dissimilarity_fishing_temp_mod_4 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_seas_scaled + (1|survey_unit), data = dissimilarities_temp_fishing)
 
-allreg_dissimilarity_fishing_temp_mod_5 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_SD_scaled + (1|survey_unit), data = distances_dissimilarities_allyears.r.temp.fishing)
+allreg_dissimilarity_fishing_temp_mod_5 <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*sst_SD_scaled + (1|survey_unit), data = dissimilarities_temp_fishing)
 
-AICc(allreg_dissimilarity_fishing_temp_mod_1, allreg_dissimilarity_fishing_temp_mod_2,allreg_dissimilarity_fishing_temp_mod_3,allreg_dissimilarity_fishing_temp_mod_4,allreg_dissimilarity_fishing_temp_mod_5)
+allreg_dissimilarity_fishing_temp_mod_fishonly <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1|survey_unit), data = dissimilarities_temp_fishing)
 
-AICc(allreg_dissimilarity_fishing_temp_mod_1, allreg_dissimilarity_fishing_temp_mod_1.1)
+AICc(allreg_dissimilarity_fishing_temp_mod_1, allreg_dissimilarity_fishing_temp_mod_2,allreg_dissimilarity_fishing_temp_mod_3,allreg_dissimilarity_fishing_temp_mod_4,allreg_dissimilarity_fishing_temp_mod_5,allreg_dissimilarity_fishing_temp_mod_fishonly)
+
+AICc(allreg_dissimilarity_fishing_temp_mod_1, allreg_dissimilarity_fishing_temp_mod_1.1,allreg_dissimilarity_fishing_temp_mod_fishonly)
 
 #summary of best mod
 summary(allreg_dissimilarity_fishing_temp_mod_1.1)
+
+summary(allreg_dissimilarity_fishing_temp_mod_fishonly)
 ```
 Significant predictors: 
 summed_tonnes_scaled_byreg (as landings (proxy for fishing effort) increase, bray dissimilarity decreases)
@@ -189,13 +189,47 @@ r.squaredGLMM(allreg_dissimilarity_fishing_temp_mod_1.1)
 #[1,] 0.00318718 0.8971907 (very little explained by fishing or temperature, most explained by survey_units)
 ```
 
+#Plot temp only 
+
+#Plot fishing only
+
+allreg_dissimilarity_fishing_temp_mod_fishonly <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1|survey_unit), data = dissimilarities_temp_fishing)
+
+bray curtis dissimilarity = -0.005256 * tonnes + 0.6
+
+```{r}
+ggplot(data = dissimilarities_temp_fishing) +
+  geom_point(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean)) +
+  geom_smooth(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm") +
+  theme_classic()
+
+ggplot(data = dissimilarities_temp_fishing) +
+  geom_point(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean)) +
+  geom_smooth(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free")
+  theme_classic()
+  
+ # ggsave(filename = "facet_fish_model.png", height = 10, width = 10, unit = "in")
+  
+  
+  #sst_min_scaled
+  
+  ggplot(data = dissimilarities_temp_fishing) +
+  geom_point(aes(x=sst_min_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit)) +
+  geom_smooth(aes(x=sst_min_scaled, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), method = "lm", se = F) +
+  theme_classic()
+```
+
+
+
+
 #CODE BELOW MAY NO LONGER BE RELEVANT
 Plot this model with interaction
 ```{r}
 library(interactions)
 sim_slopes(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD_scaled, modx = summed_tonnes_scaled, johnson_neyman = FALSE)
 
-interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD_scaled, modx = summed_tonnes_scaled, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Spatial Standard Deviation\nof Sea Surface Temperature \n Scaled within Region", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
+interact_plot(allreg_dissimilarity_fishing_temp_mod_1, pred = yearly_min_bypoint_avg, modx = summed_tonnes_scaled_byreg, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Minimum Sea Surface Temperature", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
 
 ggsave(filename = "interaction_fish_temp.png" ,height = 4, width = 10)
 
@@ -391,28 +425,28 @@ Full EBS to match below NS and SCS
 #Independent trends over time
 
 #dissimilarity over time
-EBS_dissimilarity_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",]) +
+EBS_dissimilarity_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",]) +
   labs(x = "Year",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE") +
   geom_line(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", stat="smooth", method = "lm") +
   theme_classic()
 
 #meantemp over time
-EBS_mean_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",]) +
+EBS_mean_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",]) +
   labs(x = "Year",  y = "Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_mean), color = "#3283FE") +
   geom_line(aes(x = year, y = sst_mean), color = "#3283FE", stat="smooth", method = "lm") +
   theme_classic()
 
 #SD temp over time
-EBS_SD_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",]) +
+EBS_SD_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",]) +
   labs(x = "Year",  y = "SD of Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_SD), color = "#3283FE") +
   geom_line(aes(x = year, y = sst_SD), color = "#3283FE", stat="smooth", method = "lm") +
   theme_classic()
 
 #fishing over time
-EBS_fishing_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",]) +
+EBS_fishing_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",]) +
   labs(x = "Year",  y = "Landings (tonnes)") +
   geom_point(aes(x = year, y = summed_tonnes), color = "#3283FE") +
   geom_line(aes(x = year, y = summed_tonnes), color = "#3283FE", stat="smooth", method = "lm") +
@@ -424,7 +458,7 @@ ggsave(EBS_characteristics, path  = here::here("figures","distance_decay"), file
 
 #plotting linear models
 #for just ebs mean temp
-EBS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",]) +
+EBS_dissimilarity_temperature_mean <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE") +
   geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", stat="smooth", method = "lm") +
@@ -434,12 +468,12 @@ EBS_dissimilarity_temperature_mean
 
 ggsave(EBS_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "EBS_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-EBS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",])
+EBS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",])
 
 summary(EBS_dissimilarity_temperature_mean_mod)
 
 #for just ebs SD
-EBS_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",]) +
+EBS_dissimilarity_temperature_SD <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",]) +
   labs(x = "SD of Mean Temperature",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE") +
   geom_line(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", stat="smooth", method = "lm") +
@@ -449,13 +483,13 @@ EBS_dissimilarity_temperature_SD
 
 ggsave(EBS_dissimilarity_temperature_SD, path  = here::here("figures","distance_decay"), filename = "EBS_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-EBS_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",])
+EBS_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",])
 
 summary(EBS_dissimilarity_temperature_SD_mod)
 
 #for just ebs fishing
 #for just ebs SD
-EBS_dissimilarity_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",]) +
+EBS_dissimilarity_fishing <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",]) +
   labs(x = "Summed Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE") +
   geom_line(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#3283FE", stat="smooth", method = "lm") +
@@ -465,7 +499,7 @@ EBS_dissimilarity_fishing
 
 ggsave(EBS_dissimilarity_fishing, path  = here::here("figures","distance_decay"), filename = "EBS_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-EBS_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "EBS_NA",])
+EBS_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = dissimilarities_temp_fishing[survey_unit == "EBS_NA",])
 
 summary(EBS_dissimilarity_fishing_mod)
 
@@ -481,28 +515,28 @@ North Sea
 #Independent trends over time
 
 #dissimilarity over time
-NS_IBTS_dissimilarity_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",]) +
+NS_IBTS_dissimilarity_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "Year",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
   geom_line(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
 #meantemp over time
-NS_IBTS_mean_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",]) +
+NS_IBTS_mean_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "Year",  y = "Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_mean), color = "#F7E1A0") +
   geom_line(aes(x = year, y = sst_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
 #SD temp over time
-NS_IBTS_SD_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",]) +
+NS_IBTS_SD_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "Year",  y = "SD of Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_SD), color = "#F7E1A0") +
   geom_line(aes(x = year, y = sst_SD), color = "#F7E1A0", stat="smooth", method = "lm") +
   theme_classic()
 
 #fishing over time
-NS_IBTS_fishing_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",]) +
+NS_IBTS_fishing_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "Year",  y = "Landings (tonnes)") +
   geom_point(aes(x = year, y = summed_tonnes), color = "#F7E1A0") +
   geom_line(aes(x = year, y = summed_tonnes), color = "#F7E1A0", stat="smooth", method = "lm") +
@@ -514,7 +548,7 @@ ggsave(ns_ibts_characteristics, path  = here::here("figures","distance_decay"), 
 
 #plotting linear models
 #for just ebs mean temp
-NS_IBTS_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",]) +
+NS_IBTS_dissimilarity_temperature_mean <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
   geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
@@ -524,12 +558,12 @@ NS_IBTS_dissimilarity_temperature_mean
 
 ggsave(NS_IBTS_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "NS_IBTS_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-NS_IBTS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",])
+NS_IBTS_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",])
 
 summary(NS_IBTS_dissimilarity_temperature_mean_mod)
 
 #for just ebs SD
-NS_IBTS_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",]) +
+NS_IBTS_dissimilarity_temperature_SD <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "SD of Mean Temperature",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
   geom_line(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
@@ -539,13 +573,13 @@ NS_IBTS_dissimilarity_temperature_SD
 
 ggsave(NS_IBTS_dissimilarity_temperature_SD, path  = here::here("figures","distance_decay"), filename = "NS_IBTS_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-NS_IBTS_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",])
+NS_IBTS_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",])
 
 summary(NS_IBTS_dissimilarity_temperature_SD_mod)
 
 #for just ebs fishing
 #for just ebs SD
-NS_IBTS_dissimilarity_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",]) +
+NS_IBTS_dissimilarity_fishing <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",]) +
   labs(x = "Summed Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0") +
   geom_line(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#F7E1A0", stat="smooth", method = "lm") +
@@ -555,7 +589,7 @@ NS_IBTS_dissimilarity_fishing
 
 ggsave(NS_IBTS_dissimilarity_fishing, path  = here::here("figures","distance_decay"), filename = "NS_IBTS_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-NS_IBTS_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "NS-IBTS_NA",])
+NS_IBTS_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = dissimilarities_temp_fishing[survey_unit == "NS-IBTS_NA",])
 
 summary(NS_IBTS_dissimilarity_fishing_mod)
 
@@ -571,28 +605,28 @@ Scotian Shelf
 #Independent trends over time
 
 #dissimilarity over time
-SCS_SUMMER_dissimilarity_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",]) +
+SCS_SUMMER_dissimilarity_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Year",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C") +
   geom_line(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C", stat="smooth", method = "lm") +
   theme_classic()
 
 #meantemp over time
-SCS_SUMMER_mean_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",]) +
+SCS_SUMMER_mean_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Year",  y = "Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_mean), color = "#822E1C") +
   geom_line(aes(x = year, y = sst_mean), color = "#822E1C", stat="smooth", method = "lm") +
   theme_classic()
 
 #SD temp over time
-SCS_SUMMER_SD_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",]) +
+SCS_SUMMER_SD_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Year",  y = "SD of Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_SD), color = "#822E1C") +
   geom_line(aes(x = year, y = sst_SD), color = "#822E1C", stat="smooth", method = "lm") +
   theme_classic()
 
 #fishing over time
-SCS_SUMMER_fishing_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",]) +
+SCS_SUMMER_fishing_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Year",  y = "Landings (tonnes)") +
   geom_point(aes(x = year, y = summed_tonnes), color = "#822E1C") +
   geom_line(aes(x = year, y = summed_tonnes), color = "#822E1C", stat="smooth", method = "lm") +
@@ -605,7 +639,7 @@ ggsave(SCS_SUMMER_characteristics, path  = here::here("figures","distance_decay"
 #plotting linear models
 
 #for just scs mean temp
-SCS_SUMMER_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",]) +
+SCS_SUMMER_dissimilarity_temperature_mean <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C") +
   geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C", stat="smooth", method = "lm") +
@@ -615,12 +649,12 @@ SCS_SUMMER_dissimilarity_temperature_mean
 
 ggsave(SCS_SUMMER_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "SCS_SUMMER_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-SCS_SUMMER_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",])
+SCS_SUMMER_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",])
 
 summary(SCS_SUMMER_dissimilarity_temperature_mean_mod)
 
 #for just ebs SD
-SCS_SUMMER_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",]) +
+SCS_SUMMER_dissimilarity_temperature_SD <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",]) +
   labs(x = "SD of Mean Temperature",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C") +
   geom_line(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C", stat="smooth", method = "lm") +
@@ -630,13 +664,13 @@ SCS_SUMMER_dissimilarity_temperature_SD
 
 ggsave(SCS_SUMMER_dissimilarity_temperature_SD, path  = here::here("figures","distance_decay"), filename = "SCS_SUMMER_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-SCS_SUMMER_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",])
+SCS_SUMMER_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",])
 
 summary(SCS_SUMMER_dissimilarity_temperature_SD_mod)
 
 #for just ebs fishing
 #for just ebs SD
-SCS_SUMMER_dissimilarity_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",]) +
+SCS_SUMMER_dissimilarity_fishing <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",]) +
   labs(x = "Summed Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C") +
   geom_line(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#822E1C", stat="smooth", method = "lm") +
@@ -646,7 +680,7 @@ SCS_SUMMER_dissimilarity_fishing
 
 ggsave(SCS_SUMMER_dissimilarity_fishing, path  = here::here("figures","distance_decay"), filename = "SCS_SUMMER_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-SCS_SUMMER_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "SCS_SUMMER",])
+SCS_SUMMER_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = dissimilarities_temp_fishing[survey_unit == "SCS_SUMMER",])
 
 summary(SCS_SUMMER_dissimilarity_fishing_mod)
 
@@ -663,28 +697,28 @@ Irish Sea: IE-IGFS_NA Irish Sea
 #Independent trends over time
 
 #dissimilarity over time
-IE_IGFS_NA_dissimilarity_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",]) +
+IE_IGFS_NA_dissimilarity_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",]) +
   labs(x = "Year",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C") +
   geom_line(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C", stat="smooth", method = "lm") +
   theme_classic()
 
 #meantemp over time
-IE_IGFS_NA_mean_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",]) +
+IE_IGFS_NA_mean_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",]) +
   labs(x = "Year",  y = "Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_mean), color = "#C4451C") +
   geom_line(aes(x = year, y = sst_mean), color = "#C4451C", stat="smooth", method = "lm") +
   theme_classic()
 
 #SD temp over time
-IE_IGFS_NA_SD_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",]) +
+IE_IGFS_NA_SD_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",]) +
   labs(x = "Year",  y = "SD of Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_SD), color = "#C4451C") +
   geom_line(aes(x = year, y = sst_SD), color = "#C4451C", stat="smooth", method = "lm") +
   theme_classic()
 
 #fishing over time
-IE_IGFS_NA_fishing_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",]) +
+IE_IGFS_NA_fishing_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",]) +
   labs(x = "Year",  y = "Landings (tonnes)") +
   geom_point(aes(x = year, y = summed_tonnes), color = "#C4451C") +
   geom_line(aes(x = year, y = summed_tonnes), color = "#C4451C", stat="smooth", method = "lm") +
@@ -697,7 +731,7 @@ ggsave(IE_IGFS_NA_characteristics, path  = here::here("figures","distance_decay"
 #plotting linear models
 
 #for just scs mean temp
-IE_IGFS_NA_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",]) +
+IE_IGFS_NA_dissimilarity_temperature_mean <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C") +
   geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C", stat="smooth", method = "lm") +
@@ -707,12 +741,12 @@ IE_IGFS_NA_dissimilarity_temperature_mean
 
 ggsave(IE_IGFS_NA_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "IE_IGFS_NA_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-IE_IGFS_NA_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",])
+IE_IGFS_NA_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",])
 
 summary(IE_IGFS_NA_dissimilarity_temperature_mean_mod)
 
 #for just ebs SD
-IE_IGFS_NA_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",]) +
+IE_IGFS_NA_dissimilarity_temperature_SD <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",]) +
   labs(x = "SD of Mean Temperature",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C") +
   geom_line(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C", stat="smooth", method = "lm") +
@@ -722,13 +756,13 @@ IE_IGFS_NA_dissimilarity_temperature_SD
 
 ggsave(IE_IGFS_NA_dissimilarity_temperature_SD, path  = here::here("figures","distance_decay"), filename = "IE_IGFS_NA_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-IE_IGFS_NA_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",])
+IE_IGFS_NA_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",])
 
 summary(IE_IGFS_NA_dissimilarity_temperature_SD_mod)
 
 #for just ebs fishing
 #for just ebs SD
-IE_IGFS_NA_dissimilarity_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",]) +
+IE_IGFS_NA_dissimilarity_fishing <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",]) +
   labs(x = "Summed Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C") +
   geom_line(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#C4451C", stat="smooth", method = "lm") +
@@ -738,7 +772,7 @@ IE_IGFS_NA_dissimilarity_fishing
 
 ggsave(IE_IGFS_NA_dissimilarity_fishing, path  = here::here("figures","distance_decay"), filename = "IE_IGFS_NA_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-IE_IGFS_NA_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "IE-IGFS_NA",])
+IE_IGFS_NA_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = dissimilarities_temp_fishing[survey_unit == "IE-IGFS_NA",])
 
 summary(IE_IGFS_NA_dissimilarity_fishing_mod)
 
@@ -755,28 +789,28 @@ Gulf of Mexico
 #Independent trends over time
 
 #dissimilarity over time
-GMEX_Fall_dissimilarity_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",]) +
+GMEX_Fall_dissimilarity_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",]) +
   labs(x = "Year",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1") +
   geom_line(aes(x = year, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1", stat="smooth", method = "lm") +
   theme_classic()
 
 #meantemp over time
-GMEX_Fall_mean_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",]) +
+GMEX_Fall_mean_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",]) +
   labs(x = "Year",  y = "Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_mean), color = "#7ED7D1") +
   geom_line(aes(x = year, y = sst_mean), color = "#7ED7D1", stat="smooth", method = "lm") +
   theme_classic()
 
 #SD temp over time
-GMEX_Fall_SD_temp_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",]) +
+GMEX_Fall_SD_temp_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",]) +
   labs(x = "Year",  y = "SD of Mean Annual SST (˚C)") +
   geom_point(aes(x = year, y = sst_SD), color = "#7ED7D1") +
   geom_line(aes(x = year, y = sst_SD), color = "#7ED7D1", stat="smooth", method = "lm") +
   theme_classic()
 
 #fishing over time
-GMEX_Fall_fishing_time <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",]) +
+GMEX_Fall_fishing_time <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",]) +
   labs(x = "Year",  y = "Landings (tonnes)") +
   geom_point(aes(x = year, y = summed_tonnes), color = "#7ED7D1") +
   geom_line(aes(x = year, y = summed_tonnes), color = "#7ED7D1", stat="smooth", method = "lm") +
@@ -789,7 +823,7 @@ ggsave(GMEX_Fall_characteristics, path  = here::here("figures","distance_decay")
 #plotting linear models
 
 #for just scs mean temp
-GMEX_Fall_dissimilarity_temperature_mean <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",]) +
+GMEX_Fall_dissimilarity_temperature_mean <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",]) +
   labs(x = "Mean Annual SST (˚C)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1") +
   geom_line(aes(x = sst_mean, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1", stat="smooth", method = "lm") +
@@ -799,12 +833,12 @@ GMEX_Fall_dissimilarity_temperature_mean
 
 ggsave(GMEX_Fall_dissimilarity_temperature_mean, path  = here::here("figures","distance_decay"), filename = "GMEX_Fall_dissimilarity_temperature_mean.jpg", height = 3, width = 4, unit = "in") 
 
-GMEX_Fall_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",])
+GMEX_Fall_dissimilarity_temperature_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_mean_scaled, data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",])
 
 summary(GMEX_Fall_dissimilarity_temperature_mean_mod)
 
 #for just ebs SD
-GMEX_Fall_dissimilarity_temperature_SD <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",]) +
+GMEX_Fall_dissimilarity_temperature_SD <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",]) +
   labs(x = "SD of Mean Temperature",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1") +
   geom_line(aes(x = sst_SD, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1", stat="smooth", method = "lm") +
@@ -814,13 +848,13 @@ GMEX_Fall_dissimilarity_temperature_SD
 
 ggsave(GMEX_Fall_dissimilarity_temperature_SD, path  = here::here("figures","distance_decay"), filename = "GMEX_Fall_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-GMEX_Fall_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",])
+GMEX_Fall_dissimilarity_temperature_SD_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ sst_SD, data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",])
 
 summary(GMEX_Fall_dissimilarity_temperature_SD_mod)
 
 #for just ebs fishing
 #for just ebs SD
-GMEX_Fall_dissimilarity_fishing <- ggplot(data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",]) +
+GMEX_Fall_dissimilarity_fishing <- ggplot(data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",]) +
   labs(x = "Summed Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
   geom_point(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1") +
   geom_line(aes(x = summed_tonnes, y = bray_curtis_dissimilarity_balanced_mean), color = "#7ED7D1", stat="smooth", method = "lm") +
@@ -830,7 +864,7 @@ GMEX_Fall_dissimilarity_fishing
 
 ggsave(GMEX_Fall_dissimilarity_fishing, path  = here::here("figures","distance_decay"), filename = "GMEX_Fall_dissimilarity_temperature_SD.jpg", height = 3, width = 4, unit = "in") 
 
-GMEX_Fall_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = distances_dissimilarities_allyears.r.temp.fishing[survey_unit == "GMEX_Fall",])
+GMEX_Fall_dissimilarity_fishing_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes, data = dissimilarities_temp_fishing[survey_unit == "GMEX_Fall",])
 
 summary(GMEX_Fall_dissimilarity_fishing_mod)
 
