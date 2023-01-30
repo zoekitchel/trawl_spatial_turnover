@@ -1,0 +1,186 @@
+---
+title: "Pulling SODA Bottom Temp Data"
+output: html_notebook
+---
+
+This code is Script 5 v2 for Kitchel et al. TITLE manuscript.
+
+- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
+
+- Code by Zoë J. Kitchel
+
+SESSION INFO TO DO
+
+
+SBT Temperature
+1967-1979 = SODA 2.2.4
+1980-2019 = SODA 3.3.2
+
+
+```{r setup}
+library(dplyr) # A staple for modern data management in R
+library(lubridate) # Useful functions for dealing with dates
+library(ggplot2) # The preferred library for data visualisation
+library(tidync) # For easily dealing with NetCDF data
+library(rerddap) # For easily downloading subsets of data
+library(stringr)
+library(data.table)
+
+#pull in data for year and lat lon restrictions
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
+
+#names of all survey units
+all_survey_units <- unique(FishGlob_clean$survey_unit)
+
+
+```
+
+Unique Lat Lon for each Survey/season. 
+```{r unique lat lon}
+unique_lat_lon <- unique(FishGlob_clean[,.(latitude, longitude, survey_unit)])
+
+#data range for SODA data is (0,360), so I will edit lat lon to match
+unique_lat_lon[,longitude.shift := ifelse(longitude >= 0, longitude, 360+longitude)]
+
+summary(unique_lat_lon[,longitude.shift])
+
+#check to make sure shift makes sense
+shift_check <- ggplot(unique_lat_lon, aes(x = longitude.shift, y = latitude)) + 
+  geom_point(shape = ".") +
+  theme_classic()
+
+
+shift_check2 <- ggplot(unique_lat_lon, aes(x = longitude, y = latitude)) + 
+  geom_point(shape = ".") +
+  theme_classic()
+
+shift_check
+shift_check2
+
+```
+###Pull all date values for each Lat Lon
+```{r}
+extract(s,unique_lat_lon[,.(longitude.shift, latitude)])
+
+unique_lat_lon.temp <- cbind(unique_lat_lon, extract(soda_bottom,unique_lat_lon[,.(longitude.shift, latitude)]))
+
+#brings in dates as colnames
+```
+
+Wide to Long to make calculations
+(Note, some temp values from unique_lat_lon.temp.l are NA, but only 1% so shouldn't make any difference)
+
+```{r}
+unique_lat_lon.temp.l <- melt(unique_lat_lon.temp,
+            id.vars = c("latitude", "longitude","survey_unit","longitude.shift"),
+            variable.name = "date", value.name = "sbt")
+```
+Delete X from Date column 
+```{r}
+unique_lat_lon.temp.l[, date.formatted := lubridate::ymd(substr(date,2,nchar(as.character(date))))]
+
+unique_lat_lon.temp.l[, year := lubridate::year(date.formatted)][, month := lubridate::month(date.formatted)][, day := lubridate::day(date.formatted)]
+```
+
+
+###Average Values
+
+First go from daily temp to average monthly temp (already the case for SODA 2.2.4 pre 1980). We need temp 12 months before haul date. We'll take yearly:
+* mean
+* max
+* min
+* seas
+* SD of mean
+* SD of max
+* SD of min 
+* SD of seas
+
+And now all other regions
+```{r loop for average values}
+
+#to maximize memory, remove FishGlob_clean except for min_month
+FishGlob_clean.months_surveys <- unique(FishGlob_clean[,.(survey_unit, month)])
+FishGlob_clean.months_surveys[survey_unit == "MEDITS", month := 4]
+FishGlob_clean.months_surveys[survey_unit == "GRL-DE", month := 8] #NEED TO CHECK THIS
+
+rm(FishGlob_clean)
+
+OISST_data_temp_avgs_full <- data.table()
+
+for (i in 1:length(all_survey_units)) {
+  min_month <- min(FishGlob_clean.months_surveys[survey_unit == all_survey_units[i]]$month)
+  
+  #pull in data from rds files if not already in console
+  
+  OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
+  
+  #for annotate (HPC)
+  OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
+  
+  OISST_data[,month := month(t)][,year := year(t)]
+  
+#set year for taking temp measurements (12 months before first haul for that survey unit)
+
+  OISST_data[, year_for_avg := ifelse(month >= min_month, year+1, year)]
+  
+  #next two steps take a lot of time
+  
+#take mean, min, max, and seas of each lat long point for each year 
+  OISST_data[, yearly_mean_bypoint := mean(temp), .(year_for_avg, lat, lon)][,
+              yearly_max_bypoint := max(temp), .(year_for_avg, lat, lon)][,                                                                yearly_min_bypoint := min(temp), .(year_for_avg, lat, lon)][,   
+              yearly_seas_bypoint := yearly_max_bypoint-yearly_min_bypoint]
+  
+  #cuts down size of object from hundreds of millions to 
+  OISST_data <- unique(OISST_data[,.(yearly_mean_bypoint, yearly_max_bypoint, yearly_min_bypoint, yearly_seas_bypoint, lat, lon, year_for_avg)])
+  
+#next, we want yearly avg of mean, min, max, and seas
+    OISST_data[, yearly_mean_bypoint_avg := mean(yearly_mean_bypoint), .(year_for_avg)][,
+              yearly_max_bypoint_avg := mean(yearly_max_bypoint), .(year_for_avg)][,                                                       yearly_min_bypoint_avg := mean(yearly_min_bypoint), .(year_for_avg)][,   
+              yearly_seas_bypoint_avg := mean(yearly_seas_bypoint), .(year_for_avg)]
+  
+  #next, to calculate SD of mean, take mean of each cell in each year, and then calculate the SD of the means
+  #to calculate SD of max, take max of each cell in each year, and then calculate the SD of the maxes, etc.
+    OISST_data[, yearly_mean_bypoint_SD := sd(yearly_mean_bypoint), .(year_for_avg)][,
+              yearly_max_bypoint_SD := sd(yearly_max_bypoint), .(year_for_avg)][,                                                       yearly_min_bypoint_SD := sd(yearly_min_bypoint), .(year_for_avg)][,   
+              yearly_seas_bypoint_SD := sd(yearly_seas_bypoint), .(year_for_avg)]
+
+   
+  #finally, scaled versions by region
+#next, we want yearly avg of mean, min, max, and seas
+    OISST_data[, yearly_mean_bypoint_avg.s := scale(yearly_mean_bypoint_avg)][,
+                 yearly_max_bypoint_avg.s := scale(yearly_max_bypoint_avg)][,                                                                        yearly_min_bypoint_avg.s := scale(yearly_min_bypoint_avg)][,   
+                 yearly_seas_bypoint_avg.s := scale(yearly_seas_bypoint_avg)]
+  
+  #next, to calculate SD of mean, take mean of each cell in each year, and then calculate the SD of the means
+  #to calculate SD of max, take max of each cell in each year, and then calculate the SD of the maxes, etc.
+    OISST_data[, yearly_mean_bypoint_SD.s := scale(yearly_mean_bypoint_SD)][,
+              yearly_max_bypoint_SD.s := scale(yearly_max_bypoint_SD)][,                                                                           yearly_min_bypoint_SD.s := scale(yearly_min_bypoint_SD)][,   
+              yearly_seas_bypoint_SD.s := scale(yearly_seas_bypoint_SD)]
+  
+#uniquevalues
+    OISST_data_temp_avgs <- unique(OISST_data[, .(year_for_avg, yearly_mean_bypoint_avg, yearly_max_bypoint_avg, yearly_min_bypoint_avg, yearly_seas_bypoint_avg, yearly_mean_bypoint_SD, yearly_max_bypoint_SD, yearly_min_bypoint_SD, yearly_seas_bypoint_SD, yearly_mean_bypoint_avg.s, yearly_max_bypoint_avg.s, yearly_min_bypoint_avg.s, yearly_seas_bypoint_avg.s, yearly_mean_bypoint_SD.s, yearly_max_bypoint_SD.s, yearly_min_bypoint_SD.s, yearly_seas_bypoint_SD.s)])
+  
+  OISST_data_temp_avgs[, survey_unit := all_survey_units[i]]
+  
+  OISST_data_temp_avgs_full <- rbind(OISST_data_temp_avgs_full, OISST_data_temp_avgs)
+
+  
+  print(all_survey_units[[i]]) #to help keep track
+
+
+}
+
+
+#save summary table!!!
+saveRDS(SODA_data_temp_avgs_full, here::here("data","Temperature","SODA_data_temp_avgs_full.rds"))
+
+#annotate (if working on HPC)
+saveRDS(SODA_data_temp_avgs_full, here::here("SODA_data_temp_avgs_full.rds"))
+
+
+
+```
+
+NOT SURE WHY, but all data from SODA 2.2.4 is wonky, so I'm going to go ahead and only use temp data from 3.3.2, so from 1980 onward
+
+

@@ -1,0 +1,300 @@
+---
+title: "Dissimilarity Temperature & Fishing Interactions for All Regions"
+output: html_notebook
+---
+
+Here we will finally link temperature and fishing to dissimilarity
+
+This code is Script X for Kitchel et al. TITLE manuscript.
+
+- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
+
+- Code by Zoë J. Kitchel
+
+SESSION INFO TO DO
+
+##Here, we try to use temperature and fishing pressure to predict annual dissimilarity for all survey units
+
+
+```{r setup}
+
+library(data.table)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+library(MuMIn)
+
+
+OISST_data_temp_avgs_full <- readRDS(here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
+
+OISST_data_temp_avgs_full[,year := year_for_avg]
+
+
+#pull in average distance decay values
+distances_dissimilarities_allyears.r <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.r.rds"))
+
+#pull in fishing data
+SAU_summed_tonnes.r <- readRDS(here::here("data","sea_around_us","SAU_summed_tonnes.rds"))
+
+```
+
+Put into one data table
+```{r link temp and fishing to avg values}
+#temp
+distances_dissimilarities_allyears.r.temp <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
+
+#fishing
+dissimilarities_temp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.r.temp, on = c("year", "survey_unit")]
+
+#region_statistics
+dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing[region_stats, on = "survey_unit"]
+dissimilarities_temp_fishing_regstats[,spp_num.s := scale(spp_num)]
+
+dissimilarities_temp_fishing_regstats[,bray_curtis_dissimilarity_balanced_mean.s := scale(bray_curtis_dissimilarity_balanced_mean, center = F),survey_unit]
+
+#save avg values
+saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","distance_decay","dissimilarities_temp_fishing_regstats.rds"))
+```
+
+Color pallete for survey units
+```{r}
+pal_37 <- c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF")  #ZAF-IND
+```
+
+
+###How well does fishing predict mean annual dissimilarity?
+```{r temp all regions}
+#for all regions
+(allreg_dissimilarity_fishing_mean <- ggplot(data = dissimilarities_temp_fishing_regstats) +
+  labs(x = "Relative fishing pressure",  y = "Dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values =  pal_37) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black", size = 1) +
+  theme_classic() +
+    theme(legend.position = "none"))
+
+#all one color points
+(allreg_dissimilarity_fishing_mean_SIMPLIFIED <- ggplot(data = dissimilarities_temp_fishing) +
+  labs(x = "Scaled Landings (tonnes)",  y = "Average Bray Curtis Dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
+  theme_classic() +
+    theme(legend.position = "none"))
+
+#random effect for survey
+allreg_dissimilarity_fishing_mean_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+#fixed effect for survey
+allreg_dissimilarity_fishing_fixed_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+#no effect for survey
+allreg_dissimilarity_fishing_mean_mod_lm <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats)
+
+#In years of higher than average fishing pressure, dissimilarity is lower (homogenization)
+
+AICc(allreg_dissimilarity_fishing_mean_mod, allreg_dissimilarity_fishing_fixed_mean_mod, allreg_dissimilarity_fishing_mean_mod_lm)
+
+summary(allreg_dissimilarity_fishing_mean_mod)
+
+#
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod)
+r.squaredGLMM(allreg_dissimilarity_fishing_fixed_mean_mod)
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_lm)
+
+
+
+
+```
+Best model includes survey unit as a fixed effect (R^2 = 93% of variation)
+
+
+###Temperature x fishing
+Best temp variables to carry forward: 
+
+For raw temp (indicative of survey vs. survey):
+-dissimilarity_BC_balanced_sst_maxSD_mod (Temp heterogeneity)
+-dissimilarity_BC_balanced_sst_max_mod (Maximum temperature)
+
+For scaled temp (indicative of within survey: cool or warm year? heterogenous or homogenous year)
+-dissimilarity_BC_balanced_sst_maxSD_scaled_mod
+-dissimilarity_BC_balanced_sst_min_scaled_mod
+
+Starting with survey unit as random effect again
+```{r temp and fishing models of dissimilarity}
+#raw temp values
+allreg_dissimilarity_fishing_mean_mod_sst_maxSD <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_SD + (1|survey_unit), data = dissimilarities_temp_fishing)
+
+allreg_dissimilarity_fishing_mean_mod_sst_max_avg <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg + (1|survey_unit), data = dissimilarities_temp_fishing)
+
+#scaled temp values
+allreg_dissimilarity_fishing_mean_mod_sst_maxSD.s <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp_fishing)
+
+allreg_dissimilarity_fishing_mean_mod_sst_min_avg.s <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_min_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp_fishing)
+
+AICc(allreg_dissimilarity_fishing_mean_mod_sst_maxSD, allreg_dissimilarity_fishing_mean_mod_sst_max_avg, allreg_dissimilarity_fishing_mean_mod_sst_maxSD.s, allreg_dissimilarity_fishing_mean_mod_sst_min_avg.s)
+
+#Best model: allreg_dissimilarity_fishing_mean_mod_sst_max_avg, delta AICc = 6.1
+
+summary(allreg_dissimilarity_fishing_mean_mod_sst_max_avg)
+
+```
+
+Significant predictors: 
+summed_tonnes_scaled_byreg (as landings (proxy for fishing effort) increase, bray dissimilarity decreases)
+sst_max_raw (as the max temp of the year before increases, bray dissimilarity increases)
+summed_tonnes_scaled_byreg: sst_max_raw (this interaction is a significant predictor)
+
+                                                    Estimate Std. Error         df t value Pr(>|t|)    
+(Intercept)                                        5.376e-01  3.622e-02  1.386e+02  14.842  < 2e-16 ***
+summed_tonnes_scaled_byreg                        -4.155e-02  8.180e-03  6.686e+02  -5.079 4.92e-07 ***
+yearly_max_bypoint_avg                             3.191e-03  1.691e-03  2.876e+02   1.887   0.0601 .  
+summed_tonnes_scaled_byreg:yearly_max_bypoint_avg  1.874e-03  4.044e-04  6.692e+02   4.635 4.30e-06 ***
+
+What about r^2 value
+```{r}
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sst_max_avg)
+
+#marginal GLMM (variance explained by fixed effects)
+#conditional GLMM (variance explained by entire model)
+
+#           R2m       R2c
+#[1,] 0.03197428 0.8927886 (very little explained by fishing or temperature, most explained by survey_units)
+```
+
+#Plot temp only 
+
+#Plot fishing only
+
+allreg_dissimilarity_fishing_temp_mod_fishonly <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1|survey_unit), data = dissimilarities_temp_fishing)
+
+bray curtis dissimilarity = -0.005256 * tonnes + 0.6
+
+```{r}
+ggplot(data = dissimilarities_temp_fishing) +
+  geom_point(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean)) +
+  geom_smooth(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm") +
+  theme_classic()
+
+ggplot(data = dissimilarities_temp_fishing) +
+  geom_point(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean)) +
+  geom_smooth(aes(x=summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free")
+  theme_classic()
+  
+ # ggsave(filename = "facet_fish_model.png", height = 10, width = 10, unit = "in")
+  
+  
+  #sst_max
+  
+  ggplot(data = dissimilarities_temp_fishing) +
+  geom_point(aes(x=yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit)) +
+  geom_smooth(aes(x=yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), method = "lm", se = F) +
+  theme_classic()
+```
+
+
+
+
+#CODE BELOW MAY NO LONGER BE RELEVANT
+Plot this model with interaction
+```{r}
+library(interactions)
+sim_slopes(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD_scaled, modx = summed_tonnes_scaled, johnson_neyman = FALSE)
+
+interact_plot(allreg_dissimilarity_fishing_mean_mod_sst_max_avg, pred = yearly_max_bypoint_avg, modx = summed_tonnes_scaled_byreg, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Maximum Sea Surface Temperature", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
+
+ggsave(filename = "interaction_fish_temp.png" ,height = 4, width = 10)
+
+interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sst_SD_scaled, modx = summed_tonnes_scaled, linearity.check = TRUE, 
+              plot.points = TRUE) #check linearity 
+
+```
+Summary: Steepest slope between temp and dissimilarity when fishing is high
+
+###What if we also tie in latitude and spp num?
+```{r}
+allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg*spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+allreg_dissimilarity_fishing_mean_mod_sst_max_avg_mid_lat <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg*mid_lat + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+allreg_dissimilarity_fishing_mean_mod_sst_max_avg_mid_lat_spp_num <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg*mid_lat*spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+AIC(allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num, allreg_dissimilarity_fishing_mean_mod_sst_max_avg_mid_lat,allreg_dissimilarity_fishing_mean_mod_sst_max_avg_mid_lat_spp_num)
+
+summary(allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num)
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num)
+
+#no interaction with spp num?
+allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num_nointeract <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg+spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+#exclude temperature?
+allreg_dissimilarity_fishing_mean_mod_spp_num <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+#exclude temp no interactions
+allreg_dissimilarity_fishing_mean_mod_spp_num_nointeract <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+AICc(allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num_nointeract,allreg_dissimilarity_fishing_mean_mod_spp_num, allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num,allreg_dissimilarity_fishing_mean_mod_spp_num_nointeract)
+
+summary(allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num_nointeract)
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sst_max_avg_spp_num_nointeract)
+
+#no temp performs better
+summary(allreg_dissimilarity_fishing_mean_mod_spp_num_nointeract)
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_spp_num_nointeract)
+
+ggplot(dissimilarities_temp_fishing_regstats) +
+  geom_point(aes(x = spp_num, y = bray_curtis_dissimilarity_balanced_mean, color = yearly_max_bypoint_avg)) +
+  theme_classic()
+
+ggplot(dissimilarities_temp_fishing_regstats) +
+  geom_point(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = yearly_max_bypoint_avg)) +
+  geom_smooth(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean)) +
+  theme_classic()
+```
+
+Patterns appear to be very survey dependent, and there's a lot of unexplained year to year variation.
+- Warmer survey regions are more highly differentiated in general (makes sense, higher diversity )
+- However, when we include spp num and fishing, temp drops out as a strong predictor
+- As fishing pressure increases, dissimilarity decreases (more fishing = more homogenous)
+- As # species increases, dissimilarity increases (more species overall = more heterogenous)
+- From before, more species, more negative dissimilarity coefficient (more likely to be differentiating over time)
+
+

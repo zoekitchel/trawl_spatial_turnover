@@ -118,6 +118,89 @@ hist(FishGlob_clean[survey == "AI", longitude])
 saveRDS(OISST_data_AI, here::here("data","Temperature","OISST_data_AI.rds"))
 ```
 
+I am running MEDITS separately because there is an issue with pulling data after 2019. Data ends in 2019, so I will only pull data before that
+```{r}
+#run MEDITS separately
+MEDITS_dat_1 <- griddap(x = "ncdcOisst21Agg_LonPM180", 
+                     url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
+                     time = c("1981-09-01", "1988-12-31"), 
+                     zlev = c(0, 0),
+                     latitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude),
+                                  max(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude)),
+                     longitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim),
+                                   max(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim)),
+                     fields = "sst")$data %>% 
+  mutate(time = as.Date(stringr::str_remove(time, "T00:00:00Z"))) %>% 
+  dplyr::rename(t = time, temp = sst) %>% 
+  dplyr::select(lon, lat, t, temp) %>% 
+  na.omit()
+
+MEDITS_dat_2 <- griddap(x = "ncdcOisst21Agg_LonPM180", 
+                        url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
+                        time = c("1989-01-01", "1996-12-31"), 
+                        zlev = c(0, 0),
+                        latitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude),
+                                     max(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude)),
+                        longitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim),
+                                      max(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim)),
+                        fields = "sst")$data %>% 
+  mutate(time = as.Date(stringr::str_remove(time, "T00:00:00Z"))) %>% 
+  dplyr::rename(t = time, temp = sst) %>% 
+  dplyr::select(lon, lat, t, temp) %>% 
+  na.omit()
+
+MEDITS_dat_3 <- griddap(x = "ncdcOisst21Agg_LonPM180", 
+                        url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
+                        time = c("1997-01-01", "2004-12-31"), 
+                        zlev = c(0, 0),
+                        latitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude),
+                                     max(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude)),
+                        longitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim),
+                                      max(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim)),
+                        fields = "sst")$data %>% 
+  mutate(time = as.Date(stringr::str_remove(time, "T00:00:00Z"))) %>% 
+  dplyr::rename(t = time, temp = sst) %>% 
+  dplyr::select(lon, lat, t, temp) %>% 
+  na.omit()
+
+MEDITS_dat_4 <- griddap(x = "ncdcOisst21Agg_LonPM180", 
+                        url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
+                        time = c("2005-01-01", "2012-12-31"), 
+                        zlev = c(0, 0),
+                        latitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude),
+                                     max(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude)),
+                        longitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim),
+                                      max(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim)),
+                        fields = "sst")$data %>% 
+  mutate(time = as.Date(stringr::str_remove(time, "T00:00:00Z"))) %>% 
+  dplyr::rename(t = time, temp = sst) %>% 
+  dplyr::select(lon, lat, t, temp) %>% 
+  na.omit()
+
+MEDITS_dat_5 <- griddap(x = "ncdcOisst21Agg_LonPM180", 
+                        url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
+                        time = c("2013-01-01", "2019-12-31"), #note date end edit (2021 to 2019)
+                        zlev = c(0, 0),
+                        latitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude),
+                                     max(unique_lat_lon_year[survey_unit == this_survey_unit]$latitude)),
+                        longitude = c(min(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim),
+                                      max(unique_lat_lon_year[survey_unit == this_survey_unit]$longitude_trim)),
+                        fields = "sst")$data %>% 
+  mutate(time = as.Date(stringr::str_remove(time, "T00:00:00Z"))) %>% 
+  dplyr::rename(t = time, temp = sst) %>% 
+  dplyr::select(lon, lat, t, temp) %>% 
+  na.omit()
+
+MEDITS_data <- rbind(MEDITS_dat_1, MEDITS_dat_2, MEDITS_dat_3, MEDITS_dat_4, MEDITS_dat_5)
+
+saveRDS(MEDITS_data,
+        here::here("data","Temperature","OISST_data_MEDITS.rds"))
+
+#for annotate (HPC)
+saveRDS(MEDITS_data,
+        here::here("OISST_data_MEDITS.rds"))
+```
+
 
 Plot temp for one period in AI just to make sure it looks right
 
@@ -168,6 +251,11 @@ And now all other regions
 
 #to maximize memory, remove FishGlob_clean except for min_month
 FishGlob_clean.months_surveys <- unique(FishGlob_clean[,.(survey_unit, month)])
+FishGlob_clean.months_surveys[survey_unit == "MEDITS", month := 4]
+FishGlob_clean.months_surveys[survey_unit == "GRL-DE", month := 8] #NEED TO CHECK THIS
+
+#Greenland and Mediterranean don't have months
+#Mediterranean: All observations in quarter 2, so I will say April as month 1
 
 rm(FishGlob_clean)
 
@@ -181,7 +269,7 @@ for (i in 1:length(all_survey_units)) {
   OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
   
   #for annotate (HPC)
-  OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
+#  OISST_data <- data.table(readRDS(here::here(paste0("OISST_data_",all_survey_units[i],".rds"))))
   
   OISST_data[,month := month(t)][,year := year(t)]
   
@@ -241,7 +329,7 @@ for (i in 1:length(all_survey_units)) {
 saveRDS(OISST_data_temp_avgs_full, here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
 
 #annotate
-saveRDS(OISST_data_temp_avgs_full, here::here("OISST_data_temp_avgs_full.rds"))
+#saveRDS(OISST_data_temp_avgs_full, here::here("OISST_data_temp_avgs_full.rds"))
 
 ```
 

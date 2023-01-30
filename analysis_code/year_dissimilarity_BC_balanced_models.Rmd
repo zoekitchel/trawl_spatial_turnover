@@ -1,9 +1,11 @@
 ---
-title: "Year Dissimilarity Models"
+title: "Year Balanced Dissimilarity Models (replacement/turnover)"
 output: html_notebook
 ---
 
-This code is Script 4 for Kitchel et al. TITLE manuscript.
+This code is Script 4 v1 for Kitchel et al. TITLE manuscript.
+
+(We expect this to be the main analyses in the text)
 
 - This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
 
@@ -45,47 +47,14 @@ distances_dissimilarities_allyears.r[,years_sampled := last_year-first_year+1]
 
 ##Make GAMs
 
-Jaccard
-```{r jaccard gams}
-
-jaccard_turnover_gam <- gam(jaccard_dissimilarity_turnover_mean ~ year + s(survey_unit,year, bs = "fs", m = 1),#random smooth
-                            data = distances_dissimilarities_allyears.r)
-
-jaccard_nestedness_gam <- gam(jaccard_dissimilarity_nestedness_mean ~ year + s(survey_unit,year, bs = "fs", m = 1), #random smooth
-                                                         data = distances_dissimilarities_allyears.r)
-
-  
-jaccard_total_gam <- 
-gam(jaccard_dissimilarity_total_mean ~ year + s(survey_unit,year, bs = "fs", m = 1), #random smooth
-                                                         data = distances_dissimilarities_allyears.r)
-```
-
 Bray Curtis
 ```{r bray curtis gams}
 bray_curtis_balanced_gam <- gam(bray_curtis_dissimilarity_balanced_mean ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
                             data = distances_dissimilarities_allyears.r)
 
-bray_curtis_gradient_gam <- gam(bray_curtis_dissimilarity_gradient_mean ~ year + s(survey_unit, year, bs = "fs", m = 1), #random smooth
-                                                         data = distances_dissimilarities_allyears.r)
-
-  
-bray_curtis_total_gam <- 
-gam(bray_curtis_dissimilarity_total_mean ~ year + s(survey_unit, year, bs = "fs", m = 1), #random smooth
-                                                         data = distances_dissimilarities_allyears.r)
 ```
 
 ##Make LMERS
-
-Jaccard
-*Only turnover converges*
-```{r jaccard}
-jaccard_turnover_lmer <- lmer(jaccard_dissimilarity_turnover_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
-
-jaccard_nestedness_lmer <- lmer(jaccard_dissimilarity_nestedness_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
-
-jaccard_total_lmer <- lmer(jaccard_dissimilarity_total_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
-
-```
 
 Bray
 *These all converged*
@@ -93,10 +62,6 @@ Bray
 bray_curtis_balanced_lmer <- lmer(bray_curtis_dissimilarity_balanced_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
 
 summary(bray_curtis_balanced_lmer)
-
-bray_curtis_gradient_lmer <- lmer(bray_curtis_dissimilarity_gradient_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
-
-bray_curtis_total_lmer <- lmer(bray_curtis_dissimilarity_total_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
 
 ```
 
@@ -172,42 +137,42 @@ Add names for plotting
 ```{r add names for plotting}
 
 color_link[,Survey_Name_Season := factor(c("Aleutian Islands",
-                                    "Baltic Sea - Quarter 1",
-                                    "Baltic Sea - Quarter 4",
+                                    "Baltic Sea Q1",
+                                    "Baltic Sea Q4",
                                     "Chile",
-                                    "Canada - Newfoundland",
-                                    "Canada - Queen Charlotte",
+                                    "Newfoundland",
+                                    "Queen Charlotte Sound",
                                     "Eastern Bering Sea",
                                     "Bay of Biscay",
                                     "English Channel",
                                     "Gulf of Mexico",
                                     "Gulf of Alaska",
                                     "Greenland",
-                                    "Canada - Gulf of St. Lawrence - Northern",
-                                    "Canada - Gulf of St. Lawrence - Southern",
+                                    "N Gulf of St. Lawrence",
+                                    "S Gulf of St. Lawrence",
                                     "Iceland",
                                     "Irish Sea",
                                     "Mediterranean",
                                     "Namibia",
-                                    "Northeast US Fall",
-                                    "Northeast US Spring",
-                                    "Northern Ireland - Quarter 1",
-                                    "Northern Ireland - Quarter 4",
+                                    "NE US Fall",
+                                    "NE US Spring",
+                                    "N Ireland Q1",
+                                    "N Ireland Q4",
                                     "Norway",
-                                    "North Sea - Quarter 1",
-                                    "North Sea - Quarter 3",
-                                    "New Zealand - Chatham Rise",
-                                    "New Zealand - East Coast S Island",
-                                    "New Zealand - West Coast S Island",
+                                    "N Sea Q1",
+                                    "N Sea Q3",
+                                    "Chatham Rise",
+                                    "E Coast S Island NZ",
+                                    "W Coast S Island NZ",
                                     "Portugal",
-                                    "South Georgia Straight",
-                                  "Canada - Scotian Shelf",
-                                  "Southeast US Fall",
-                                  "Southeast US Spring",
-                                  "Southeast US Summer",
-                                  "West Coast US",
-                                  "South Africa - Atlantic Ocean",
-                                  "South Africa - Indian Ocean"))]
+                                    "S Georgia Straight",
+                                  "Scotian Shelf",
+                                  "SE US Fall",
+                                  "SE US Spring",
+                                  "SE US Summer",
+                                  "W Coast US",
+                                  "Atlantic Ocean ZA",
+                                  "Indian Ocean ZA"))]
 
 ```
 
@@ -252,35 +217,35 @@ model_coefs_reduced_length.r <- model_coefs_reduced_length[significant == F,]
 #order table by coefficient
 setorder(model_coefs_reduced_length, year_adj)
 
-model_coefs_reduced_length.unique <- unique(model_coefs_reduced_length[,.(condval,condsd, lwr, upr, survey_unit, year_adj, years_sampled, Directional_Change, hex, Survey_Name_Season, significant)]) 
+BC_balanced_model_coefs_reduced_length.unique <- unique(model_coefs_reduced_length[,.(condval,condsd, lwr, upr, survey_unit, year_adj, years_sampled, Directional_Change, hex, Survey_Name_Season, significant)]) 
 
 #extract color hexes
 #year adj coef order
-color_year_adj_order <- model_coefs_reduced_length.unique[,hex]
+color_year_adj_order <- BC_balanced_model_coefs_reduced_length.unique[,hex]
 
 #alphabetical order
-model_coefs_reduced_length.unique.alpha <- setorder(model_coefs_reduced_length.unique, Survey_Name_Season)
-color_alpha_order <- model_coefs_reduced_length.unique.alpha[,hex]
+BC_balanced_model_coefs_reduced_length.unique.alpha <- setorder(BC_balanced_model_coefs_reduced_length.unique, Survey_Name_Season)
+color_alpha_order <- BC_balanced_model_coefs_reduced_length.unique.alpha[,hex]
 
-saveRDS(model_coefs_reduced_length.unique, here::here("output","region_stats","model_coefs_reduced_length.unique.Rds"))
+saveRDS(BC_balanced_model_coefs_reduced_length.unique, here::here("output","region_stats","BC_balanced_model_coefs_reduced_length.unique.Rds"))
 ```
 
 Bar Plot Coefficient LMER
 ```{r bar plot of coefficients}
-BC_Dissimilarity_Coef_errorbar_reduced <- ggplot() +
+BC_BALANCED_Dissimilarity_Coef_errorbar_reduced <- ggplot() +
     geom_errorbar(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey") + #add confidence intervals
   geom_point(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, size = years_sampled, fill = Directional_Change), stat = 'identity', shape = 21, color = "black") +
   scale_fill_manual(values = c("white","black"), name = "Directional Change") +
   geom_point(data = model_coefs_reduced_length.r, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, size = years_sampled), stat = 'identity', fill = "grey",color = "grey", shape = 21) +
   scale_size_binned(range = c(1,8), name = "Survey Period Length") +
   geom_hline(yintercept = 0) +
-  xlab("Season and Survey") +
-  ylab("Coefficient Dissimilarity ~ Year") +
+  xlab("Survey unit") +
+  ylab("Balanced BC dissimilarity trend") +
   coord_flip() +
   theme_classic() +
   theme(axis.text.y = element_text(colour = color_year_adj_order, face = "bold"), axis.title.y = element_blank())
 
-BC_Dissimilarity_Coef_errorbar_reduced
+BC_BALANCED_Dissimilarity_Coef_errorbar_reduced
 ```
 
 Wavy Line Plot for GAMs
@@ -326,7 +291,7 @@ year_survey_unit_expand.dt[,bray_glm_mod_fit := bray_curtis_balanced_gam_predict
 
 Produce Plot of GAM and mean LMER line
 ```{r plot GAM and mean LMER lines}
-points_wavylines_bray_year_reduced_gam_nolmer <- ggplot() +
+points_wavylines_bray_balanced_year_reduced_gam_nolmer <- ggplot() +
  # geom_ribbon(data = lmer_bray_balanced_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "grey", alpha = 0.2) +
   geom_point(data = distances_dissimilarities_allyears.r,
              aes(x = year,
@@ -344,14 +309,14 @@ points_wavylines_bray_year_reduced_gam_nolmer <- ggplot() +
   lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
        y = c(0.15,0.9)) +
   xlab("Year") +
-  ylab("Dissimilarity") +
+ylab("Balanced BC dissimilarity") +
   theme(legend.position = "null")
 
-points_wavylines_bray_year_reduced_gam_nolmer
+points_wavylines_bray_balanced_year_reduced_gam_nolmer
 
 #with lmer
 
-points_wavylines_bray_year_reduced_gam <- ggplot() +
+points_wavylines_bray_balanced_year_reduced_gam <- ggplot() +
   geom_ribbon(data = lmer_bray_balanced_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "grey", alpha = 0.2) +
   geom_point(data = distances_dissimilarities_allyears.r,
              aes(x = year,
@@ -369,21 +334,21 @@ points_wavylines_bray_year_reduced_gam <- ggplot() +
   lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
        y = c(0.15,0.9)) +
   xlab("Year") +
-  ylab("Dissimilarity") +
+ylab("Balanced BC dissimilarity") +
   theme(legend.position = "null")
 
-points_wavylines_bray_year_reduced_gam
+points_wavylines_bray_balanced_year_reduced_gam
 
 #just one region that's homogenizing (NZ WCSI)
-points_wavylines_bray_year_reduced_gam_NZ_only <- ggplot() +
+points_wavylines_bray_balanced_year_reduced_gam_NZ_only <- ggplot() +
   geom_point(data = distances_dissimilarities_allyears.r[survey_unit == "NZ-WCSI",],
              aes(x = year,
-                 y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.5, size = 1, color = model_coefs_reduced_length.unique[Survey_Name_Season == "New Zealand - West Coast S Island",hex]) +
+                 y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.5, size = 1, color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) +
     geom_line(data = year_survey_unit_expand.dt[survey_unit == "NZ-WCSI",],
              aes(x = year,
                  y = bray_glm_mod_fit),
-             color = model_coefs_reduced_length.unique[Survey_Name_Season == "New Zealand - West Coast S Island",hex]) +
-  geom_ribbon(data = year_survey_unit_expand.dt[survey_unit == "NZ-WCSI",], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE), alpha=0.3, fill = model_coefs_reduced_length.unique[Survey_Name_Season == "New Zealand - West Coast S Island",hex]) + #add standard error
+             color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) +
+  geom_ribbon(data = year_survey_unit_expand.dt[survey_unit == "NZ-WCSI",], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE), alpha=0.3, fill = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) + #add standard error
  # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
     scale_color_manual(name = "Survey Unit") +
  # scale_fill_manual(values =  palette_37, guide = "none") +
@@ -391,13 +356,13 @@ points_wavylines_bray_year_reduced_gam_NZ_only <- ggplot() +
        y = c(0.15,0.9)) +
   theme_classic() +
   xlab("Year") +
-  ylab("Dissimilarity")
+ylab("Balanced BC dissimilarity")
 
-points_wavylines_bray_year_reduced_gam_NZ_only
+points_wavylines_bray_balanced_year_reduced_gam_NZ_only
 
 #just two regions, another that's differentiating (SEUS Summer)
 
-points_wavylines_bray_year_reduced_gam_NZ_SEUS_Summer_only <- ggplot() +
+points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only <- ggplot() +
   geom_point(data = distances_dissimilarities_allyears.r[survey_unit %in% c("NZ-WCSI","SEUS-summer"),],
              aes(x = year,
                  y = bray_curtis_dissimilarity_balanced_mean,
@@ -408,20 +373,20 @@ points_wavylines_bray_year_reduced_gam_NZ_SEUS_Summer_only <- ggplot() +
                  color = Survey_Name_Season)) +
   geom_ribbon(data = year_survey_unit_expand.dt[survey_unit %in% c("NZ-WCSI","SEUS-summer"),], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill = survey_unit), alpha=0.3) + #add standard error
  # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
-    scale_color_manual(name = "Survey Unit", values = c(model_coefs_reduced_length.unique[Survey_Name_Season %in% c("New Zealand - West Coast S Island","Southeast US Summer"),hex])) +
-  scale_fill_manual(guide = "none", values = c(model_coefs_reduced_length.unique[Survey_Name_Season %in% c("New Zealand - West Coast S Island","Southeast US Summer"),hex])) +
+    scale_color_manual(name = "Survey Unit", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer"),hex])) +
+  scale_fill_manual(guide = "none", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer"),hex])) +
     lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
        y = c(0.15,0.9)) +
   theme_classic() +
   xlab("Year") +
-  ylab("Dissimilarity") +
+ylab("Balanced BC dissimilarity") +
   theme(legend.position = "null")
 
-points_wavylines_bray_year_reduced_gam_NZ_SEUS_Summer_only
+points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only
 
 #just three regions, another one that's stable, (Canada Scotian Shelf)
 
-points_wavylines_bray_year_reduced_gam_NZ_SEUS_ScoShelf_only <- ggplot() +
+points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only <- ggplot() +
   geom_point(data = distances_dissimilarities_allyears.r[survey_unit %in% c("NZ-WCSI","SEUS-summer", "SCS-SUMMER"),],
              aes(x = year,
                  y = bray_curtis_dissimilarity_balanced_mean,
@@ -432,24 +397,24 @@ points_wavylines_bray_year_reduced_gam_NZ_SEUS_ScoShelf_only <- ggplot() +
                  color = Survey_Name_Season)) +
   geom_ribbon(data = year_survey_unit_expand.dt[survey_unit %in% c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill = Survey_Name_Season), alpha=0.3) + #add standard error
  # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
-    scale_color_manual(name = "Survey Unit", values = c(model_coefs_reduced_length.unique[Survey_Name_Season %in% c("New Zealand - West Coast S Island","Southeast US Summer","Canada - Scotian Shelf"),hex])) +
-  scale_fill_manual(guide = "none", values = c(model_coefs_reduced_length.unique[Survey_Name_Season %in% c("New Zealand - West Coast S Island","Southeast US Summer","Canada - Scotian Shelf"),hex])) +
+    scale_color_manual(name = "Survey Unit", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer","Scotian Shelf"),hex])) +
+  scale_fill_manual(guide = "none", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer","Scotian Shelf"),hex])) +
     lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
        y = c(0.15,0.9)) +
   theme_classic() +
   xlab("Year") +
-  ylab("Dissimilarity") +
+ylab("Balanced BC dissimilarity") +
   theme(legend.position = "null")
 
-points_wavylines_bray_year_reduced_gam_NZ_SEUS_ScoShelf_only
+points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only
 
-ggsave(points_wavylines_bray_year_reduced_gam_NZ_only, path = here::here("figures"), filename ="points_wavylines_bray_year_reduced_gam_NZ_only.jpg", height = 5, width = 5, unit = "in")
-ggsave(points_wavylines_bray_year_reduced_gam_NZ_SEUS_Summer_only, path = here::here("figures"), filename ="points_wavylines_bray_year_reduced_gam_NZ_SEUS_Summer_only.jpg", height = 5, width = 5, unit = "in")
-ggsave(points_wavylines_bray_year_reduced_gam_NZ_SEUS_ScoShelf_only, path = here::here("figures"), filename ="points_wavylines_bray_year_reduced_gam_NZ_SEUS_ScoShelf_only.jpg", height = 5, width = 5, unit = "in")
-points_wavylines_bray_year_reduced_gam
-ggsave(points_wavylines_bray_year_reduced_gam_nolmer, path = here::here("figures"), filename ="points_wavylines_bray_year_reduced_gam_nolmer.jpg", height = 5, width = 5, unit = "in")
+ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_only.jpg", height = 5, width = 5, unit = "in")
+ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only.jpg", height = 5, width = 5, unit = "in")
+ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only.jpg", height = 5, width = 5, unit = "in")
+points_wavylines_bray_balanced_year_reduced_gam
+ggsave(points_wavylines_bray_balanced_year_reduced_gam_nolmer, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_nolmer.jpg", height = 5, width = 5, unit = "in")
 
-ggsave(points_wavylines_bray_year_reduced_gam, path = here::here("figures"), filename ="points_wavylines_bray_year_reduced_gam.jpg", height = 5, width = 5, unit = "in")
+ggsave(points_wavylines_bray_balanced_year_reduced_gam, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam.jpg", height = 5, width = 5, unit = "in")
 
 ```
 
@@ -457,11 +422,11 @@ Merge BC versus Year plot with GAMS and Region vs. coefficient plot for LMERs
 
 ```{r}
 
-BC_GAM_LMER_merge <- plot_grid(points_wavylines_bray_year_reduced_gam + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), BC_Dissimilarity_Coef_errorbar_reduced + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), labels = c("","Survey Unit  ",""), vjust = 1.5, hjust = 0)
+BC_BALANCED_GAM_LMER_merge <- plot_grid(points_wavylines_bray_balanced_year_reduced_gam + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), BC_BALANCED_Dissimilarity_Coef_errorbar_reduced + theme(legend.position = "none", plot.margin = margin(2,0,0,0, unit = "cm")), labels = c("","Survey Unit  ",""), vjust = 1.5, hjust = 0)
 
-BC_GAM_LMER_merge_legend <- plot_grid(BC_GAM_LMER_merge, get_legend(BC_Dissimilarity_Coef_errorbar_reduced), rel_widths = c(10,2))
+BC_BALANCED_GAM_LMER_merge_legend <- plot_grid(BC_BALANCED_GAM_LMER_merge, get_legend(BC_BALANCED_Dissimilarity_Coef_errorbar_reduced), rel_widths = c(10,2))
 
-ggsave(BC_GAM_LMER_merge_legend, path = here::here("figures"), filename = "BC_GAM_LMER_merge_legend.png", height = 7, width = 14, units = "in")
+ggsave(BC_BALANCED_GAM_LMER_merge_legend, path = here::here("figures"), filename = "BC_BALANCED_GAM_LMER_merge_legend.png", height = 7, width = 14, units = "in")
 ```
 ```
 
