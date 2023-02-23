@@ -24,6 +24,7 @@ library(ggpubr) #stat_regline_equation
 library(nlme)
 library(mgcv) #to make gam
 library(cowplot)
+library(lme4)
 
 #Pull Dissimilarity Means
 distances_dissimilarities_allyears.r <- readRDS(here::here("output", "distance_decay", "distances_dissimilarities_allyears.r.rds"))
@@ -339,6 +340,30 @@ ylab("Balanced BC dissimilarity") +
 
 points_wavylines_bray_balanced_year_reduced_gam
 
+#just EBS for personal interest
+points_wavylines_bray_balanced_year_reduced_gam_EBS_only <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears.r[survey_unit == "EBS",],
+             aes(x = year,
+                 y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.5, size = 1
+            # , 
+            # color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "Eastern Bering Sea",hex]
+             ) +
+  #  geom_line(data = year_survey_unit_expand.dt[survey_unit == "EBS",],
+   #          aes(x = year,
+    #             y = bray_glm_mod_fit),
+     #        color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "Eastern Bering Sea",hex]) +
+ # geom_ribbon(data = year_survey_unit_expand.dt[survey_unit == "EBS",], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE), alpha=0.3, fill = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "Eastern Bering Sea",hex]) + #add standard error
+ # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
+  #  scale_color_manual(name = "Survey Unit") +
+ # scale_fill_manual(values =  palette_37, guide = "none") +
+ #   lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
+ #      y = c(0.15,0.9)) +
+  theme_classic() +
+  xlab("Year") +
+ylab("Balanced BC dissimilarity")
+
+points_wavylines_bray_balanced_year_reduced_gam_EBS_only
+
 #just one region that's homogenizing (NZ WCSI)
 points_wavylines_bray_balanced_year_reduced_gam_NZ_only <- ggplot() +
   geom_point(data = distances_dissimilarities_allyears.r[survey_unit == "NZ-WCSI",],
@@ -409,6 +434,7 @@ ylab("Balanced BC dissimilarity") +
 points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only
 
 ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_only.jpg", height = 5, width = 5, unit = "in")
+ggsave(points_wavylines_bray_balanced_year_reduced_gam_EBS_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_EBS_only.jpg", height = 5, width = 9, unit = "in")
 ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only.jpg", height = 5, width = 5, unit = "in")
 ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only.jpg", height = 5, width = 5, unit = "in")
 points_wavylines_bray_balanced_year_reduced_gam

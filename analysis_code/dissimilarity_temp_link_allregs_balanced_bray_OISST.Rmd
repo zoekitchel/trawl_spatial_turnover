@@ -109,7 +109,7 @@ How does this trend hold up for all regions?
   geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_mean, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_mean, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_mean_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Mean surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -118,7 +118,7 @@ dissimilarity_BC_balanced_sst_mean_facet <- ggplot(data = dissimilarities_temp) 
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_mean_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_mean_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_mean_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg + (1 + yearly_mean_bypoint_avg|survey_unit), data = dissimilarities_temp) #this converges (allows both intercept and slope to vary with survey_unit)
 
@@ -142,7 +142,7 @@ balanced_dissimilarity_sst_model_results_row <- data.table(matrix(c("sst", #dept
                                                  round(r.squaredGLMM(dissimilarity_BC_balanced_sst_mean_mod)[1],3),#mar r squared
                                                  round(r.squaredGLMM(dissimilarity_BC_balanced_sst_mean_mod)[2],3),#cond r squared
                                                  round(AICc(dissimilarity_BC_balanced_sst_mean_mod),3),#AICc
-                                                 round(coefs[2,3],3)#Deg of freedom
+                                                 round(coefs[2,3],3)#Deg of freedom (NOT SURE ABOUT THIS)
                                                  ),nrow = 1))
 
 #merge with larger table
@@ -160,7 +160,7 @@ balanced_dissimilarity_sst_model_results <- rbind(balanced_dissimilarity_sst_mod
   geom_smooth(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_min, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_min.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_min, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_min.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_min_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Min surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -169,7 +169,7 @@ dissimilarity_BC_balanced_sst_min_facet <- ggplot(data = dissimilarities_temp) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_min_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_min_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_min_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_min_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_min_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_min_bypoint_avg + (1 + yearly_min_bypoint_avg|survey_unit), data = dissimilarities_temp)
 
@@ -212,7 +212,7 @@ balanced_dissimilarity_sst_model_results <- rbind(balanced_dissimilarity_sst_mod
   geom_smooth(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_max, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_max.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_max, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_max.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_max_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Max surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -221,7 +221,7 @@ dissimilarity_BC_balanced_sst_max_facet <- ggplot(data = dissimilarities_temp) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_max_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_max_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_max_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_max_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_max_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_max_bypoint_avg + (1 + yearly_max_bypoint_avg|survey_unit), data = dissimilarities_temp)
 
@@ -264,7 +264,7 @@ balanced_dissimilarity_sst_model_results <- rbind(balanced_dissimilarity_sst_mod
   geom_smooth(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_seas, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seas.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_seas, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seas.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_seas_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Seasonality of surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -273,7 +273,7 @@ dissimilarity_BC_balanced_sst_seas_facet <- ggplot(data = dissimilarities_temp) 
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seas_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seas_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_seas_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seas_facet.jpg", height = 10, width = 11, unit = "in")
 
 
 dissimilarity_BC_balanced_sst_seas_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_seas_bypoint_avg + (1 + yearly_seas_bypoint_avg|survey_unit), data = dissimilarities_temp)
@@ -318,7 +318,7 @@ balanced_dissimilarity_sst_model_results <- rbind(balanced_dissimilarity_sst_mod
   geom_smooth(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_meanSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_meanSD.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_meanSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_meanSD.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_meanSD_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Mean surface temperature SD (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -327,7 +327,7 @@ dissimilarity_BC_balanced_sst_meanSD_facet <- ggplot(data = dissimilarities_temp
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_meanSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_meanSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_meanSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_meanSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_meanSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_SD + (1 + yearly_mean_bypoint_SD|survey_unit), data = dissimilarities_temp)
 
@@ -371,7 +371,7 @@ balanced_dissimilarity_sst_model_results <- rbind(balanced_dissimilarity_sst_mod
   geom_smooth(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_minSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_minSD.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_minSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_minSD.jpg", height = 4, width = 9, unit = "in") 
 
 #faceted
 dissimilarity_BC_balanced_sst_minSD_facet <- ggplot(data = dissimilarities_temp) +
@@ -381,7 +381,7 @@ dissimilarity_BC_balanced_sst_minSD_facet <- ggplot(data = dissimilarities_temp)
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_minSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_minSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_minSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_minSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 
 dissimilarity_BC_balanced_sst_minSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_min_bypoint_SD + (1 + yearly_min_bypoint_SD|survey_unit), data = dissimilarities_temp)
@@ -424,7 +424,7 @@ dissimilarity_BC_balanced_sst_maxSD <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_maxSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_maxSD.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_maxSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_maxSD.jpg", height = 4, width = 9, unit = "in") 
 
 #faceted
 dissimilarity_BC_balanced_sst_maxSD_facet <- ggplot(data = dissimilarities_temp) +
@@ -434,7 +434,7 @@ dissimilarity_BC_balanced_sst_maxSD_facet <- ggplot(data = dissimilarities_temp)
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_maxSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_maxSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_maxSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_maxSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_maxSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_max_bypoint_SD + (1 + yearly_max_bypoint_SD|survey_unit), data = dissimilarities_temp)
 
@@ -477,7 +477,7 @@ balanced_dissimilarity_sst_model_results <- rbind(balanced_dissimilarity_sst_mod
   geom_smooth(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_seasSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seasSD.jpg", height = 4, width = 9, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_seasSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seasSD.jpg", height = 4, width = 9, unit = "in")
 
 #faceted
 dissimilarity_BC_balanced_sst_seasSD_facet <- ggplot(data = dissimilarities_temp) +
@@ -487,7 +487,7 @@ dissimilarity_BC_balanced_sst_seasSD_facet <- ggplot(data = dissimilarities_temp
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seasSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seasSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_seasSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seasSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_seasSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_seas_bypoint_SD + (1 + yearly_seas_bypoint_SD|survey_unit), data = dissimilarities_temp)
 
@@ -548,7 +548,7 @@ dissimilarity_BC_balanced_sst_mean_scaled <- ggplot(data = dissimilarities_temp)
   geom_smooth(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_mean_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_mean_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_mean_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg.s + (1 + yearly_mean_bypoint_avg.s|survey_unit), data = dissimilarities_temp)
 
@@ -590,7 +590,7 @@ dissimilarity_BC_balanced_sst_min_scaled <- ggplot(data = dissimilarities_temp) 
   geom_smooth(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_min_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_min_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_min_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_min_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_min_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_min_bypoint_avg.s + (1 + yearly_min_bypoint_avg.s|survey_unit), data = dissimilarities_temp)
 
@@ -632,7 +632,7 @@ dissimilarity_BC_balanced_sst_max_scaled <- ggplot(data = dissimilarities_temp) 
   geom_smooth(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_max_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_max_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_max_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_max_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_max_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_max_bypoint_avg.s + (1 + yearly_max_bypoint_avg.s|survey_unit), data = dissimilarities_temp)
 
@@ -675,7 +675,7 @@ dissimilarity_BC_balanced_sst_seas_scaled <- ggplot(data = dissimilarities_temp)
   geom_smooth(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seas_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seas_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_seas_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seas_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_seas_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_seas_bypoint_avg.s + (1 + yearly_seas_bypoint_avg.s|survey_unit), data = dissimilarities_temp)
 
@@ -718,7 +718,7 @@ balanced_dissimilarity_sst_model_results <- rbind(balanced_dissimilarity_sst_mod
   geom_smooth(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_meanSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_meanSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_meanSD_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_meanSD_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_meanSD_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_SD.s + (1 + yearly_mean_bypoint_SD.s|survey_unit), data = dissimilarities_temp)
 
@@ -760,7 +760,7 @@ dissimilarity_BC_balanced_sst_minSD_scaled <- ggplot(data = dissimilarities_temp
   geom_smooth(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_minSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_minSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_minSD_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_minSD_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_minSD_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_min_bypoint_SD.s + (1 + yearly_min_bypoint_SD.s|survey_unit), data = dissimilarities_temp)
 
@@ -802,7 +802,7 @@ dissimilarity_BC_balanced_sst_maxSD_scaled <- ggplot(data = dissimilarities_temp
   geom_smooth(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_maxSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_maxSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_maxSD_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_maxSD_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_maxSD_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_max_bypoint_SD.s + (1 + yearly_max_bypoint_SD.s|survey_unit), data = dissimilarities_temp)
 
@@ -845,7 +845,7 @@ dissimilarity_BC_balanced_sst_seasSD_scaled <- ggplot(data = dissimilarities_tem
   geom_smooth(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seasSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seasSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_seasSD_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seasSD_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_seasSD_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_seas_bypoint_SD.s + (1 + yearly_seas_bypoint_SD.s|survey_unit), data = dissimilarities_temp)
 
@@ -911,7 +911,7 @@ dissimilarity_BC_balanced_sst_mean_dissim_scaled <- ggplot(data = dissimilaritie
   geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_mean_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_mean_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_mean_facet_dissim_scaled <- ggplot(data = dissimilarities_temp) +
   labs(x = "Mean surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -920,7 +920,7 @@ dissimilarity_BC_balanced_sst_mean_facet_dissim_scaled <- ggplot(data = dissimil
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_mean_facet_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean_facet_dissim_scaled.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_mean_facet_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean_facet_dissim_scaled.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_mean_mod_dissim_scaled <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_mean_bypoint_avg + (1|survey_unit), data = dissimilarities_temp, REML = T)
 
@@ -938,7 +938,7 @@ dissimilarity_BC_balanced_sst_min <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_min, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_min.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_min, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_min.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_min_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Min surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -947,7 +947,7 @@ dissimilarity_BC_balanced_sst_min_facet <- ggplot(data = dissimilarities_temp) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_min_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_min_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_min_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_min_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_min_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_min_bypoint_avg + (1|survey_unit), data = dissimilarities_temp)
 
@@ -965,7 +965,7 @@ dissimilarity_BC_balanced_sst_max <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_max, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_max.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_max, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_max.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_max_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Max surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -974,7 +974,7 @@ dissimilarity_BC_balanced_sst_max_facet <- ggplot(data = dissimilarities_temp) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_max_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_max_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_max_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_max_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_max_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_max_bypoint_avg + (1|survey_unit), data = dissimilarities_temp)
 
@@ -993,7 +993,7 @@ dissimilarity_BC_balanced_sst_seas <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seas, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seas.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_seas, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seas.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_seas_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Seasonality of surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -1002,7 +1002,7 @@ dissimilarity_BC_balanced_sst_seas_facet <- ggplot(data = dissimilarities_temp) 
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seas_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seas_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_seas_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seas_facet.jpg", height = 10, width = 11, unit = "in")
 
 
 dissimilarity_BC_balanced_sst_seas_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_seas_bypoint_avg + (1|survey_unit), data = dissimilarities_temp)
@@ -1023,7 +1023,7 @@ dissimilarity_BC_balanced_sst_meanSD <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_meanSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_meanSD.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_meanSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_meanSD.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_meanSD_facet <- ggplot(data = dissimilarities_temp) +
   labs(x = "Mean surface temperature SD (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -1032,7 +1032,7 @@ dissimilarity_BC_balanced_sst_meanSD_facet <- ggplot(data = dissimilarities_temp
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_meanSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_meanSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_meanSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_meanSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_meanSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1050,7 +1050,7 @@ dissimilarity_BC_balanced_sst_minSD <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_minSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_minSD.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_minSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_minSD.jpg", height = 4, width = 9, unit = "in") 
 
 #faceted
 dissimilarity_BC_balanced_sst_minSD_facet <- ggplot(data = dissimilarities_temp) +
@@ -1060,7 +1060,7 @@ dissimilarity_BC_balanced_sst_minSD_facet <- ggplot(data = dissimilarities_temp)
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_minSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_minSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_minSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_minSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 
 dissimilarity_BC_balanced_sst_minSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_min_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
@@ -1079,7 +1079,7 @@ dissimilarity_BC_balanced_sst_maxSD <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_maxSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_maxSD.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_maxSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_maxSD.jpg", height = 4, width = 9, unit = "in") 
 
 #faceted
 dissimilarity_BC_balanced_sst_maxSD_facet <- ggplot(data = dissimilarities_temp) +
@@ -1089,7 +1089,7 @@ dissimilarity_BC_balanced_sst_maxSD_facet <- ggplot(data = dissimilarities_temp)
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_maxSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_maxSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_maxSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_maxSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_maxSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_max_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1108,7 +1108,7 @@ dissimilarity_BC_balanced_sst_seasSD <- ggplot(data = dissimilarities_temp) +
   geom_smooth(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seasSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seasSD.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_seasSD, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seasSD.jpg", height = 4, width = 9, unit = "in") 
 
 #faceted
 dissimilarity_BC_balanced_sst_seasSD_facet <- ggplot(data = dissimilarities_temp) +
@@ -1118,7 +1118,7 @@ dissimilarity_BC_balanced_sst_seasSD_facet <- ggplot(data = dissimilarities_temp
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seasSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seasSD_facet.jpg", height = 10, width = 11, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_seasSD_facet, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seasSD_facet.jpg", height = 10, width = 11, unit = "in")
 
 dissimilarity_BC_balanced_sst_seasSD_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_seas_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1161,7 +1161,7 @@ dissimilarity_BC_balanced_sst_mean_scaled_dissim_scaled <- ggplot(data = dissimi
   geom_smooth(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_mean_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_mean_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_mean_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_mean_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1179,7 +1179,7 @@ dissimilarity_BC_balanced_sst_min_scaled_dissim_scaled <- ggplot(data = dissimil
   geom_smooth(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_min_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_min_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_min_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_min_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_min_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_min_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1197,7 +1197,7 @@ dissimilarity_BC_balanced_sst_max_scaled_dissim_scaled <- ggplot(data = dissimil
   geom_smooth(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_max_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_max_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_max_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_max_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_max_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_max_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1216,7 +1216,7 @@ dissimilarity_BC_balanced_sst_seas_scaled_dissim_scaled <- ggplot(data = dissimi
   geom_smooth(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seas_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seas_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_seas_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seas_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_seas_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_seas_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1235,7 +1235,7 @@ dissimilarity_BC_balanced_sst_meanSD_scaled_dissim_scaled <- ggplot(data = dissi
   geom_smooth(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_meanSD_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_meanSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_meanSD_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_meanSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_meanSD_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_mean_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1253,7 +1253,7 @@ dissimilarity_BC_balanced_sst_minSD_scaled_dissim_scaled <- ggplot(data = dissim
   geom_smooth(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_minSD_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_minSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_minSD_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_minSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_minSD_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_min_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1271,7 +1271,7 @@ dissimilarity_BC_balanced_sst_maxSD_scaled_dissim_scaled <- ggplot(data = dissim
   geom_smooth(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_maxSD_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_maxSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_maxSD_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_maxSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_maxSD_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_max_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1290,7 +1290,7 @@ dissimilarity_BC_balanced_sst_seasSD_scaled_dissim_scaled <- ggplot(data = dissi
   geom_smooth(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean.s), method = "lm", se = F, color  = "black") +
   theme_classic()
 
-ggsave(dissimilarity_BC_balanced_sst_seasSD_scaled_dissim_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_seasSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_seasSD_scaled_dissim_scaled, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_seasSD_scaled_dissim_scaled.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_seasSD_scaled_dissim_scaled_mod <- lmer(bray_curtis_dissimilarity_balanced_mean.s ~ yearly_seas_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
 
@@ -1328,7 +1328,7 @@ summary(dissimilarity_BC_balanced_sst_maxSD_scaled_dissim_scaled_mod) # p = 0.16
 ####What to carry forward:
 Best models
 ```{r}
-balanced_dissimilarity_sst_model_results
+balanced_dissimilarity_sst_model_results #NOT SURE ABOUT DF
 
 saveRDS(balanced_dissimilarity_sst_model_results, here::here("output","balanced_dissimilarity_sst_model_results.rds"))
 ```
@@ -1343,6 +1343,13 @@ dissimilarities_temp.nona <- na.omit(dissimilarities_temp)
 dissimilarities_temp.nona$pred_mean_sst <- predict(dissimilarity_BC_balanced_sst_mean_mod,re.form=NA)  ## population level
 dissimilarities_temp.nona$pred_mean_sst_individual <- predict(dissimilarity_BC_balanced_sst_mean_mod) ## individual level
 
+#confidence intervals
+confit <- confint(dissimilarity_BC_balanced_sst_mean_scaled_mod, oldNames = F)
+
+#upper lower bounds from confidence intervals
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_lwr := confit[5,1] + confit[6,1]*yearly_mean_bypoint_avg]#lower confidence interval
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confit[6,2]*yearly_mean_bypoint_avg]#upper confidence interval
+
 
 #for all regions
 (dissimilarity_BC_balanced_sst_mean.final <- ggplot(data = dissimilarities_temp.nona) +
@@ -1353,7 +1360,7 @@ dissimilarities_temp.nona$pred_mean_sst_individual <- predict(dissimilarity_BC_b
   geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sst), color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_mean.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean.final.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_mean.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean.final.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_mean_facet.final <- ggplot(data = dissimilarities_temp.nona) +
   labs(x = "Mean surface temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -1365,7 +1372,17 @@ dissimilarity_BC_balanced_sst_mean_facet.final <- ggplot(data = dissimilarities_
   theme(legend.position = "null")
 
 
-ggsave(dissimilarity_BC_balanced_sst_mean_facet.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean_facet.final.jpg", height = 10, width = 16, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_mean_facet.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean_facet.final.jpg", height = 10, width = 16, unit = "in")
+
+#simplified color scheme
+(dissimilarity_BC_balanced_sst_mean.finalSIMPLIFIED <- ggplot(data = dissimilarities_temp.nona) +
+  labs(x = "Mean surface temperature (˚C)",  y = "Dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.4) +
+  geom_line(aes(x = yearly_mean_bypoint_avg, y = pred_mean_sst), color  = "black") +
+    geom_ribbon(aes(x = yearly_mean_bypoint_avg, ymin = pred_mean_temp_scale_byreg_lwr, ymax = pred_mean_temp_scale_byreg_upr), alpha = 0.3) +
+  theme_classic())
+
+ggsave(dissimilarity_BC_balanced_sst_mean.finalSIMPLIFIED, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean.finalSIMPLIFIED.jpg", height = 4, width = 9, unit = "in") 
 ```
 
 Scaled: dissimilarity_BC_balanced_sst_mean_scaled_mod
@@ -1373,6 +1390,13 @@ Scaled: dissimilarity_BC_balanced_sst_mean_scaled_mod
 dissimilarities_temp.nona$pred_mean_sst.s <- predict(dissimilarity_BC_balanced_sst_mean_scaled_mod,re.form=NA)  ## population level
 dissimilarities_temp.nona$pred_mean_sst_individual.s <- predict(dissimilarity_BC_balanced_sst_mean_scaled_mod) ## individual level
 
+
+#confidence intervals
+confit <- confint(dissimilarity_BC_balanced_sst_mean_scaled_mod, oldNames = F)
+
+#upper lower bounds from confidence intervals
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_lwr := confit[5,1] + confit[6,1]*yearly_mean_bypoint_avg.s]#lower confidence interval
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confit[6,2]*yearly_mean_bypoint_avg.s]#upper confidence interval
 
 #for all regions
 (dissimilarity_BC_balanced_sst_mean.s.final <- ggplot(data = dissimilarities_temp.nona) +
@@ -1383,7 +1407,7 @@ dissimilarities_temp.nona$pred_mean_sst_individual.s <- predict(dissimilarity_BC
   geom_line(aes(x = yearly_mean_bypoint_avg.s, y = pred_mean_sst.s), color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sst_mean.s.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean.s.final.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sst_mean.s.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean.s.final.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sst_mean_facet.s.final <- ggplot(data = dissimilarities_temp.nona) +
   labs(x = "Relative mean surface temperature",  y = "Bray Curtis balanced dissimilarity") +
@@ -1394,6 +1418,24 @@ dissimilarity_BC_balanced_sst_mean_facet.s.final <- ggplot(data = dissimilaritie
   theme_classic() +
   theme(legend.position = "null")
 
-ggsave(dissimilarity_BC_balanced_sst_mean_facet.s.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sst_mean_facet.s.final.jpg", height = 10, width = 16, unit = "in")
+ggsave(dissimilarity_BC_balanced_sst_mean_facet.s.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean_facet.s.final.jpg", height = 10, width = 16, unit = "in")
+
+#simplified color scheme
+(dissimilarity_BC_balanced_sst_mean.s.final.SIMPLIFIED <- ggplot(data = dissimilarities_temp.nona) +
+  labs(x = "Relative mean surface temperature",  y = "Dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.4) +
+  geom_line(aes(x = yearly_mean_bypoint_avg.s, y = pred_mean_sst.s), color  = "black") +
+    geom_ribbon(aes(x = yearly_mean_bypoint_avg.s, ymin = pred_mean_temp_scale_byreg_lwr, ymax = pred_mean_temp_scale_byreg_upr), alpha = 0.3) +
+  theme_classic())
+
+ggsave(dissimilarity_BC_balanced_sst_mean.s.final.SIMPLIFIED, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean.s.final.SIMPLIFIED.jpg", height = 4, width = 9, unit = "in") 
+```
+
+Merge
+```{r}
+library(cowplot)
+(dissimilarity_BC_balanced_sst_mean.final.SIMPLIFIED_merge <- plot_grid(dissimilarity_BC_balanced_sst_mean.finalSIMPLIFIED, dissimilarity_BC_balanced_sst_mean.s.final.SIMPLIFIED + theme(axis.title.y = element_blank(), axis.text.y = element_blank()), nrow = 1, ncol = 2, labels = c("a.","b."), hjust = -1))
+
+ggsave(dissimilarity_BC_balanced_sst_mean.final.SIMPLIFIED_merge, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sst_mean.final.SIMPLIFIED_merge.jpg", height = 4, width = 9, unit = "in") 
 ```
 

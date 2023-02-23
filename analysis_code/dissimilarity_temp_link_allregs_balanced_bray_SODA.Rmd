@@ -892,31 +892,6 @@ balanced_dissimilarity_sbt_model_results[Scaled == T,]
 #for all temp mods, almost nothing is described by scaled temp in region (0.05% of variation), most described by survey unit (90% of variation)
 ```
 Relative mean temperature for the 12 months before survey is the best predictor. As temp increases, dissimilarity increases. Relatively warm years are more heterogenous. 
----
-###Comparing scaled temperature predictors
-```{r compare scaled temp predictors with scaled dissim}
-
-#list of models
-list_scaled_dissim_scaled_mods <- grep("*_scaled_dissim_scaled_mod",names(.GlobalEnv),value=TRUE)
-
-scaled_dissim_scaled_mods_AICc <- AICc(dissimilarity_BC_balanced_sbt_maxSD_scaled_dissim_scaled_mod , dissimilarity_BC_balanced_sbt_meanSD_scaled_dissim_scaled_mod,
-dissimilarity_BC_balanced_sbt_max_scaled_dissim_scaled_mod  ,  dissimilarity_BC_balanced_sbt_minSD_scaled_dissim_scaled_mod, 
-dissimilarity_BC_balanced_sbt_seas_scaled_dissim_scaled_mod ,  dissimilarity_BC_balanced_sbt_seasSD_scaled_dissim_scaled_mod,
-dissimilarity_BC_balanced_sbt_min_scaled_dissim_scaled_mod  ,  dissimilarity_BC_balanced_sbt_mean_scaled_dissim_scaled_mod) #compare all scaled_mods
-
-#best mods (all within 2 AICc): 
-r.squaredGLMM(dissimilarity_BC_balanced_sbt_min_scaled_dissim_scaled_mod)
-summary(dissimilarity_BC_balanced_sbt_min_scaled_dissim_scaled_mod) #p = 0.06
-r.squaredGLMM(dissimilarity_BC_balanced_sbt_mean_scaled_dissim_scaled_mod)
-summary(dissimilarity_BC_balanced_sbt_mean_scaled_dissim_scaled_mod)# 0.09
-r.squaredGLMM(dissimilarity_BC_balanced_sbt_maxSD_scaled_dissim_scaled_mod)
-summary(dissimilarity_BC_balanced_sbt_maxSD_scaled_dissim_scaled_mod) # p = 0.168
-
-
-
-
-#for all temp mods, almost nothing is described by scaled temp in region (0.05% of variation), most described by survey unit (90% of variation)
-```
 
 ####What to carry forward:
 Best models
@@ -930,11 +905,21 @@ For both scaled and unscaled, mean temp is the best predictor.
 
 ####Finally, plot two best models
 Raw: dissimilarity_BC_balanced_sbt_meanSD_mod and dissimilarity_BC_balanced_sbt_mean_mod essentially tied, we'll just plot mean
+
+####Finally, plot two best models
+Raw: dissimilarity_BC_balanced_sbt_mean_mod
 ```{r}
 dissimilarities_temp.nona <- na.omit(dissimilarities_temp)
 
 dissimilarities_temp.nona$pred_mean_sbt <- predict(dissimilarity_BC_balanced_sbt_mean_mod,re.form=NA)  ## population level
 dissimilarities_temp.nona$pred_mean_sbt_individual <- predict(dissimilarity_BC_balanced_sbt_mean_mod) ## individual level
+
+#confidence intervals
+confit <- confint(dissimilarity_BC_balanced_sbt_mean_scaled_mod, oldNames = F)
+
+#upper lower bounds from confidence intervals
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_lwr := confit[5,1] + confit[6,1]*yearly_mean_bypoint_avg]#lower confidence interval
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confit[6,2]*yearly_mean_bypoint_avg]#upper confidence interval
 
 
 #for all regions
@@ -946,7 +931,7 @@ dissimilarities_temp.nona$pred_mean_sbt_individual <- predict(dissimilarity_BC_b
   geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sbt), color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sbt_mean.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sbt_mean.final.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sbt_mean.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.final.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sbt_mean_facet.final <- ggplot(data = dissimilarities_temp.nona) +
   labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
@@ -958,14 +943,32 @@ dissimilarity_BC_balanced_sbt_mean_facet.final <- ggplot(data = dissimilarities_
   theme(legend.position = "null")
 
 
-ggsave(dissimilarity_BC_balanced_sbt_mean_facet.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sbt_mean_facet.final.jpg", height = 10, width = 16, unit = "in")
+ggsave(dissimilarity_BC_balanced_sbt_mean_facet.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean_facet.final.jpg", height = 10, width = 16, unit = "in")
+
+#simplified color scheme
+(dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED <- ggplot(data = dissimilarities_temp.nona) +
+  labs(x = "Mean bottom temperature (˚C)",  y = "Dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.4) +
+  geom_line(aes(x = yearly_mean_bypoint_avg, y = pred_mean_sbt), color  = "black") +
+    geom_ribbon(aes(x = yearly_mean_bypoint_avg, ymin = pred_mean_temp_scale_byreg_lwr, ymax = pred_mean_temp_scale_byreg_upr), alpha = 0.3) +
+  theme_classic())
+
+ggsave(dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED.jpg", height = 4, width = 9, unit = "in") 
 ```
+
 
 Scaled: dissimilarity_BC_balanced_sbt_mean_scaled_mod
 ```{r}
 dissimilarities_temp.nona$pred_mean_sbt.s <- predict(dissimilarity_BC_balanced_sbt_mean_scaled_mod,re.form=NA)  ## population level
 dissimilarities_temp.nona$pred_mean_sbt_individual.s <- predict(dissimilarity_BC_balanced_sbt_mean_scaled_mod) ## individual level
 
+
+#confidence intervals
+confit <- confint(dissimilarity_BC_balanced_sbt_mean_scaled_mod, oldNames = F)
+
+#upper lower bounds from confidence intervals
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_lwr := confit[5,1] + confit[6,1]*yearly_mean_bypoint_avg.s]#lower confidence interval
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confit[6,2]*yearly_mean_bypoint_avg.s]#upper confidence interval
 
 #for all regions
 (dissimilarity_BC_balanced_sbt_mean.s.final <- ggplot(data = dissimilarities_temp.nona) +
@@ -976,7 +979,7 @@ dissimilarities_temp.nona$pred_mean_sbt_individual.s <- predict(dissimilarity_BC
   geom_line(aes(x = yearly_mean_bypoint_avg.s, y = pred_mean_sbt.s), color  = "black") +
   theme_classic())
 
-ggsave(dissimilarity_BC_balanced_sbt_mean.s.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sbt_mean.s.final.jpg", height = 4, width = 9, unit = "in") 
+ggsave(dissimilarity_BC_balanced_sbt_mean.s.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.s.final.jpg", height = 4, width = 9, unit = "in") 
 
 dissimilarity_BC_balanced_sbt_mean_facet.s.final <- ggplot(data = dissimilarities_temp.nona) +
   labs(x = "Relative mean bottom temperature",  y = "Bray Curtis balanced dissimilarity") +
@@ -987,6 +990,74 @@ dissimilarity_BC_balanced_sbt_mean_facet.s.final <- ggplot(data = dissimilaritie
   theme_classic() +
   theme(legend.position = "null")
 
-ggsave(dissimilarity_BC_balanced_sbt_mean_facet.s.final, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_balanced_sbt_mean_facet.s.final.jpg", height = 10, width = 16, unit = "in")
+ggsave(dissimilarity_BC_balanced_sbt_mean_facet.s.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean_facet.s.final.jpg", height = 10, width = 16, unit = "in")
+
+#simplified color scheme
+(dissimilarity_BC_balanced_sbt_mean.s.final.SIMPLIFIED <- ggplot(data = dissimilarities_temp.nona) +
+  labs(x = "Relative mean bottom temperature",  y = "Dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.4) +
+  geom_line(aes(x = yearly_mean_bypoint_avg.s, y = pred_mean_sbt.s), color  = "black") +
+    geom_ribbon(aes(x = yearly_mean_bypoint_avg.s, ymin = pred_mean_temp_scale_byreg_lwr, ymax = pred_mean_temp_scale_byreg_upr), alpha = 0.3) +
+  theme_classic())
+
+ggsave(dissimilarity_BC_balanced_sbt_mean.s.final.SIMPLIFIED, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.s.final.SIMPLIFIED.jpg", height = 4, width = 9, unit = "in") 
 ```
 
+
+####Finally, plot two best models
+Raw: dissimilarity_BC_balanced_sbt_mean_mod
+```{r}
+dissimilarities_temp.nona <- na.omit(dissimilarities_temp)
+
+dissimilarities_temp.nona$pred_mean_sbt <- predict(dissimilarity_BC_balanced_sbt_mean_mod,re.form=NA)  ## population level
+dissimilarities_temp.nona$pred_mean_sbt_individual <- predict(dissimilarity_BC_balanced_sbt_mean_mod) ## individual level
+
+#confidence intervals
+confit <- confint(dissimilarity_BC_balanced_sbt_mean_scaled_mod, oldNames = F)
+
+#upper lower bounds from confidence intervals
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_lwr := confit[5,1] + confit[6,1]*yearly_mean_bypoint_avg]#lower confidence interval
+dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confit[6,2]*yearly_mean_bypoint_avg]#upper confidence interval
+
+
+#for all regions
+(dissimilarity_BC_balanced_sbt_mean.final <- ggplot(data = dissimilarities_temp.nona) +
+  labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
+  geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sbt_individual, color = survey_unit)) +
+  scale_color_manual(values = c(pal_37)) +
+  geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sbt), color  = "black") +
+  theme_classic())
+
+ggsave(dissimilarity_BC_balanced_sbt_mean.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.final.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_balanced_sbt_mean_facet.final <- ggplot(data = dissimilarities_temp.nona) +
+  labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_mean_bypoint_avg, y = pred_mean_sbt_individual, color = survey_unit)) +
+  scale_color_manual(values = c(pal_37)) +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic() +
+  theme(legend.position = "null")
+
+
+ggsave(dissimilarity_BC_balanced_sbt_mean_facet.final, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean_facet.final.jpg", height = 10, width = 16, unit = "in")
+
+#simplified color scheme
+(dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED <- ggplot(data = dissimilarities_temp.nona) +
+  labs(x = "Mean bottom temperature (˚C)",  y = "Dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.4) +
+  geom_line(aes(x = yearly_mean_bypoint_avg, y = pred_mean_sbt), color  = "black") +
+    geom_ribbon(aes(x = yearly_mean_bypoint_avg, ymin = pred_mean_temp_scale_byreg_lwr, ymax = pred_mean_temp_scale_byreg_upr), alpha = 0.3) +
+  theme_classic())
+
+ggsave(dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED.jpg", height = 4, width = 9, unit = "in") 
+```
+
+Merge
+```{r}
+library(cowplot)
+(dissimilarity_BC_balanced_sbt_mean.final.SIMPLIFIED_merge <- plot_grid(dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED, dissimilarity_BC_balanced_sbt_mean.s.final.SIMPLIFIED + theme(axis.title.y = element_blank(), axis.text.y = element_blank()), nrow = 1, ncol = 2, labels = c("a.","b."), hjust = -1))
+
+ggsave(dissimilarity_BC_balanced_sbt_mean.final.SIMPLIFIED_merge, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.final.SIMPLIFIED_merge.jpg", height = 4, width = 9, unit = "in") 
+```

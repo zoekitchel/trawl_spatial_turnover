@@ -3,6 +3,8 @@ title: "Regional Statistics"
 output: html_notebook
 ---
 
+Here, we're looking at Balanced Bray Curtis Dissimilarity
+
 This code is to look at regional statistics, and figures and stats will end up in supplement.
 
 ```{r setup}

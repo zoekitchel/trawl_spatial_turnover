@@ -347,7 +347,7 @@ points_wavylines_jaccard_turnover_year_reduced_gam_NZ_only <- ggplot() +
     geom_line(data = year_survey_unit_expand.dt[survey_unit == "NZ-WCSI",],
              aes(x = year,
                  y = jaccard_glm_mod_fit),
-             color = jaccard_turnover_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) +
+             color = jaccard_turnover_jaccard_turnover_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) +
   geom_ribbon(data = year_survey_unit_expand.dt[survey_unit == "NZ-WCSI",], aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE), alpha=0.3, fill = jaccard_turnover_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) + #add standard error
  # geom_line(data = lmer_jaccard_turnover_predictions, aes(x = year, y = jaccard_lmer_preds), color = "black") +
     scale_color_manual(name = "Survey Unit") +
