@@ -17,6 +17,7 @@ library(raster)
 library(stringr)
 library(rnaturalearth)
 library(rmapshaper)
+library(nlme)
 
 
 #raw data
@@ -42,61 +43,7 @@ summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  
 FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
 
 ```
-
-
-```{r list of all survey season combinations}
-all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
-```
-
-For NZ-CHAT, we want to lump December observations with next year of observations (January,  February)
-```{r lump December observations with previous year}
-FishGlob_clean.noNA[survey_unit == "NZ-CHAT" & month == 12,  year := year+1, ]
-```
-
-Some spp are duplicated within a haul. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
-```{r sum duplicates}
-FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num := sum(num,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num_h := sum(num_h,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num_cpue := sum(num_cpue,  na.rm = T), .(accepted_name,  haul_id)]
-
-FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
-
-#make depth numeric
-FishGlob_clean.noNA[,depth := as.numeric(depth)]
-
-#add column for yearly summed biomass (note that MEDITS doesn't have biomass, so it will be excluded from these plots)
-FishGlob_clean.noNA[,wgt_cpue_annual := sum(wgt_cpue,na.rm = T),.(year, survey_unit)]
-
-#add column for yearly summed # of hauls
-FishGlob_clean.noNA[,haul_id_count_annual := uniqueN(haul_id),.(year, survey_unit)]
-```
-
-Pull in avg temp values and pull in avg fishing values
-```{r avg temp and fishing values}
- #open fishing and temp data
-distances_dissimilarities_allyears.r.temp.fishing <- readRDS( here::here("output","distance_decay","distances_dissimilarities_allyears.r.temp.fishing.rds"))
-
-distances_dissimilarities_allyears.r.temp.fishing[,mean_reg_temp_allyears := mean(sst_mean, na.rm = T),.(survey_unit)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey_unit)]
-
-
-avg_temp_avg_fishing <- unique(distances_dissimilarities_allyears.r.temp.fishing[,.(survey_unit,mean_reg_fishing_allyears, mean_reg_temp_allyears)]) 
-
-#link coefficients
-year_survey_unit_characteristics <- model_coefs_reduced_length.unique[avg_temp_avg_fishing, on = "survey_unit"]
-
-```
-
-For area, we want to delete any areas that overlap with land, therefore, we have to pull in land polygon
-```{r}
-#basemap
-world <- rnaturalearth::ne_countries(type = "countries", scale="large", returnclass="sf")
-
-```
-
-Map Helper
+Full Name Helper
 ```{r}
 name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "Baltic Sea Q1",
@@ -174,6 +121,109 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "ZAF-ATL",   
                                   "ZAF-IND"   
                           ))
+```
+
+
+```{r list of all survey season combinations}
+all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
+```
+
+For NZ-CHAT, we want to lump December observations with next year of observations (January,  February)
+```{r lump December observations with previous year}
+FishGlob_clean.noNA[survey_unit == "NZ-CHAT" & month == 12,  year := year+1, ]
+```
+
+Some spp are duplicated within a haul. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
+```{r sum duplicates}
+FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num := sum(num,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_h := sum(num_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_cpue := sum(num_cpue,  na.rm = T), .(accepted_name,  haul_id)]
+
+FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
+
+#make depth numeric
+FishGlob_clean.noNA[,depth := as.numeric(depth)]
+
+#make survey and survey unit factors
+FishGlob_clean.noNA[,survey:=factor(survey)][,survey_unit:=factor(survey_unit)]
+
+#adjust years
+FishGlob_clean.noNA[,year_adj := year-min(year)+1]
+
+#add column for yearly summed biomass (note that MEDITS doesn't have biomass, so it will be excluded from these plots)
+FishGlob_clean.noNA[,wgt_cpue_annual := sum(wgt_cpue,na.rm = T),.(year, survey_unit)]
+
+#add column for yearly summed # of hauls
+FishGlob_clean.noNA[,haul_id_count_annual := uniqueN(haul_id),.(year, survey_unit)]
+
+#add column for yearly summed # of spp
+FishGlob_clean.noNA[,spp_count_annual := uniqueN(accepted_name),.(year_adj, survey_unit)]
+
+FishGlob_richness_year_survey <- unique(FishGlob_clean.noNA[,.(year_adj, survey_unit, spp_count_annual,  year)])
+```
+
+Calculate coefficients from lmer for trend in species richness within a region over time
+```{r}
+#plot year vs richness for each reg
+ggplot(data = FishGlob_richness_year_survey) +
+  geom_point(aes(x = year, y = spp_count_annual), size = 2) +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+richness_trend_lme <- lme(spp_count_annual ~ year_adj, random = (~1 + year_adj|survey_unit),data = FishGlob_richness_year_survey)
+
+richness_trend_coefs <- data.table(coef(richness_trend_lme))
+richness_trend_coefs[,survey_unit := rownames(coef(richness_trend_lme))][,Year_Coef_richness := round(year_adj,5)][,Intercept_richness := round(`(Intercept)`,2)]
+View(richness_trend_coefs)
+
+richness_trend_coefs <- richness_trend_coefs[name_helper, on = "survey_unit"]
+
+richness_trend_coefs.exp <- richness_trend_coefs[,.(Survey_Name_Season, Intercept_richness, Year_Coef_richness, survey_unit)]
+
+#export this table
+fwrite(richness_trend_coefs.exp, file = here::here("output","richness_trend_coefs.exp.csv"))
+```
+
+Link trend in beta diversity to trend in gamma diversity
+```{r}
+#merge
+trend_coefs <- richness_trend_coefs.exp[model_coefs_reduced_length.unique, on = c("survey_unit")]
+
+ggplot(data = trend_coefs, aes(x = Year_Coef_richness, y = year_adj)) +
+  geom_point() +
+  geom_text(aes(label = survey_unit), size = 2, nudge_y = 0.0003) +
+  labs(x = "Trend in gamma diversity", y = "Trend in beta diversity") +
+  geom_hline(yintercept = 0, color = "grey", linetype = "dashed") +
+  geom_vline(xintercept = 0, color = "grey", linetype = "dashed") +
+  theme_classic()
+
+ggsave(path = here::here("figures"), filename = "trends_beta_gamma.jpg")
+```
+
+
+Pull in avg temp values and pull in avg fishing values
+```{r avg temp and fishing values}
+ #open fishing and temp data
+distances_dissimilarities_allyears.r.temp.fishing <- readRDS( here::here("output","distance_decay","distances_dissimilarities_allyears.r.temp.fishing.rds"))
+
+distances_dissimilarities_allyears.r.temp.fishing[,mean_reg_temp_allyears := mean(sst_mean, na.rm = T),.(survey_unit)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey_unit)]
+
+
+avg_temp_avg_fishing <- unique(distances_dissimilarities_allyears.r.temp.fishing[,.(survey_unit,mean_reg_fishing_allyears, mean_reg_temp_allyears)]) 
+
+#link coefficients
+year_survey_unit_characteristics <- model_coefs_reduced_length.unique[avg_temp_avg_fishing, on = "survey_unit"]
+
+```
+
+For area, we want to delete any areas that overlap with land, therefore, we have to pull in land polygon
+```{r}
+#basemap
+world <- rnaturalearth::ne_countries(type = "countries", scale="large", returnclass="sf")
+
 ```
 
 

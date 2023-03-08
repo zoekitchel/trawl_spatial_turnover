@@ -46,46 +46,6 @@ distances_dissimilarities_allyears.r[,years_sampled := last_year-first_year+1]
 
 ```
 
-##Make GAMs
-
-Bray Curtis
-```{r bray curtis gams}
-bray_curtis_balanced_gam <- gam(bray_curtis_dissimilarity_balanced_mean ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
-                            data = distances_dissimilarities_allyears.r)
-
-```
-
-##Make LMERS
-
-Bray
-*These all converged*
-```{r bray}
-bray_curtis_balanced_lmer <- lmer(bray_curtis_dissimilarity_balanced_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
-
-summary(bray_curtis_balanced_lmer)
-
-```
-
-Get LMER model as predictions
-```{r}
-
-# need to sort out year in seq versus overall year models
-#new data for lmer
-lmer_year <- seq(min(distances_dissimilarities_allyears.r[,year]), max(distances_dissimilarities_allyears.r[,year]), by = 0.1)
-
-lmer_year_adj <- seq(min(distances_dissimilarities_allyears.r[,year_adj]), max(distances_dissimilarities_allyears.r[,year_adj]), by = 0.1)
-
-#predict average lmer
-lmer_bray_balanced_predictions <- data.table(year = lmer_year, year_adj = lmer_year_adj)
-
-#confidence intervals
-bray_curtis_balanced_lmer_confint <- confint(bray_curtis_balanced_lmer)
-
-#populate data table of lmer predictions
-lmer_bray_balanced_predictions[,bray_curtis_lmer_preds := fixef(bray_curtis_balanced_lmer)[[1]] + fixef(bray_curtis_balanced_lmer)[[2]] * year_adj][,bray_curtis_lmer_preds_lowerCI := bray_curtis_balanced_lmer_confint[5] + bray_curtis_balanced_lmer_confint[6] * year_adj][,bray_curtis_lmer_preds_upperCI := bray_curtis_balanced_lmer_confint[11] + bray_curtis_balanced_lmer_confint[12] * year_adj]
-```
-
-
 ###Palette for Plotting
 Palette for plotting all 37 survey units
 ```{r link colors to survey units}
@@ -137,7 +97,7 @@ color_link <- data.table(survey_unit = survey_unit.list,hex = palette_37)
 Add names for plotting
 ```{r add names for plotting}
 
-color_link[,Survey_Name_Season := factor(c("Aleutian Islands",
+name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "Baltic Sea Q1",
                                     "Baltic Sea Q4",
                                     "Chile",
@@ -173,9 +133,105 @@ color_link[,Survey_Name_Season := factor(c("Aleutian Islands",
                                   "SE US Summer",
                                   "W Coast US",
                                   "Atlantic Ocean ZA",
-                                  "Indian Ocean ZA"))]
+                                  "Indian Ocean ZA"),
+                          survey_unit = c(
+                                  "AI",        
+                                  "BITS-1",    
+                                  "BITS-4",    
+                                  "CHL",       
+                                  "DFO-NF",    
+                                  "DFO-QCS",   
+                                  "EBS",       
+                                  "EVHOE",     
+                                  "FR-CGFS",   
+                                  "GMEX-Summer",
+                                  "GOA",       
+                                  "GRL-DE",    
+                                  "GSL-N",     
+                                  "GSL-S",     
+                                  "ICE-GFS",   
+                                  "IE-IGFS",   
+                                  "MEDITS",    
+                                  "NAM",       
+                                  "NEUS-Fall", 
+                                  "NEUS-Spring",
+                                  "NIGFS-1",   
+                                  "NIGFS-4",   
+                                  "Nor-BTS-3", 
+                                  "NS-IBTS-1", 
+                                  "NS-IBTS-3", 
+                                  "NZ-CHAT",   
+                                  "NZ-ECSI",   
+                                  "NZ-WCSI",   
+                                  "PT-IBTS",   
+                                  "S-GEORG",   
+                                  "SCS-SUMMER",
+                                  "SEUS-fall", 
+                                  "SEUS-spring",
+                                  "SEUS-summer",
+                                  "WCANN",     
+                                  "ZAF-ATL",   
+                                  "ZAF-IND"   
+                          ))
+
+color_link <- color_link[name_helper, on = "survey_unit"]
 
 ```
+
+
+
+##Make GAMs
+
+Bray Curtis
+```{r bray curtis gams}
+bray_curtis_balanced_gam <- gam(bray_curtis_dissimilarity_balanced_mean ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
+                            data = distances_dissimilarities_allyears.r)
+
+```
+
+
+##Make LMERS
+
+Bray
+*These all converged*
+```{r bray}
+#running with lme instead of lmer gave same results, but allowed for calculation of p-value
+bray_curtis_balanced_lme <- lme(bray_curtis_dissimilarity_balanced_mean ~ year_adj, random = (~1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+
+summary(bray_curtis_balanced_lme)
+anova(bray_curtis_balanced_lme)
+
+bray_curtis_balanced_coefs <- data.table(coef(bray_curtis_balanced_lme))
+bray_curtis_balanced_coefs[,survey_unit := rownames(coef(bray_curtis_balanced_lme))][,Year := round(year_adj,5)][,Intercept := round(`(Intercept)`,2)]
+View(bray_curtis_balanced_coefs)
+
+bray_curtis_balanced_coefs <- bray_curtis_balanced_coefs[color_link, on = "survey_unit"]
+
+bray_curtis_balanced_coefs.exp <- bray_curtis_balanced_coefs[,.(Survey_Name_Season, Intercept, Year)]
+
+#export this table
+fwrite(bray_curtis_balanced_coefs.exp, file = here::here("output","bray_curtis_balanced_coefs.exp.csv"))
+```
+
+Get LMER model as predictions
+```{r}
+
+# need to sort out year in seq versus overall year models
+#new data for lmer
+lmer_year <- seq(min(distances_dissimilarities_allyears.r[,year]), max(distances_dissimilarities_allyears.r[,year]), by = 0.1)
+
+lmer_year_adj <- seq(min(distances_dissimilarities_allyears.r[,year_adj]), max(distances_dissimilarities_allyears.r[,year_adj]), by = 0.1)
+
+#predict average lmer
+lmer_bray_balanced_predictions <- data.table(year = lmer_year, year_adj = lmer_year_adj)
+
+#confidence intervals
+bray_curtis_balanced_lmer_confint <- confint(bray_curtis_balanced_lmer)
+
+#populate data table of lmer predictions
+lmer_bray_balanced_predictions[,bray_curtis_lmer_preds := fixef(bray_curtis_balanced_lmer)[[1]] + fixef(bray_curtis_balanced_lmer)[[2]] * year_adj][,bray_curtis_lmer_preds_lowerCI := bray_curtis_balanced_lmer_confint[5] + bray_curtis_balanced_lmer_confint[6] * year_adj][,bray_curtis_lmer_preds_upperCI := bray_curtis_balanced_lmer_confint[11] + bray_curtis_balanced_lmer_confint[12] * year_adj]
+```
+
 
 
 ###Move forward with Bray Curtis Balanced (others to supplement)
