@@ -7,6 +7,8 @@ Here, we're looking at Balanced Bray Curtis Dissimilarity
 
 This code is to look at regional statistics, and figures and stats will end up in supplement.
 
+TO DO: Add bottom temperature, right now it is surface temperature
+
 ```{r setup}
 library(data.table)
 library(ggplot2)
@@ -219,6 +221,21 @@ year_survey_unit_characteristics <- model_coefs_reduced_length.unique[avg_temp_a
 
 ```
 
+We need to look at gamma vs beta for all regions independently
+```{r}
+Fishglob_gamma_beta <- FishGlob_richness_year_survey[distances_dissimilarities_allyears.r.temp.fishing, on = c("survey_unit","year")]
+
+ggplot(Fishglob_gamma_beta) +
+  geom_point(aes(x = spp_count_annual, y = bray_curtis_dissimilarity_balanced_mean), color = "orange", size = 1) +
+  geom_point(aes(x = spp_count_annual, y = jaccard_dissimilarity_turnover_mean), color = "slateblue", size = 1) +
+  facet_wrap(~survey_unit, scales = "free") +
+  labs(y = "β-diversity", x = "γ-diversity") +
+  theme_classic()
+
+ggsave(path = here::here("figures"), filename = "Fishglob_gamma_beta.jpg", width = 11, height = 8, units = "in")
+```
+
+
 For area, we want to delete any areas that overlap with land, therefore, we have to pull in land polygon
 ```{r}
 #basemap
@@ -280,13 +297,17 @@ for (i in 1:length(all_survey_units)) {
 invisible(lapply(names(region_stats),function(.name) set(region_stats, which(is.infinite(region_stats[[.name]])), j = .name,value =NA)))
 
 #add significant directions column
-region_stats[,"Significant Trends" := ifelse(significant==T, Directional_Change, "No Directional Change")]
+region_stats[,"Significant Trends" := ifelse(significant==T, Directional_Change, "No directional change")]
 
 #add column for avg # of hauls per area
 region_stats[,avg_hauls_area := mean_haul_id_count_annual/area_km]
 
 
 saveRDS(region_stats, here::here("output","region_stats","region_stats.rds"))
+
+#or pull in
+region_stats <- readRDS(here::here("output","region_stats","region_stats.rds"))
+
 
 #test plot
 plot(conc)
@@ -306,11 +327,11 @@ Regions that are homogenizing tend to have lower overall gamma diversity than re
 spp_num_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = spp_num, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = spp_num , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  geom_smooth(data = region_stats, aes(x = spp_num, y = bray_coef), method = "lm", color = "black", se = F) +
-  ylab("Dissimilarity coefficient") +
-  xlab("Gamma diversity") +
+  geom_smooth(data = region_stats, aes(x = spp_num, y = bray_coef), method = "lm", color = "black", se = F, size = 0.5) +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
+  xlab("γ-diversity") +
   theme_classic()
 
 spp_num_vs_coef
@@ -333,9 +354,9 @@ More likely to detect both homogenization and differentation for longer study pe
 study_period_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = study_period, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = study_period , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Survey period") + #first minus last
   theme_classic()
 
@@ -354,9 +375,9 @@ More likely to detect differentiation when fewer years are sampled and more like
 years_sampled_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = years_sampled, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = years_sampled , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Total years sampled") + #count of years sampled
   theme_classic()
 
@@ -378,9 +399,9 @@ More likely to detect differentiation when a small latitudinal range is sampled,
 lat_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = lat_range, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = lat_range , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Latitudinal range (\u00B0s)") + #count of years sampled
   theme_classic()
 
@@ -400,10 +421,10 @@ Differentiation occurs below 30 degrees latitude, homogenization and no change b
 mid_lat_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mid_lat, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = mid_lat , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  geom_smooth(data = region_stats, aes(x = mid_lat, y = bray_coef), method = "lm", color = "black", se = F) +
-  ylab("Dissimilarity coefficient") +
+  geom_smooth(data = region_stats, aes(x = mid_lat, y = bray_coef), method = "lm", color = "black", se = F, size = 0.5) +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab(paste0("Latitude (\u00B0N)")) + #middle latitude
   theme_classic()
 
@@ -437,9 +458,9 @@ Areas that are differentiating tend to be smaller than areas that are homogenizi
 area_km_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = area_km/1000, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (area_km/1000) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Area (1000s of squared km)") + #area_km
   theme_classic()
 
@@ -458,9 +479,9 @@ summary(lm(bray_coef~area_km, data = region_stats)) #not significant
 avg_hauls_area_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = avg_hauls_area, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (avg_hauls_area) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Hauls per area (squared km)") + #avg_hauls_area
   theme_classic()
 
@@ -480,9 +501,9 @@ summary(lm(bray_coef~avg_hauls_area, data = region_stats)) #not significant
 depth_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = depth_range, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (depth_range) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Depth range (m)") + #depth_range
   theme_classic()
 
@@ -500,9 +521,9 @@ summary(lm(bray_coef~depth_range, data = region_stats)) #not significant
 mid_depth_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mid_depth, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mid_depth) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average depth (m)") + #mid_depth
   theme_classic()
 
@@ -519,10 +540,10 @@ summary(lm(bray_coef~mid_depth, data = region_stats)) #not significant
 mean_temp_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mean_temp, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mean_temp) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  geom_smooth(data = region_stats, aes(x = mean_temp, y = bray_coef), method = "lm", color = "black", se = F) +
-  ylab("Dissimilarity coefficient") +
+  geom_smooth(data = region_stats, aes(x = mean_temp, y = bray_coef), method = "lm", color = "black", se = F, linetype = "dashed", size = 0.5) +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average temperature (\u00B0C)") + #mean_temp
   theme_classic()
 
@@ -541,9 +562,9 @@ saveRDS(mean_temp_vs_coef, here::here("figures","bray_coef_vs_survey_characteris
 mean_landings_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = (mean_landings/1000), y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mean_landings/1000) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
   geom_hline(yintercept = 0, size = 0.5) +
-  ylab("Dissimilarity coefficient") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Mean landings (1000s of tonnes)") + #average annual landings
   theme_classic()
 
@@ -554,5 +575,25 @@ ggsave(mean_landings_vs_coef, path = here::here("figures","bray_coef_vs_survey_c
 #linear model
 summary(lm(abs(bray_coef)~mean_landings, data = region_stats)) #not significant
 summary(lm(bray_coef~mean_landings, data = region_stats)) #not significant
+```
+
+#Avg number of tows per year
+```{r avg number of tows per year in region}
+mean_haul_id_count_annual_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = mean_haul_id_count_annual, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+        geom_point(data = region_stats, aes(x = mean_haul_id_count_annual , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional change") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
+  xlab("Average number of hauls per year") + #average annual landings
+  theme_classic()
+
+mean_haul_id_count_annual_vs_coef
+
+ggsave(mean_haul_id_count_annual_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "mean_haul_id_count_annual_vs_coef.jpg", height =3, width = 5, unit = "in")
+
+#linear model
+summary(lm(abs(bray_coef)~mean_haul_id_count_annual, data = region_stats)) #not significant
+summary(lm(bray_coef~mean_haul_id_count_annual, data = region_stats)) #not significant
 ```
 
