@@ -65,6 +65,9 @@ saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","distance_dec
 
 Color pallete for survey units
 ```{r}
+
+survey_unit.list <- levels(region_stats[,factor(survey_unit)])
+
 pal_37 <- c(
   "#5A5156", #AI
   "#F6222E", #CHL
@@ -103,8 +106,94 @@ pal_37 <- c(
   "#C075A6", #WCANN
   "#BDCDFF", #ZAF-ATL
   "#003EFF")  #ZAF-IND
+  
+color_link <- data.table(survey_unit = survey_unit.list,hex = pal_37)
 ```
 
+Add names for plotting
+```{r add names for plotting}
+
+
+name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
+                                    "Baltic Sea Q1",
+                                    "Baltic Sea Q4",
+                                    "Chile",
+                                    "Newfoundland",
+                                    "Queen Charlotte Sound",
+                                    "Eastern Bering Sea",
+                                    "Bay of Biscay",
+                                    "English Channel",
+                                    "Gulf of Mexico",
+                                    "Gulf of Alaska",
+                                    "Greenland",
+                                    "N Gulf of St. Lawrence",
+                                    "S Gulf of St. Lawrence",
+                                    "Iceland",
+                                    "Irish Sea",
+                                    "Mediterranean",
+                                    "Namibia",
+                                    "NE US Fall",
+                                    "NE US Spring",
+                                    "N Ireland Q1",
+                                    "N Ireland Q4",
+                                    "Norway",
+                                    "N Sea Q1",
+                                    "N Sea Q3",
+                                    "Chatham Rise",
+                                    "E Coast S Island NZ",
+                                    "W Coast S Island NZ",
+                                    "Portugal",
+                                    "S Georgia Straight",
+                                  "Scotian Shelf",
+                                  "SE US Fall",
+                                  "SE US Spring",
+                                  "SE US Summer",
+                                  "W Coast US",
+                                  "Atlantic Ocean ZA",
+                                  "Indian Ocean ZA"),
+                          survey_unit = c(
+                                  "AI",        
+                                  "BITS-1",    
+                                  "BITS-4",    
+                                  "CHL",       
+                                  "DFO-NF",    
+                                  "DFO-QCS",   
+                                  "EBS",       
+                                  "EVHOE",     
+                                  "FR-CGFS",   
+                                  "GMEX-Summer",
+                                  "GOA",       
+                                  "GRL-DE",    
+                                  "GSL-N",     
+                                  "GSL-S",     
+                                  "ICE-GFS",   
+                                  "IE-IGFS",   
+                                  "MEDITS",    
+                                  "NAM",       
+                                  "NEUS-Fall", 
+                                  "NEUS-Spring",
+                                  "NIGFS-1",   
+                                  "NIGFS-4",   
+                                  "Nor-BTS-3", 
+                                  "NS-IBTS-1", 
+                                  "NS-IBTS-3", 
+                                  "NZ-CHAT",   
+                                  "NZ-ECSI",   
+                                  "NZ-WCSI",   
+                                  "PT-IBTS",   
+                                  "S-GEORG",   
+                                  "SCS-SUMMER",
+                                  "SEUS-fall", 
+                                  "SEUS-spring",
+                                  "SEUS-summer",
+                                  "WCANN",     
+                                  "ZAF-ATL",   
+                                  "ZAF-IND"   
+                          ))
+
+color_link <- color_link[name_helper, on = "survey_unit"]
+
+```
 
 Table that will be populated with model results
 ```{r}
@@ -459,22 +548,6 @@ r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod)
 ---
 
 
-#CODE BELOW MAY NO LONGER BE RELEVANT
-Plot this model with interaction
-```{r}
-library(interactions)
-sim_slopes(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sbt_SD_scaled, modx = summed_tonnes_scaled, johnson_neyman = FALSE)
-
-interact_plot(allreg_dissimilarity_fishing_mean_mod_sbt_max_avg, pred = yearly_max_bypoint_avg, modx = summed_tonnes_scaled_byreg, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Maximum Sea Surface Temperature", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
-
-ggsave(filename = "interaction_fish_temp.png" ,height = 4, width = 10)
-
-interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sbt_SD_scaled, modx = summed_tonnes_scaled, linearity.check = TRUE, 
-              plot.points = TRUE) #check linearity 
-
-```
-Summary: Steepest slope between temp and dissimilarity when fishing is high
-
 ###What if we also tie in latitude and spp num?
 ```{r}
 allreg_dissimilarity_fishing_mean_mod_sbt_max_avg_spp_num <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg*spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
@@ -523,4 +596,122 @@ Patterns appear to be very survey dependent, and there's a lot of unexplained ye
 - As # species increases, dissimilarity increases (more species overall = more heterogenous)
 - From before, more species, more negative dissimilarity coefficient (more likely to be differentiating over time)
 
+#####Plot just dissimilarity ~ relative fishing pressure coefficients of each region (Like figure 1b)
+```{r}
+#unique survey unit year combos
+survey_unit_sampling_years <- unique(region_stats[,.(survey_unit, years_sampled)]) #unique survey unit year combos
+                                    
 
+ # see group coefficients and confidence intervals
+fishing_model_coefs_reduced <- data.table(transform(as.data.frame(ranef(allreg_dissimilarity_fishing_mean_mod)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+#https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+
+
+#ONLY SLOPES
+fishing_model_coefs_reduced <- fishing_model_coefs_reduced[term == "summed_tonnes_scaled_byreg",]
+
+fishing_model_coefs_reduced[,survey_unit := grp][,summed_tonnes_scaled_byreg := condval]
+
+#merge with duration of survey
+fishing_model_coefs_reduced_length <- fishing_model_coefs_reduced[survey_unit_sampling_years, on = "survey_unit"]
+
+
+fishing_model_coefs_reduced_length[,years_sampled := as.numeric(years_sampled)][,Slope_Direction := ifelse(summed_tonnes_scaled_byreg > 0, "Positive","Negative")]
+
+#
+fishing_model_coefs_reduced_length <- fishing_model_coefs_reduced_length[color_link, on = "survey_unit"]
+
+
+#does it cross zero?
+fishing_model_coefs_reduced_length[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+
+#delete all obs that are significant
+fishing_model_coefs_reduced_length.r <- fishing_model_coefs_reduced_length[significant == F,]
+
+#order table by coefficient
+setorder(fishing_model_coefs_reduced_length, summed_tonnes_scaled_byreg)
+
+BC_balanced_fishing_model_coefs_reduced_length.unique <- unique(fishing_model_coefs_reduced_length[,.(condval,condsd, lwr, upr, survey_unit, summed_tonnes_scaled_byreg, years_sampled, Slope_Direction, hex, Survey_Name_Season, significant)]) 
+
+#extract color hexes
+#year adj coef order
+color_year_adj_order <-BC_balanced_fishing_model_coefs_reduced_length.unique[,hex]
+
+#alphabetical order
+BC_balanced_fishing_model_coefs_reduced_length.unique.alpha <- setorder(BC_balanced_fishing_model_coefs_reduced_length.unique, Survey_Name_Season)
+color_alpha_order <- BC_balanced_fishing_model_coefs_reduced_length.unique.alpha[,hex]
+
+saveRDS(BC_balanced_fishing_model_coefs_reduced_length.unique, here::here("output","region_stats","BC_balanced_fishing_model_coefs_reduced_length.unique.Rds"))
+```
+
+Bar Plot Coefficient Fishing LMER
+```{r bar plot of fishing coefficients}
+BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced <- ggplot() +
+    geom_errorbar(data = fishing_model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, summed_tonnes_scaled_byreg) , y = summed_tonnes_scaled_byreg, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = fishing_model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, summed_tonnes_scaled_byreg) , y = summed_tonnes_scaled_byreg, label = Survey_Name_Season, 
+      #size = years_sampled,
+      fill = Slope_Direction), stat = 'identity', shape = 21, color = "black") +
+  scale_fill_manual(values = c("white","black"), name = "Slope Direction") +
+  geom_point(data = fishing_model_coefs_reduced_length.r, aes(x = reorder(Survey_Name_Season, summed_tonnes_scaled_byreg) , y = summed_tonnes_scaled_byreg, 
+         #size = years_sampled, 
+          label = Survey_Name_Season), stat = 'identity', fill = "grey",color = "grey", shape = 21) +
+#  scale_size_binned(range = c(1,8), name = "Survey period\nlength") +
+  geom_hline(yintercept = 0) +
+  xlab("Survey unit") +
+  ylab("Balanced BC dissimilarity ~\nrelative fishing pressure") +
+  coord_flip() +
+  theme_classic()
+
+#+
+#  theme(axis.text.y = element_text(colour = color_summed_tonnes_scaled_byreg_order, face = "bold"), axis.title.y = element_blank())
+
+BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced
+
+#save as independent grob to merge with fishing
+saveRDS(BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced, here::here("figures","BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced.Rds"))
+```
+
+###Link temp plots with fishing pressure plot
+```{r link bottom temp to lollypop plot}
+#Mean temp
+BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced <- readRDS(here::here("figures","BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced.Rds"))
+
+#relative mean temp
+BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced <- readRDS(here::here("figures","BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced.Rds"))
+
+#merge
+bottom_temp_fishing_coefficients_lollypop <- cowplot::plot_grid(BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), cowplot::get_legend(BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced),
+          nrow = 1, ncol = 4, rel_widths = c(1,1,1,0.2), rel_height = c(1,1,1,0.2))
+
+ggsave(bottom_temp_fishing_coefficients_lollypop, path = "figures", filename = "bottom_temp_fishing_coefficients_lollypop.jpg", height = 5, width = 17, units = "in")
+```
+
+```{r link surface temp to lollypop plot}
+#Mean temp
+BC_BALANCED_Dissimilarity_Coef_surfaceTEMP_errorbar_reduced <- readRDS(here::here("figures","BC_BALANCED_Dissimilarity_Coef_surfaceTEMP_errorbar_reduced.Rds"))
+
+#relative mean temp
+BC_BALANCED_Dissimilarity_Coef_scaled_surfaceTEMP_errorbar_reduced <- readRDS(here::here("figures","BC_BALANCED_Dissimilarity_Coef_scaled_surfaceTEMP_errorbar_reduced.Rds"))
+
+#merge
+surface_temp_fishing_coefficients_lollypop <- cowplot::plot_grid(BC_BALANCED_Dissimilarity_Coef_surfaceTEMP_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), BC_BALANCED_Dissimilarity_Coef_scaled_surfaceTEMP_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), cowplot::get_legend(BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced),
+          nrow = 1, ncol = 4, rel_widths = c(1,1,1,0.2), rel_height = c(1,1,1,0.2))
+
+ggsave(surface_temp_fishing_coefficients_lollypop, path = "figures", filename = "surface_temp_fishing_coefficients_lollypop.jpg", height = 5, width = 17, units = "in")
+```
+
+#CODE BELOW MAY NO LONGER BE RELEVANT
+Plot this model with interaction
+```{r}
+library(interactions)
+sim_slopes(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sbt_SD_scaled, modx = summed_tonnes_scaled, johnson_neyman = FALSE)
+
+interact_plot(allreg_dissimilarity_fishing_mean_mod_sbt_max_avg, pred = yearly_max_bypoint_avg, modx = summed_tonnes_scaled_byreg, plot.points = T, colors = c("#b3ffe4","#00d68b","#003d28"), x.label = "Maximum Sea Surface Temperature", y.label = "Mean Annual Bray Curtis Dissimilarity") + theme_classic()
+
+ggsave(filename = "interaction_fish_temp.png" ,height = 4, width = 10)
+
+interact_plot(allreg_dissimilarity_fishing_temp_mod_SDonly, pred = sbt_SD_scaled, modx = summed_tonnes_scaled, linearity.check = TRUE, 
+              plot.points = TRUE) #check linearity 
+
+```
+Summary: Steepest slope between temp and dissimilarity when fishing is high

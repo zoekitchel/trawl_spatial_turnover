@@ -11,7 +11,7 @@ This code is Script X for Kitchel et al. TITLE manuscript.
 
 SESSION INFO TO DO
 
-##Here, we try to use temperature to predict annual dissimilarity for all survey units
+##Here, we try to use bottom temperature to predict annual dissimilarity for all survey units
 
 ```{r setup}
 
@@ -34,14 +34,13 @@ distances_dissimilarities_allyears.r <- readRDS(here::here("output","distance_de
 
 ```
 
-Put into one data table
-```{r link temp to avg values}
-dissimilarities_temp <- SODA_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
-```
+###Palette for Plotting
+Palette for plotting all 37 survey units
+(Prep for eventual plots)
+```{r link colors to survey units}
+survey_unit.list <- levels(distances_dissimilarities_allyears.r[,factor(survey_unit)])
 
-Color pallete for survey units
-```{r}
-pal_37 <- c(
+palette_37 <- c(
   "#5A5156", #AI
   "#F6222E", #CHL
   "#F8A19F", #DFO-NF
@@ -78,8 +77,108 @@ pal_37 <- c(
   "#FCE100", #SEUS-summer
   "#C075A6", #WCANN
   "#BDCDFF", #ZAF-ATL
-  "#003EFF")  #ZAF-IND
+  "#003EFF"  #ZAF-IND
+)
+
+color_link <- data.table(survey_unit = survey_unit.list,hex = palette_37)
 ```
+
+Add names for plotting
+```{r add names for plotting}
+
+name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
+                                    "Baltic Sea Q1",
+                                    "Baltic Sea Q4",
+                                    "Chile",
+                                    "Newfoundland",
+                                    "Queen Charlotte Sound",
+                                    "Eastern Bering Sea",
+                                    "Bay of Biscay",
+                                    "English Channel",
+                                    "Gulf of Mexico",
+                                    "Gulf of Alaska",
+                                    "Greenland",
+                                    "N Gulf of St. Lawrence",
+                                    "S Gulf of St. Lawrence",
+                                    "Iceland",
+                                    "Irish Sea",
+                                    "Mediterranean",
+                                    "Namibia",
+                                    "NE US Fall",
+                                    "NE US Spring",
+                                    "N Ireland Q1",
+                                    "N Ireland Q4",
+                                    "Norway",
+                                    "N Sea Q1",
+                                    "N Sea Q3",
+                                    "Chatham Rise",
+                                    "E Coast S Island NZ",
+                                    "W Coast S Island NZ",
+                                    "Portugal",
+                                    "S Georgia Straight",
+                                  "Scotian Shelf",
+                                  "SE US Fall",
+                                  "SE US Spring",
+                                  "SE US Summer",
+                                  "W Coast US",
+                                  "Atlantic Ocean ZA",
+                                  "Indian Ocean ZA"),
+                          survey_unit = c(
+                                  "AI",        
+                                  "BITS-1",    
+                                  "BITS-4",    
+                                  "CHL",       
+                                  "DFO-NF",    
+                                  "DFO-QCS",   
+                                  "EBS",       
+                                  "EVHOE",     
+                                  "FR-CGFS",   
+                                  "GMEX-Summer",
+                                  "GOA",       
+                                  "GRL-DE",    
+                                  "GSL-N",     
+                                  "GSL-S",     
+                                  "ICE-GFS",   
+                                  "IE-IGFS",   
+                                  "MEDITS",    
+                                  "NAM",       
+                                  "NEUS-Fall", 
+                                  "NEUS-Spring",
+                                  "NIGFS-1",   
+                                  "NIGFS-4",   
+                                  "Nor-BTS-3", 
+                                  "NS-IBTS-1", 
+                                  "NS-IBTS-3", 
+                                  "NZ-CHAT",   
+                                  "NZ-ECSI",   
+                                  "NZ-WCSI",   
+                                  "PT-IBTS",   
+                                  "S-GEORG",   
+                                  "SCS-SUMMER",
+                                  "SEUS-fall", 
+                                  "SEUS-spring",
+                                  "SEUS-summer",
+                                  "WCANN",     
+                                  "ZAF-ATL",   
+                                  "ZAF-IND"   
+                          ))
+
+color_link <- color_link[name_helper, on = "survey_unit"]
+
+```
+
+
+Put into one data table
+```{r link temp to avg values}
+dissimilarities_temp <- SODA_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
+```
+
+Pull in dissimilarity ~ model coefficients
+```{r}
+BC_balanced_model_coefs_reduced_length.unique <- readRDS(here::here("output","region_stats","BC_balanced_model_coefs_reduced_length.unique.Rds"))
+```
+
+
 
 Table that will be populated with model results
 ```{r}
@@ -108,7 +207,7 @@ How does this trend hold up for all regions?
   labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -159,7 +258,7 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
   labs(x = "Min bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -211,7 +310,7 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
   labs(x = "Max bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -263,7 +362,7 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
   labs(x = "Seasonality of bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -317,7 +416,7 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
   labs(x = "Mean bottom temperature SD (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -370,7 +469,7 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
   labs(x = "Min bottom temperature SD (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -423,7 +522,7 @@ dissimilarity_BC_balanced_sbt_maxSD <- ggplot(data = dissimilarities_temp) +
   labs(x = "Max bottom temperature SD (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -476,7 +575,7 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
   labs(x = "Seasonality of bottom temperature SD (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -547,7 +646,7 @@ dissimilarity_BC_balanced_sbt_mean_scaled <- ggplot(data = dissimilarities_temp)
   labs(x = "Mean bottom temperature scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -589,7 +688,7 @@ dissimilarity_BC_balanced_sbt_min_scaled <- ggplot(data = dissimilarities_temp) 
   labs(x = "Min bottom temperature scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -631,7 +730,7 @@ dissimilarity_BC_balanced_sbt_max_scaled <- ggplot(data = dissimilarities_temp) 
   labs(x = "Max bottom temperature scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -674,7 +773,7 @@ dissimilarity_BC_balanced_sbt_seas_scaled <- ggplot(data = dissimilarities_temp)
   labs(x = "Seasonality of bottom temperature scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -717,7 +816,7 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
   labs(x = "Mean bottom temperature SD scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic())
 
@@ -759,7 +858,7 @@ dissimilarity_BC_balanced_sbt_minSD_scaled <- ggplot(data = dissimilarities_temp
   labs(x = "Min bottom temperature SD scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -801,7 +900,7 @@ dissimilarity_BC_balanced_sbt_maxSD_scaled <- ggplot(data = dissimilarities_temp
   labs(x = "Max bottom temperature SD scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -844,7 +943,7 @@ dissimilarity_BC_balanced_sbt_seasSD_scaled <- ggplot(data = dissimilarities_tem
   labs(x = "Seasonality of bottom temperature SD scaled (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), stat="smooth", method = "lm") +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_smooth(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_balanced_mean), method = "lm", se = F, color  = "black") +
   theme_classic()
 
@@ -905,9 +1004,6 @@ For both scaled and unscaled, mean temp is the best predictor.
 
 ####Finally, plot two best models
 Raw: dissimilarity_BC_balanced_sbt_meanSD_mod and dissimilarity_BC_balanced_sbt_mean_mod essentially tied, we'll just plot mean
-
-####Finally, plot two best models
-Raw: dissimilarity_BC_balanced_sbt_mean_mod
 ```{r}
 dissimilarities_temp.nona <- na.omit(dissimilarities_temp)
 
@@ -927,7 +1023,7 @@ dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confi
   labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sbt_individual, color = survey_unit)) +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sbt), color  = "black") +
   theme_classic())
 
@@ -937,7 +1033,7 @@ dissimilarity_BC_balanced_sbt_mean_facet.final <- ggplot(data = dissimilarities_
   labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_avg, y = pred_mean_sbt_individual, color = survey_unit)) +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic() +
   theme(legend.position = "null")
@@ -956,6 +1052,80 @@ ggsave(dissimilarity_BC_balanced_sbt_mean_facet.final, path  = here::here("figur
 ggsave(dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.finalSIMPLIFIED.jpg", height = 4, width = 9, unit = "in") 
 ```
 
+Plot just dissimilarity ~ raw temp coefficients of each region (Like figure 1b)
+```{r}
+#unique survey unit year combos
+survey_unit_sampling_years <- unique(BC_balanced_model_coefs_reduced_length.unique[,.(survey_unit, years_sampled)]) #unique survey unit year combos
+                                    
+
+ # see group coefficients and confidence intervals
+temp_model_coefs_reduced <- data.table(transform(as.data.frame(ranef(dissimilarity_BC_balanced_sbt_mean_mod)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+#https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+
+
+#ONLY SLOPES
+temp_model_coefs_reduced <- temp_model_coefs_reduced[term == "yearly_mean_bypoint_avg",]
+
+temp_model_coefs_reduced[,survey_unit := grp][,yearly_mean_bypoint_avg := condval]
+
+#merge with duration of survey
+temp_model_coefs_reduced_length <- temp_model_coefs_reduced[survey_unit_sampling_years, on = "survey_unit"]
+
+
+temp_model_coefs_reduced_length[,years_sampled := as.numeric(years_sampled)][,Slope_Direction := ifelse(yearly_mean_bypoint_avg > 0, "Positive","Negative")]
+
+#
+temp_model_coefs_reduced_length <- temp_model_coefs_reduced_length[color_link, on = "survey_unit"]
+
+
+#does it cross zero?
+temp_model_coefs_reduced_length[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+
+#delete all obs that are significant
+temp_model_coefs_reduced_length.r <- temp_model_coefs_reduced_length[significant == F,]
+
+#order table by coefficient
+setorder(temp_model_coefs_reduced_length, yearly_mean_bypoint_avg)
+
+BC_balanced_temp_model_coefs_reduced_length.unique <- unique(temp_model_coefs_reduced_length[,.(condval,condsd, lwr, upr, survey_unit, yearly_mean_bypoint_avg, years_sampled, Slope_Direction, hex, Survey_Name_Season, significant)]) 
+
+#extract color hexes
+#year adj coef order
+color_year_adj_order <-BC_balanced_temp_model_coefs_reduced_length.unique[,hex]
+
+#alphabetical order
+BC_balanced_temp_model_coefs_reduced_length.unique.alpha <- setorder(BC_balanced_temp_model_coefs_reduced_length.unique, Survey_Name_Season)
+color_alpha_order <- BC_balanced_temp_model_coefs_reduced_length.unique.alpha[,hex]
+
+saveRDS(BC_balanced_temp_model_coefs_reduced_length.unique, here::here("output","region_stats","BC_balanced_temp_model_coefs_reduced_length.unique.Rds"))
+```
+
+Bar Plot Coefficient Bottom Temperature LMER
+```{r bar plot of bottom temperature coefficients}
+BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced <- ggplot() +
+    geom_errorbar(data = temp_model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, yearly_mean_bypoint_avg) , y = yearly_mean_bypoint_avg, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = temp_model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, yearly_mean_bypoint_avg) , y = yearly_mean_bypoint_avg, label = Survey_Name_Season, 
+        #size = years_sampled,
+        fill = Slope_Direction), stat = 'identity', shape = 21, color = "black") +
+  scale_fill_manual(values = c("white","black"), name = "Slope Direction") +
+  geom_point(data = temp_model_coefs_reduced_length.r, aes(x = reorder(Survey_Name_Season, yearly_mean_bypoint_avg) , y = yearly_mean_bypoint_avg, 
+          #size = years_sampled,
+          label = Survey_Name_Season), stat = 'identity', fill = "grey",color = "grey", shape = 21) +
+ # scale_size_binned(range = c(1,8), name = "Survey period\nlength") +
+  geom_hline(yintercept = 0) +
+  xlab("Survey unit") +
+  ylab("Balanced BC dissimilarity ~\nraw bottom temperature") +
+  coord_flip() +
+  theme_classic()
+
+#+
+#  theme(axis.text.y = element_text(colour = color_yearly_mean_bypoint_avg_order, face = "bold"), axis.title.y = element_blank())
+
+BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced
+
+#save as independent grob to merge with fishing
+saveRDS(BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced, here::here("figures","BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced.Rds"))
+```
 
 Scaled: dissimilarity_BC_balanced_sbt_mean_scaled_mod
 ```{r}
@@ -975,7 +1145,7 @@ dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confi
   labs(x = "Relative mean bottom temperature",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_avg.s, y = pred_mean_sbt_individual.s, color = survey_unit)) +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_line(aes(x = yearly_mean_bypoint_avg.s, y = pred_mean_sbt.s), color  = "black") +
   theme_classic())
 
@@ -985,7 +1155,7 @@ dissimilarity_BC_balanced_sbt_mean_facet.s.final <- ggplot(data = dissimilaritie
   labs(x = "Relative mean bottom temperature",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_avg.s, y = pred_mean_sbt_individual.s, color = survey_unit)) +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic() +
   theme(legend.position = "null")
@@ -1001,6 +1171,85 @@ ggsave(dissimilarity_BC_balanced_sbt_mean_facet.s.final, path  = here::here("fig
   theme_classic())
 
 ggsave(dissimilarity_BC_balanced_sbt_mean.s.final.SIMPLIFIED, path  = here::here("figures","predictor_variables"), filename = "dissimilarity_BC_balanced_sbt_mean.s.final.SIMPLIFIED.jpg", height = 4, width = 9, unit = "in") 
+```
+
+Plot just dissimilarity ~ scaled temp coefficients of each region (Like figure 1b)
+```{r}
+
+ # see group coefficients and confidence intervals
+temp_scaled_model_coefs_reduced <- data.table(transform(as.data.frame(ranef(dissimilarity_BC_balanced_sbt_mean_scaled_mod)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+#https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+
+
+#ONLY SLOPES
+temp_scaled_model_coefs_reduced <- temp_scaled_model_coefs_reduced[term == "yearly_mean_bypoint_avg.s",]
+
+temp_scaled_model_coefs_reduced[,survey_unit := grp][,yearly_mean_bypoint_avg.s := condval]
+
+#merge with duration of survey
+temp_scaled_model_coefs_reduced_length <- temp_scaled_model_coefs_reduced[survey_unit_sampling_years, on = "survey_unit"]
+
+
+temp_scaled_model_coefs_reduced_length[,years_sampled := as.numeric(years_sampled)][,Slope_Direction := ifelse(yearly_mean_bypoint_avg.s > 0, "Positive","Negative")]
+
+#
+temp_scaled_model_coefs_reduced_length <- temp_scaled_model_coefs_reduced_length[color_link, on = "survey_unit"]
+
+
+#does it cross zero?
+temp_scaled_model_coefs_reduced_length[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+
+#delete all obs that are significant
+temp_scaled_model_coefs_reduced_length.r <- temp_scaled_model_coefs_reduced_length[significant == F,]
+
+#order table by coefficient
+setorder(temp_scaled_model_coefs_reduced_length, yearly_mean_bypoint_avg.s)
+
+BC_balanced_temp_scaled_model_coefs_reduced_length.unique <- unique(temp_scaled_model_coefs_reduced_length[,.(condval,condsd, lwr, upr, survey_unit, yearly_mean_bypoint_avg.s, years_sampled, Slope_Direction, hex, Survey_Name_Season, significant)]) 
+
+#extract color hexes
+#year adj coef order
+color_year_adj_order <-BC_balanced_temp_scaled_model_coefs_reduced_length.unique[,hex]
+
+#alphabetical order
+BC_balanced_temp_scaled_model_coefs_reduced_length.unique.alpha <- setorder(BC_balanced_temp_scaled_model_coefs_reduced_length.unique, Survey_Name_Season)
+color_alpha_order <- BC_balanced_temp_scaled_model_coefs_reduced_length.unique.alpha[,hex]
+
+saveRDS(BC_balanced_temp_scaled_model_coefs_reduced_length.unique, here::here("output","region_stats","BC_balanced_temp_scaled_model_coefs_reduced_length.unique.Rds"))
+```
+
+Bar Plot Coefficient Scaled Bottom Temperature LMER
+```{r bar plot of scaled bottom temperature coefficients}
+BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced <- ggplot() +
+    geom_errorbar(data = temp_scaled_model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, yearly_mean_bypoint_avg.s) , y = yearly_mean_bypoint_avg.s, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = temp_scaled_model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, yearly_mean_bypoint_avg.s) , y = yearly_mean_bypoint_avg.s, label = Survey_Name_Season, 
+                #size = years_sampled,
+                fill = Slope_Direction), stat = 'identity', shape = 21, color = "black") +
+  scale_fill_manual(values = c("white","black"), name = "Slope Direction") +
+  geom_point(data = temp_scaled_model_coefs_reduced_length.r, aes(x = reorder(Survey_Name_Season, yearly_mean_bypoint_avg.s) , y = yearly_mean_bypoint_avg.s, 
+                  #size = years_sampled,
+                  label = Survey_Name_Season), stat = 'identity', fill = "grey",color = "grey", shape = 21) +
+#  scale_size_binned(range = c(1,8), name = "Survey period\nlength") +
+  geom_hline(yintercept = 0) +
+  xlab("Survey unit") +
+  ylab("Balanced BC dissimilarity ~\nrelative bottom temperature") +
+  coord_flip() +
+  theme_classic()
+
+#+
+#  theme(axis.text.y = element_text(colour = color_yearly_mean_bypoint_avg.s_order, face = "bold"), axis.title.y = element_blank())
+
+BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced
+
+#save as independent grob to merge with fishing
+saveRDS(BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced, here::here("figures","BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced.Rds"))
+```
+
+Merge lollypops
+```{r merge lollypops}
+BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced_merge <- cowplot::plot_grid(BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced + theme(legend.position = "null", axis.title.y = element_blank()), BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced + theme(legend.position = "null", axis.title.y = element_blank()), cowplot::get_legend(BC_BALANCED_Dissimilarity_Coef_scaled_BOTTOMTEMP_errorbar_reduced), nrow = 1, ncol = 3, rel_widths = c(1,1,0.2), rel_heights = c(1,1,0.2))
+
+ggsave(BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced_merge, path = "figures", filename = "BC_BALANCED_Dissimilarity_Coef_BOTTOMTEMP_errorbar_reduced_merge.jpg", height = 5, width = 12, units = "in")
 ```
 
 
@@ -1025,7 +1274,7 @@ dissimilarities_temp.nona[,pred_mean_temp_scale_byreg_upr := confit[5,2] + confi
   labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sbt_individual, color = survey_unit)) +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   geom_line(aes(x = as.numeric(yearly_mean_bypoint_avg), y = pred_mean_sbt), color  = "black") +
   theme_classic())
 
@@ -1035,7 +1284,7 @@ dissimilarity_BC_balanced_sbt_mean_facet.final <- ggplot(data = dissimilarities_
   labs(x = "Mean bottom temperature (˚C)",  y = "Bray Curtis balanced dissimilarity") +
   geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
   geom_line(aes(x = yearly_mean_bypoint_avg, y = pred_mean_sbt_individual, color = survey_unit)) +
-  scale_color_manual(values = c(pal_37)) +
+  scale_color_manual(values = c(palette_37)) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic() +
   theme(legend.position = "null")

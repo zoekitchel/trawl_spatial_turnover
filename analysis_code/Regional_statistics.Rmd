@@ -233,7 +233,7 @@ Calculate stats of all regions
 #survey_unit
 region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_annual_biomass := as.numeric()][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][, study_duration := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_annual_biomass := as.numeric()][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
 
   region_stats[,V1:=NULL]
 
@@ -259,8 +259,8 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"spp_num"] <- length(unique(reduced_FishGlob_cleaned.10year[,accepted_name]))
                   region_stats[i,"mean_annual_biomass"] <- mean(reduced_FishGlob_cleaned.10year[,wgt_cpue_annual])
                   region_stats[i,"mean_haul_id_count_annual"] <- mean(reduced_FishGlob_cleaned.10year[,haul_id_count_annual])
-                  region_stats[i,"study_period"] <- max(reduced_FishGlob_cleaned.10year$year)-min(reduced_FishGlob_cleaned.10year$year)
-                  region_stats[i,"study_duration"] <- length(unique(reduced_FishGlob_cleaned.10year$year))
+                  region_stats[i,"study_period"] <- max(reduced_FishGlob_cleaned.10year$year)-min(reduced_FishGlob_cleaned.10year$year)+1
+                  region_stats[i,"years_sampled"] <- length(unique(reduced_FishGlob_cleaned.10year$year))
                   region_stats[i,"lat_range"] <- max(reduced_FishGlob_cleaned.10year$latitude)-min(reduced_FishGlob_cleaned.10year$latitude)
                   region_stats[i,"mid_lat"] <- mean(reduced_FishGlob_cleaned.10year$latitude)
                   region_stats[i,"lon_range"] <- max(reduced_FishGlob_cleaned.10year$longitude)-min(reduced_FishGlob_cleaned.10year$longitude)
@@ -351,22 +351,22 @@ summary(lm(bray_coef~study_period, data = region_stats)) #not significant
 More likely to detect differentiation when fewer years are sampled and more likely to detect homogenization when more years are sampled
 ```{r study duration}
 
-study_duration_vs_coef <- ggplot() +
-    geom_errorbar(data = region_stats, aes(x = study_duration, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
-        geom_point(data = region_stats, aes(x = study_duration , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
+years_sampled_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = years_sampled, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+        geom_point(data = region_stats, aes(x = years_sampled , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Total years sampled") + #count of years sampled
   theme_classic()
 
-study_duration_vs_coef
+years_sampled_vs_coef
 
-ggsave(study_duration_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "study_duration_vs_coef.jpg", height =3, width = 5, unit = "in")
+ggsave(years_sampled_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "years_sampled_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
-summary(lm(abs(bray_coef)~study_duration, data = region_stats)) #not significant
-summary(lm(bray_coef~study_duration, data = region_stats)) #not significant
+summary(lm(abs(bray_coef)~years_sampled, data = region_stats)) #not significant
+summary(lm(bray_coef~years_sampled, data = region_stats)) #not significant
 
 
 ```
