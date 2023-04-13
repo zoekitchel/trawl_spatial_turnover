@@ -233,14 +233,14 @@ for (i in 1:length(all_survey_units)) {
               dissimilarities_occurrence_total.l[,  "year" := years[j]]
               
               #what type of metric?
-              dissimilarities_abundance_balanced.l[, "abund_biomass" := "abund"]
-              dissimilarities_occurrence_turnover.l[, "abund_biomass" := "abund"]
+              dissimilarities_abundance_balanced.l[, "abund_biomass" := "biomass"]
+              dissimilarities_occurrence_turnover.l[, "abund_biomass" := "biomass"]
               
-              dissimilarities_abundance_gradient.l[, "abund_biomass" := "abund"]
-              dissimilarities_occurrence_nestedness.l[, "abund_biomass" := "abund"]
+              dissimilarities_abundance_gradient.l[, "abund_biomass" := "biomass"]
+              dissimilarities_occurrence_nestedness.l[, "abund_biomass" := "biomass"]
               
-              dissimilarities_abundance_total.l[, "abund_biomass" := "abund"]
-              dissimilarities_occurrence_total.l[, "abund_biomass" := "abund"]
+              dissimilarities_abundance_total.l[, "abund_biomass" := "biomass"]
+              dissimilarities_occurrence_total.l[, "abund_biomass" := "biomass"]
             
               #merge distance with dissimilarity for this year with both metrics of dissimilarity
               dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance_balanced.l,  on = c("haul_id1",  "haul_id2")]
@@ -327,14 +327,14 @@ for (i in 1:length(all_survey_units)) {
               dissimilarities_occurrence_total.l[,  "year" := years[j]]
               
               #what type of metric?
-              dissimilarities_abundance_balanced.l[, "abund_biomass" := "biomass"]
-              dissimilarities_occurrence_turnover.l[, "abund_biomass" := "biomass"]
+              dissimilarities_abundance_balanced.l[, "abund_biomass" := "abund"]
+              dissimilarities_occurrence_turnover.l[, "abund_biomass" := "abund"]
               
-              dissimilarities_abundance_gradient.l[, "abund_biomass" := "biomass"]
-              dissimilarities_occurrence_nestedness.l[, "abund_biomass" := "biomass"]
+              dissimilarities_abundance_gradient.l[, "abund_biomass" := "abund"]
+              dissimilarities_occurrence_nestedness.l[, "abund_biomass" := "abund"]
               
-              dissimilarities_abundance_total.l[, "abund_biomass" := "biomass"]
-              dissimilarities_occurrence_total.l[, "abund_biomass" := "biomass"]
+              dissimilarities_abundance_total.l[, "abund_biomass" := "abund"]
+              dissimilarities_occurrence_total.l[, "abund_biomass" := "abund"]
             
               #merge distance with dissimilarity for this year with both metrics of dissimilarity
               dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance_balanced.l,  on = c("haul_id1",  "haul_id2")]

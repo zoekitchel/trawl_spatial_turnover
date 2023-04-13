@@ -987,7 +987,6 @@ balanced_dissimilarity_sbt_model_results <- rbind(balanced_dissimilarity_sbt_mod
 balanced_dissimilarity_sbt_model_results[Scaled == T,]
 
 
-
 #for all temp mods, almost nothing is described by scaled temp in region (0.05% of variation), most described by survey unit (90% of variation)
 ```
 Relative mean temperature for the 12 months before survey is the best predictor. As temp increases, dissimilarity increases. Relatively warm years are more heterogenous. 

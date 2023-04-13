@@ -7,7 +7,7 @@ Here we will link temperature and fishing to dissimilarity
 
 This code is Script X for Kitchel et al. TITLE manuscript.
 
-- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
+- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom tscaledl surveys.
 
 - Code by Zoë J. Kitchel
 
@@ -42,6 +42,9 @@ SAU_summed_tonnes.r <- readRDS(here::here("data","sea_around_us","SAU_summed_ton
 #pull in regional statistics
 region_stats <- readRDS(here::here("output","region_stats", "region_stats.rds"))
 
+#year by year gamma diversity and other stats
+FishGlob_richness_year_survey <- readRDS(file = here::here("output","FishGlob_richness_year_survey.Rds"))
+
 
 ```
 
@@ -58,6 +61,10 @@ dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing[region_sta
 dissimilarities_temp_fishing_regstats[,spp_num.s := scale(spp_num)]
 
 dissimilarities_temp_fishing_regstats[,bray_curtis_dissimilarity_balanced_mean.s := scale(bray_curtis_dissimilarity_balanced_mean, center = F),survey_unit]
+
+dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing_regstats[FishGlob_richness_year_survey, on = c("year","survey_unit")]
+
+dissimilarities_temp_fishing_regstats[,spp_count_annual.s := scale(spp_count_annual)]
 
 #save avg values
 saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","distance_decay","dissimilarities_temp_fishing_regstats.rds"))
@@ -203,7 +210,8 @@ balanced_dissimilarity_sbt_fishing_model_results <- data.table(Depth = as.charac
                                                        `Temp variable` = as.character(),
                                                        `Fishing`= as.character(),
                                                        `Temp fishing interaction` = as.character(),
-                                                       `Mixed effect` = as.character(),
+                                                       `Fixed effect structure` = as.character(),
+                                                       `Mixed effect structure` = as.character(),
                                                        Intercept = as.numeric(),
                                                        `Temp coefficient` = as.numeric(),
                                                        `Coefficient p-value 1` = as.numeric(),
@@ -222,7 +230,7 @@ balanced_dissimilarity_sbt_fishing_model_results <- data.table(Depth = as.charac
 (Note this code is identical to dissimilarity_BC_balanced_temp_fishing_link_allregs.nb_OISST.Rmd between here and ~line 249, but I've kept it in to allow easier model comparisons. Edits will need to be made in both places)
 ```{r build fishing mod}
 
-#random slope and intercept for survey
+#fishing and random slope and intercept for survey
 allreg_dissimilarity_fishing_mean_mod <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod)))
@@ -231,8 +239,9 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                             NA, #scaled
                                                             NA, #temp var
                                                             T, #fishing
-                                                            NA, #temp fishing interaction
-                                                            "survey_slope_intercept", #mixed effect
+                                                            F, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             NA,#temp coef
                                                             NA,#coef p value
@@ -243,12 +252,39 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod)[[1]],3), #marginal r squared
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod)[[2]],3), #conditional r-squared
                                                             round(AICc(allreg_dissimilarity_fishing_mean_mod),3),#AICc
-                                                            6 #degrees of freedom 
+                                                            NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
 
-#random intercept only
+#random slope and intercept for survey no fishing
+allreg_dissimilarity.intercept_slope <- lmer(bray_curtis_dissimilarity_balanced_mean ~ (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+coefs <- data.frame(coef(summary(allreg_dissimilarity.intercept_slope)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, #depth
+                                                            NA, #scaled
+                                                            NA, #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            NA, #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            NA,#temp coef
+                                                            NA,#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef
+                                                            NA, #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity.intercept_slope)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity.intercept_slope)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity.intercept_slope),3),#AICc
+                                                            NA #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#fishing and survey random intercept only
 allreg_dissimilarity_fishing_mean_mod.intercept <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod.intercept)))
@@ -257,8 +293,9 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                             NA, #scaled
                                                             NA, #temp var
                                                             T, #fishing
-                                                            NA, #temp fishing interaction
-                                                            "survey_intercept", #mixed effect
+                                                            F, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg", #fixed effect
+                                                            "1|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             NA,#temp coef
                                                             NA,#coef p value
@@ -269,12 +306,39 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod.intercept)[[1]],3), #marginal r squared
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod.intercept)[[2]],3), #conditional r-squared
                                                             round(AICc(allreg_dissimilarity_fishing_mean_mod.intercept),3),#AICc
-                                                            4 #degrees of freedom 
+                                                            NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
 
-#fixed effect for survey
+#random intercept only
+allreg_dissimilarity.intercept <- lmer(bray_curtis_dissimilarity_balanced_mean ~  (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+coefs <- data.frame(coef(summary(allreg_dissimilarity.intercept)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, #depth
+                                                            NA, #scaled
+                                                            NA, #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            NA, #fixed effect
+                                                            "1|survey_unit", #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            NA,#temp coef
+                                                            NA,#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef
+                                                            NA, #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity.intercept)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity.intercept)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity.intercept),3),#AICc
+                                                            NA #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#fixed effect for survey and interaction with fishing
 allreg_dissimilarity_fishing_fixed_mean_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_fixed_mean_mod)))
@@ -283,8 +347,9 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                             NA, #scaled
                                                             NA, #temp var
                                                             T, #fishing
-                                                            NA, #temp fishing interaction
-                                                            "survey_fixed", #mixed effect
+                                                            F, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*survey_unit", #fixed effect
+                                                            NA, #mixed effect                                               
                                                             round(coefs[1,1],3), #intercept
                                                             NA,#temp coef
                                                             NA,#coef p value
@@ -295,12 +360,66 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_fixed_mean_mod)[[1]],3), #marginal r squared
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_fixed_mean_mod)[[2]],3), #conditional r-squared
                                                             round(AICc(allreg_dissimilarity_fishing_fixed_mean_mod),3),#AICc
-                                                            75 #degrees of freedom 
+                                                            684 #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
 
-#no effect for survey
+#fixed effect for survey and fishing, no interaction
+allreg_dissimilarity_fishing_fixed_mean_mod_nointer <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_fixed_mean_mod_nointer)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, #depth
+                                                            NA, #scaled
+                                                            NA, #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg+survey_unit", #fixed effect
+                                                            NA, #mixed effect                                                            
+                                                            round(coefs[1,1],3), #intercept
+                                                            NA,#temp coef
+                                                            NA,#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef
+                                                            NA, #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_fixed_mean_mod_nointer)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_fixed_mean_mod_nointer)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_fixed_mean_mod_nointer),3),#AICc
+                                                            720 #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#fixed effect for survey only
+allreg_dissimilarity_survey_fixed_mod <- lm(bray_curtis_dissimilarity_balanced_mean ~ survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+coefs <- data.frame(coef(summary(allreg_dissimilarity_survey_fixed_mod)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, #depth
+                                                            NA, #scaled
+                                                            NA, #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "survey_unit", #fixed effect
+                                                            NA, #mixed effect                                                           
+                                                            round(coefs[1,1],3), #intercept
+                                                            NA,#temp coef
+                                                            NA,#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef
+                                                            NA, #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity_survey_fixed_mod)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_survey_fixed_mod)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_survey_fixed_mod),3),#AICc
+                                                            757 #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#no effect for survey, fishing as fixed effect
 allreg_dissimilarity_fishing_mean_mod_lm <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_lm)))
@@ -309,8 +428,9 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                             NA, #scaled
                                                             NA, #temp var
                                                             T, #fishing
-                                                            NA, #temp fishing interaction
-                                                            "exclude_survey_completely", #mixed effect
+                                                            F, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg", #fixed effect
+                                                            NA, #mixed effect                                                          
                                                             round(coefs[1,1],3), #intercept
                                                             NA,#temp coef
                                                             NA,#coef p value
@@ -321,38 +441,98 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c(NA, 
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_lm)[[1]],3), #marginal r squared
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_lm)[[2]],3), #conditional r-squared
                                                             round(AICc(allreg_dissimilarity_fishing_mean_mod_lm),3),#AICc
-                                                            3 #degrees of freedom 
+                                                            756 #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
 
-#In years of higher than average fishing pressure, dissimilarity is lower (homogenization)
-
-AICc(allreg_dissimilarity_fishing_mean_mod, allreg_dissimilarity_fishing_mean_mod.intercept, allreg_dissimilarity_fishing_fixed_mean_mod, allreg_dissimilarity_fishing_mean_mod_lm)
+#In years of higher than average fishing pressure, dissimilarity is lower (homogenization), except for when we include fixed effects for both fishing and survey, in which case the slope is positive. 
 
 
 View(balanced_dissimilarity_sbt_fishing_model_results)
 
+#save fishing only output
+balanced_dissimilarity_fishing_model_results <- balanced_dissimilarity_sbt_fishing_model_results
+
+saveRDS(balanced_dissimilarity_fishing_model_results, here::here("output","balanced_dissimilarity_fishing_model_results.Rds"))
 
 ```
-Best model includes survey unit as a fixed effect (R^2 = 93% of variation), but we don't care much about survey_unit (beyond acknowledging it makes a difference), so we will move forward with random intercept and random slope for survey unit.
+Best model includes only survey unit as a fixed effect. Second best model includes an interaction between fishing and survey unit.
 
-As relative fishing pressure increases, dissimilarity decreases (more fished communities = more homogenized communities). 
+As relative fishing pressure increases, dissimilarity decreases (more fished communities = more homogenized communities). However, this varies a long among regions.
+
+####Plot Fishing Only Model
+```{r plot fishing vs dissimilarity}
+dissimilarities_temp_fishing_regstats.na <- na.omit(dissimilarities_temp_fishing_regstats, cols = "summed_tonnes_scaled_byreg") #delete any rows with NAs
+
+#Predicted values
+dissimilarities_temp_fishing_regstats.na$pred_summed_tonnes_scaled_byreg <- predict(allreg_dissimilarity_fishing_mean_mod,re.form=NA)  ## population level
+dissimilarities_temp_fishing_regstats.na$pred_summed_tonnes_scaled_byreg_individual <- predict(allreg_dissimilarity_fishing_mean_mod) ## individual level
+
+#confidence intervals
+fishing_confit <- confint(allreg_dissimilarity_fishing_mean_mod, oldNames = F)
+
+#upper lower bounds from confidence intervals
+dissimilarities_temp_fishing_regstats.na[,pred_summed_tonnes_scaled_byreg_lwr := fishing_confit[5,1] + fishing_confit[6,1]*summed_tonnes_scaled_byreg]#lower confidence interval
+dissimilarities_temp_fishing_regstats.na[,pred_summed_tonnes_scaled_byreg_upr := fishing_confit[5,2] + fishing_confit[6,2]*summed_tonnes_scaled_byreg]#upper confidence interval
+
+
+#for all regions
+(allreg_BC_balanced_dissimilarity_fishing_mean <- ggplot(data = dissimilarities_temp_fishing_regstats.na) +
+  labs(x = "Relative fishing pressure",  y = "BC balanced dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = summed_tonnes_scaled_byreg, y = pred_summed_tonnes_scaled_byreg_individual, color = survey_unit)) +
+  geom_line(aes(x = summed_tonnes_scaled_byreg, y = pred_summed_tonnes_scaled_byreg), lwd = 1) +
+  scale_color_manual(values =  pal_37) +
+  theme_classic())
+
+#save
+ggsave(allreg_BC_balanced_dissimilarity_fishing_mean, path = here::here("figures","predictor_variables"), filename = "allreg_BC_balanced_dissimilarity_fishing_mean.jpg")
+
+#for all regions faceted
+(allreg_BC_balanced_dissimilarity_fishing_mean_facet <- ggplot(data = dissimilarities_temp_fishing_regstats.na) +
+  labs(x = "Relative fishing pressure",  y = "BC balanced dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = summed_tonnes_scaled_byreg, y = pred_summed_tonnes_scaled_byreg_individual, color = survey_unit)) +
+  scale_color_manual(values =  pal_37) +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic() +
+    theme(legend.position = "null"))
+
+#save
+ggsave(allreg_BC_balanced_dissimilarity_fishing_mean_facet, path = here::here("figures","predictor_variables"), filename = "allreg_BC_balanced_dissimilarity_fishing_mean_facet.jpg", height = 8, width = 12, unit = "in")
+
+#all one color points
+(allreg_BC_balanced_dissimilarity_fishing_mean_SIMPLIFIED <- ggplot(data = dissimilarities_temp_fishing_regstats.na) +
+  labs(x = "Relative fishing pressure",  y = "Dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.3) +
+  geom_line(aes(x = summed_tonnes_scaled_byreg, y = pred_summed_tonnes_scaled_byreg)) +
+  geom_ribbon(aes(x = summed_tonnes_scaled_byreg, ymin = pred_summed_tonnes_scaled_byreg_lwr, ymax = pred_summed_tonnes_scaled_byreg_upr), alpha = 0.2) +
+  theme_classic())
+
+#save
+ggsave(allreg_BC_balanced_dissimilarity_fishing_mean_SIMPLIFIED, path = here::here("figures","predictor_variables"), filename = "allreg_BC_balanced_dissimilarity_fishing_mean_SIMPLIFIED.jpg")
+```
+
 
 ###Temperature x fishing models
 Best temp variables to carry forward: 
 
-For raw temp (indicative of survey vs. survey):
--dissimilarity_BC_balanced_sbt_mean_mod
+For scaled temp (indicative of survey vs. survey):
+-Mean temperature
+-SD of mean temp
 
 
-For scaled temp (indicative of within survey: cool or warm year? heterogenous or homogenous year)
--dissimilarity_BC_balanced_sbt_mean_scaled_mod (SD a bit better, but for comparison sake, we go with 2nd best = mean)
+For scaled temp (indicative of within survey: cool or warm year? heterogenous or homogenous year comparatively?)
+-Scaled mean temp
 
-Starting with survey unit as random slope~fishing pressure and intercept (because it performed best above)
-```{r temp and fishing models of dissimilarity}
-#raw temp values
+Starting with survey unit as random slope~fishing pressure and intercept
 
+Mean temp
+```{r mean temp and fishing models of dissimilarity}
+#raw mean temp values
+
+#fishing and temperature interaction
 allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
 
@@ -363,7 +543,8 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                             "mean", #temp var
                                                             T, #fishing
                                                             T, #temp fishing interaction
-                                                            "survey_intercept", #mixed effect
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             round(coefs[3,1],3),#temp coef
                                                             round(coefs[3,5],3),#coef p value
@@ -374,12 +555,186 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg)[[1]],3), #marginal r squared
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg)[[2]],3), #conditional r-squared
                                                             round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg),3),#AICc
-                                                            6 #degrees of freedom 
+                                                            NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
 
-  #raw temp, no interaction
+#fishing and temperature interaction, random intercept not random slope
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg", #fixed effect
+                                                            "1|survey_unit", #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,5],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,5],3),#coef p value
+                                                            round(coefs[4,1],3), #interact coef
+                                                            round(coefs[4,5],3), #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly),3),#AICc
+                                                            NA #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#raw temp values AND interaction with both fishing and fixed survey unit
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_two_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_two_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                           "summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            round(coefs[40,1],3), #interact coef (fishing and temp)
+                                                            round(coefs[40,4],3), #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_two_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_two_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_two_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_two_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interaction with fishing but not fixed survey unit
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_fish_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_fish_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg+survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            round(coefs[40,1],3), #interact coef (fishing and temp)
+                                                            round(coefs[40,4],3), #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_fish_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_fish_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_fish_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_fish_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interact with survey unit but no interact with fishing
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_survey_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_survey_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                          "summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_survey_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_survey_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_survey_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_temp_survey_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interact with survey unit but no interact with fishing
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_survey_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_survey_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg*survey_unit", #fixed effect
+                                                            NA, #mixed effect                                                            
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_survey_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_survey_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_survey_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_survey_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values, fixed effects for fishing and survey unit, no interact
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_no_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg + survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_no_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg + survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_no_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_no_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_no_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_fixed_fishing_no_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+ 
+
+#scaled temp and fishing but, no interaction, random slope and intercept 
   allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.nointeract <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
   
@@ -390,7 +745,8 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                             "mean", #temp var
                                                             T, #fishing
                                                             F, #temp fishing interaction
-                                                            "survey_intercept", #mixed effect
+                                                            "summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             round(coefs[3,1],3),#temp coef
                                                             round(coefs[3,5],3),#coef p value
@@ -401,12 +757,12 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.nointeract)[[1]],3), #marginal r squared
                                                 round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.nointeract)[[2]],3), #conditional r-squared
                                                             round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.nointeract),3),#AICc
-                                                            5 #degrees of freedom 
+                                                            NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
     
-  #temp only
+  #scaled temp only
   allreg_dissimilarity_mod_sbt_mean_avg <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
   
@@ -417,7 +773,8 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                             "mean", #temp var
                                                             F, #fishing
                                                             F, #temp fishing interaction
-                                                            "survey_intercept", #mixed effect
+                                                            "yearly_mean_bypoint_avg", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             round(coefs[2,1],3),#temp coef
                                                             round(coefs[2,5],3),#coef p value
@@ -428,23 +785,89 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                 round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_mean_avg)[[1]],3), #marginal r squared
                                                 round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_mean_avg)[[2]],3), #conditional r-squared
                                                             round(AICc(allreg_dissimilarity_mod_sbt_mean_avg),3),#AICc
-                                                            4 #degrees of freedom 
+                                                           NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
-    
-#scaled temp values
-allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg.s + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+#temp only with interaction with fixed effect with survey unit
+
+allreg_dissimilarity_sbt_mean_avg_fixed <- lm(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
-                  coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s)))
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_sbt_mean_avg_fixed)))
 
 balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
-                                                            T, #scaled
+                                                            F, #scaled
                                                             "mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_sbt_mean_avg_fixed),3),#AICc
+                                                            summary(allreg_dissimilarity_sbt_mean_avg_fixed)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#temp only with fixed effect with survey unit, no interact
+
+allreg_dissimilarity_sbt_mean_avg_fixed_nointeract <- lm(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg+survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract),3),#AICc
+                                  summary(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)$df[2]) #degrees of freedom 
+                                                            ,nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+    
+
+```
+
+SD of Mean temp
+```{r SD of mean temp and fishing models of dissimilarity}
+#raw mean temp values
+
+#fishing and temperature interaction
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
                                                             T, #fishing
                                                             T, #temp fishing interaction
-                                                            "survey_intercept", #mixed effect
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             round(coefs[3,1],3),#temp coef
                                                             round(coefs[3,5],3),#coef p value
@@ -452,26 +875,201 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                             round(coefs[2,5],3),#coef p value
                                                             round(coefs[4,1],3), #interact coef
                                                             round(coefs[4,5],3), #coef p value
-                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s)[[1]],3), #marginal r squared
-                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s)[[2]],3), #conditional r-squared
-                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s),3),#AICc
-                                                            6 #degrees of freedom 
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD),3),#AICc
+                                                            NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
 
-  #scaled temp, no interaction
-  allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s.nointeract <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg.s + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+#fishing and temperature interaction, random intercept not random slope
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_surveyunitrandomslopeonly <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
-  
-          coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s.nointeract)))
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_surveyunitrandomslopeonly)))
 
 balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
-                                                            T, #scaled
-                                                            "mean", #temp var
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD", #fixed effect
+                                                            "1|survey_unit", #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,5],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,5],3),#coef p value
+                                                            round(coefs[4,1],3), #interact coef
+                                                            round(coefs[4,5],3), #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_surveyunitrandomslopeonly)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_surveyunitrandomslopeonly)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_surveyunitrandomslopeonly),3),#AICc
+                                                            NA #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#raw temp values AND interaction with both fishing and fixed survey unit
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_two_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_two_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                           "summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            round(coefs[40,1],3), #interact coef (fishing and temp)
+                                                            round(coefs[40,4],3), #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_two_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_two_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_two_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_two_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interaction with fishing but not fixed survey unit
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_fish_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_fish_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_SD+survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            round(coefs[40,1],3), #interact coef (fishing and temp)
+                                                            round(coefs[40,4],3), #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_fish_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_fish_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_fish_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_fish_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interact with survey unit but no interact with fishing
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_survey_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_SD*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_survey_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
                                                             T, #fishing
                                                             F, #temp fishing interaction
-                                                            "survey_intercept", #mixed effect
+                                                          "summed_tonnes_scaled_byreg+yearly_mean_bypoint_SD*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_survey_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_survey_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_survey_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_temp_survey_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interact with survey unit but no interact with fishing
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_survey_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~yearly_mean_bypoint_SD + summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_survey_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_SD + summed_tonnes_scaled_byreg*survey_unit", #fixed effect
+                                                            NA, #mixed effect                                                            
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_survey_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_survey_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_survey_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_survey_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values, fixed effects for fishing and survey unit, no interact
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_no_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~yearly_mean_bypoint_SD + summed_tonnes_scaled_byreg + survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_no_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_SD + summed_tonnes_scaled_byreg + survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_no_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_no_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_no_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD_fixed_fishing_no_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+ 
+
+#scaled temp and fishing but, no interaction, random slope and intercept 
+  allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD.nointeract <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_SD + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+  
+          coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD.nointeract)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg+yearly_mean_bypoint_SD", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             round(coefs[3,1],3),#temp coef
                                                             round(coefs[3,5],3),#coef p value
@@ -479,79 +1077,477 @@ balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt
                                                             round(coefs[2,5],3),#coef p value
                                                             NA, #interact coef
                                                             NA, #coef p value
-                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s.nointeract)[[1]],3), #marginal r squared
-                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s.nointeract)[[2]],3), #conditional r-squared
-                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s.nointeract),3),#AICc
-                                                            5 #degrees of freedom 
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD.nointeract)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD.nointeract)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_SD.nointeract),3),#AICc
+                                                            NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
     
-  #temp only
-  allreg_dissimilarity_mod_sbt_mean_avg.s <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg.s + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+  #scaled temp only
+  allreg_dissimilarity_mod_sbt_mean_SD <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_SD + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
   
-          coefs <- data.frame(coef(summary(allreg_dissimilarity_mod_sbt_mean_avg.s)))
+               coefs <- data.frame(coef(summary(allreg_dissimilarity_mod_sbt_mean_SD)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_SD", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,5],3),#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef
+                                                            NA, #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_mean_SD)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_mean_SD)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_mod_sbt_mean_SD),3),#AICc
+                                                           NA #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#temp only with interaction with fixed effect with survey unit
+
+allreg_dissimilarity_sbt_mean_SD_fixed <- lm(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_SD*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_sbt_mean_SD_fixed)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_SD*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_SD_fixed)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_SD_fixed)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_sbt_mean_SD_fixed),3),#AICc
+                                                            summary(allreg_dissimilarity_sbt_mean_SD_fixed)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#temp only with fixed effect with survey unit, no interact
+
+allreg_dissimilarity_sbt_mean_SD_fixed_nointeract <- lm(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_SD+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_sbt_mean_SD_fixed_nointeract)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            F, #scaled
+                                                            "SD of mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_SD+survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_SD_fixed_nointeract)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_SD_fixed_nointeract)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_sbt_mean_SD_fixed_nointeract),3),#AICc
+                                  summary(allreg_dissimilarity_sbt_mean_SD_fixed_nointeract)$df[2]) #degrees of freedom 
+                                                            ,nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+    
+
+```
+
+
+
+Scaled mean temp values with fishing
+```{r scaled mean temp values with fishing}
+#scaled temp values
+
+#fishing and temperature interaction
+allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg.s + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg.s", #fixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,5],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,5],3),#coef p value
+                                                            round(coefs[4,1],3), #interact coef
+                                                            round(coefs[4,5],3), #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg),3),#AICc
+                                                            NA #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interaction with both fishing and fixed survey unit
+
+allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_two_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg.s*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_two_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg.s*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            round(coefs[40,1],3), #interact coef (fishing and temp)
+                                                            round(coefs[40,4],3), #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_two_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_two_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_two_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_two_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interaction with fishing but not fixed survey unit
+
+allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_fish_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg.s+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_fish_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            T, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg.s+survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            round(coefs[40,1],3), #interact coef (fishing and temp)
+                                                            round(coefs[40,4],3), #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_fish_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_fish_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_fish_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_fish_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interact with survey unit but no interact with fishing
+
+allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_survey_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg.s*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_survey_interact)))
 
 balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
                                                             T, #scaled
                                                             "mean", #temp var
                                                             T, #fishing
                                                             F, #temp fishing interaction
-                                                            "survey_intercept", #mixed effect
+                                                            "summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg.s*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_survey_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_survey_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_survey_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_temp_survey_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values AND interact with survey unit but no interact with fishing
+
+allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_survey_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~yearly_mean_bypoint_avg.s + summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_survey_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg.s + summed_tonnes_scaled_byreg*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_survey_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_survey_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_survey_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_survey_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#scaled temp values, fixed effects for fishing and survey unit, no interact
+
+allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_no_interact <- lm(bray_curtis_dissimilarity_balanced_mean ~yearly_mean_bypoint_avg.s + summed_tonnes_scaled_byreg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_no_interact)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg.s + summed_tonnes_scaled_byreg+survey_unit", #mixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[3,1],3),#temp coef
+                                                            round(coefs[3,4],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_no_interact)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_no_interact)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_no_interact),3),#AICc
+                                                            summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg_fixed_fishing_no_interact)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+ 
+
+#scaled temp and fishing but, no interaction, random slope and intercept 
+  allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg.nointeract <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg.s + (1 + summed_tonnes_scaled_byreg|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+  
+          coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg.nointeract)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            T, #fishing
+                                                            F, #temp fishing interaction
+                                                            "summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg.s", #mixed effect
+                                                            "1 + summed_tonnes_scaled_byreg|survey_unit", #mixed effect
                                                             round(coefs[1,1],3), #intercept
                                                             round(coefs[3,1],3),#temp coef
                                                             round(coefs[3,5],3),#coef p value
+                                                            round(coefs[2,1],3),#fishing coef
+                                                            round(coefs[2,5],3),#coef p value
+                                                            NA, #interact coef
+                                                            NA, #coef p value
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg.nointeract)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg.nointeract)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_fishing_mean_mod_sbt_scaled_mean_avg.nointeract),3),#AICc
+                                                            NA #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+    
+  #scaled temp only
+  allreg_dissimilarity_mod_sbt_scaled_mean_avg <- lmer(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg.s + (1 + yearly_mean_bypoint_avg.s|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+  
+               coefs <- data.frame(coef(summary(allreg_dissimilarity_mod_sbt_scaled_mean_avg)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg.s", #mixed effect
+                                                            "1 + yearly_mean_bypoint_avg.s|survey_unit", #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,5],3),#coef p value
                                                             NA,#fishing coef
                                                             NA,#coef p value
                                                             NA, #interact coef
                                                             NA, #coef p value
-                                                round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_mean_avg.s)[[1]],3), #marginal r squared
-                                                round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_mean_avg.s)[[2]],3), #conditional r-squared
-                                                            round(AICc(allreg_dissimilarity_mod_sbt_mean_avg.s),3),#AICc
-                                                            5 #degrees of freedom 
+                                                round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_scaled_mean_avg)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_mod_sbt_scaled_mean_avg)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_mod_sbt_scaled_mean_avg),3),#AICc
+                                                           NA #degrees of freedom 
                                                             ),nrow =1))
 
 balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
-  
-fishing_temp_model_ranking <- AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg, allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.nointeract, allreg_dissimilarity_mod_sbt_mean_avg, allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s,  allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg.s.nointeract, allreg_dissimilarity_mod_sbt_mean_avg.s, allreg_dissimilarity_fishing_mean_mod.intercept)
 
-#Best model: best model = allreg_dissimilarity_fishing_mean_mod (no temp; different than surface temperature which was no fishing)
+#temp only with interaction with fixed effect with survey unit
+
+allreg_dissimilarity_sbt_mean_avg_fixed <- lm(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg.s*survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_sbt_mean_avg_fixed)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg.s*survey_unit", #fixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_sbt_mean_avg_fixed),3),#AICc
+                                                            summary(allreg_dissimilarity_sbt_mean_avg_fixed)$df[2] #degrees of freedom 
+                                                            ),nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+
+#temp only with fixed effect with survey unit, no interact
+
+allreg_dissimilarity_sbt_mean_avg_fixed_nointeract <- lm(bray_curtis_dissimilarity_balanced_mean ~ yearly_mean_bypoint_avg.s+survey_unit, data = dissimilarities_temp_fishing_regstats)
+
+
+        coefs <- data.frame(coef(summary(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)))
+
+balanced_dissimilarity_sbt_fishing_model_results_row <- data.table(matrix(c("sbt", #depth
+                                                            T, #scaled
+                                                            "mean", #temp var
+                                                            F, #fishing
+                                                            F, #temp fishing interaction
+                                                            "yearly_mean_bypoint_avg.s+survey_unit", #mixed effect
+                                                            NA, #mixed effect
+                                                            round(coefs[1,1],3), #intercept
+                                                            round(coefs[2,1],3),#temp coef
+                                                            round(coefs[2,4],3),#coef p value
+                                                            NA,#fishing coef
+                                                            NA,#coef p value
+                                                            NA, #interact coef (fishing and temp)
+                                                            NA, #coef p value (fishing and temp)
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)[[1]],3), #marginal r squared
+                                                round(r.squaredGLMM(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)[[2]],3), #conditional r-squared
+                                                            round(AICc(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract),3),#AICc
+                                  summary(allreg_dissimilarity_sbt_mean_avg_fixed_nointeract)$df[2]) #degrees of freedom 
+                                                            ,nrow =1))
+
+balanced_dissimilarity_sbt_fishing_model_results <- rbind(balanced_dissimilarity_sbt_fishing_model_results, balanced_dissimilarity_sbt_fishing_model_results_row, use.names = F)
+    
+```
+
+Show model ranking
+```{r}
 View(balanced_dissimilarity_sbt_fishing_model_results)
 
-summary(allreg_dissimilarity_fishing_mean_mod)
-
-saveRDS(balanced_dissimilarity_sbt_fishing_model_results, here::here("output","balanced_dissimilarity_sbt_fishing_model_results.rds"))
-
-```
-
-Significant predictors: 
-summed_tonnes_scaled_byreg (as the relative fishing pressure increases, bray dissimilarity decreases)
-
-                            Estimate Std. Error        df t value Pr(>|t|)    
-(Intercept)                 0.595931   0.019402 35.941509  30.714   <2e-16 ***
-summed_tonnes_scaled_byreg -0.008120   0.005989 29.195211  -1.356    0.186    
-
-What about r^2 value
-```{r}
-r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod)
-
-#marginal GLMM (variance explained by fixed effects)
-#conditional GLMM (variance explained by entire model)
-
-#           R2m       R2c
-#[1,]       0.002      0.92. (very little explained by fishing or temperature, most explained by survey_units)
+saveRDS(balanced_dissimilarity_sbt_fishing_model_results, here::here("output", "balanced_dissimilarity_sbt_fishing_model_results.Rds"))
 ```
 
 
+Best overall model (by AICc)
+  - Fishing as a fixed effect without temperature or survey unit
+  - Raw mean temperature with interaction with fishing, and random intercept (no slope) for survey unit
+  - Dissimilarity declines with fishing and temperature, positive interaction between temp and fishing (so, at higher fishing pressure, less negative slope between fishing and temperature)
 
+Carry these forward
 ---
 
 
 ###What if we also tie in latitude and spp num?
-```{r}
-allreg_dissimilarity_fishing_mean_mod_sbt_max_avg_spp_num <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg*spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+```{r yearly count of species}
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_spp_count <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg*spp_count_annual.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
+#check variance inflation factor
+car::vif(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_spp_count)
+
+allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_spp_count_nointereact <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg+spp_count_annual.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
+
+
+#compare to best model without gamma (spp_count)
+AICc(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly, allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_spp_count, allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_spp_count_nointereact)
+
+#Model with fishing and temperature performs better than model that adds in interaction with annual species count (scaled), delta AICc = 16
+
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly)
+summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_surveyunitrandomslopeonly)
+r.squaredGLMM(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_spp_count)
+summary(allreg_dissimilarity_fishing_mean_mod_sbt_mean_avg_spp_count)
+
+#How does relative fishing pressure relate to gamma diversity?
+ggplot(dissimilarities_temp_fishing_regstats) +
+  geom_point(aes(x = spp_count_annual.s, y = summed_tonnes_scaled_byreg)) +
+  theme_classic()
+
+summary(lm(summed_tonnes_scaled_byreg~spp_count_annual.s, data = dissimilarities_temp_fishing_regstats))
+
+#How does mean temperature relate to gamma diversity?
+ggplot(dissimilarities_temp_fishing_regstats) +
+  geom_point(aes(x = spp_count_annual.s, y = yearly_mean_bypoint_avg)) +
+  theme_classic()
+
+summary(lm(yearly_mean_bypoint_avg~spp_count_annual.s, data = dissimilarities_temp_fishing_regstats))
+
+#correlation?
+cor.test(dissimilarities_temp_fishing_regstats$yearly_max_bypoint_avg, dissimilarities_temp_fishing_regstats$spp_count_annual)
+
+
+```
+
+When no gamma diversity included
+Fixed effects:
+                                                     Estimate Std. Error         df t value Pr(>|t|)    
+(Intercept)                                         6.051e-01  2.458e-02  6.811e+01  24.619  < 2e-16 ***
+summed_tonnes_scaled_byreg                         -2.374e-02  5.159e-03  7.224e+02  -4.601 4.96e-06 ***
+yearly_mean_bypoint_avg                            -1.023e-03  1.855e-03  4.098e+02  -0.552    0.581    
+summed_tonnes_scaled_byreg:yearly_mean_bypoint_avg  2.031e-03  5.045e-04  7.305e+02   4.025 6.28e-05 ***
+
+And when we include gamma diversity and it's interactions
+Fixed effects:
+                                                                        Estimate Std. Error         df t value Pr(>|t|)    
+(Intercept)                                                            6.049e-01  2.186e-02  6.935e+01  27.673  < 2e-16 ***
+summed_tonnes_scaled_byreg                                            -1.156e-02  5.267e-03  7.292e+02  -2.194   0.0285 *  
+yearly_mean_bypoint_avg                                                9.582e-05  1.794e-03  3.026e+02   0.053   0.9574    
+spp_count_annual.s                                                     6.774e-02  9.541e-03  6.985e+02   7.100 3.07e-12 ***
+summed_tonnes_scaled_byreg:yearly_mean_bypoint_avg                     8.800e-04  5.417e-04  7.367e+02   1.624   0.1047    
+summed_tonnes_scaled_byreg:spp_count_annual.s                          1.201e-02  4.916e-03  7.087e+02   2.442   0.0148 *  
+yearly_mean_bypoint_avg:spp_count_annual.s                            -4.491e-03  1.014e-03  6.788e+02  -4.427 1.11e-05 ***
+summed_tonnes_scaled_byreg:yearly_mean_bypoint_avg:spp_count_annual.s  6.815e-05  4.859e-04  7.134e+02   0.140   0.8885    
+
+```{r latitude}
 allreg_dissimilarity_fishing_mean_mod_sbt_max_avg_mid_lat <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg*mid_lat + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
 
 allreg_dissimilarity_fishing_mean_mod_sbt_max_avg_mid_lat_spp_num <- lmer(bray_curtis_dissimilarity_balanced_mean ~ summed_tonnes_scaled_byreg*yearly_max_bypoint_avg*mid_lat*spp_num.s + (1|survey_unit), data = dissimilarities_temp_fishing_regstats)
@@ -696,6 +1692,8 @@ BC_BALANCED_Dissimilarity_Coef_scaled_surfaceTEMP_errorbar_reduced <- readRDS(he
 #merge
 surface_temp_fishing_coefficients_lollypop <- cowplot::plot_grid(BC_BALANCED_Dissimilarity_Coef_surfaceTEMP_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), BC_BALANCED_Dissimilarity_Coef_scaled_surfaceTEMP_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced+theme(axis.title.y = element_blank(), legend.position = "null"), cowplot::get_legend(BC_BALANCED_Dissimilarity_Coef_FISHING_errorbar_reduced),
           nrow = 1, ncol = 4, rel_widths = c(1,1,1,0.2), rel_height = c(1,1,1,0.2))
+
+surface_temp_fishing_coefficients_lollypop
 
 ggsave(surface_temp_fishing_coefficients_lollypop, path = "figures", filename = "surface_temp_fishing_coefficients_lollypop.jpg", height = 5, width = 17, units = "in")
 ```

@@ -165,6 +165,8 @@ FishGlob_clean.noNA[,haul_id_count_annual := uniqueN(haul_id),.(year, survey_uni
 FishGlob_clean.noNA[,spp_count_annual := uniqueN(accepted_name),.(year_adj, survey_unit)]
 
 FishGlob_richness_year_survey <- unique(FishGlob_clean.noNA[,.(year_adj, survey_unit, spp_count_annual,  year)])
+
+saveRDS(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richness_year_survey.Rds"))
 ```
 
 Calculate coefficients from lmer for trend in species richness within a region over time
