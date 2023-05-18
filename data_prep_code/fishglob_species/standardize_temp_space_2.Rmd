@@ -32,6 +32,106 @@ set.seed(1)
 Load manually reduced fishglob database from prepare_fishglob_dataset.Rmd
 ```{r}
 FishGlob.10year.spp_manualclean <- readRDS(here::here("data","cleaned","FishGlob.10year.spp_manualclean.rds"))
+
+#survey names
+sort(unique(FishGlob.10year.spp_manualclean[,survey_unit]))
+```
+
+Survey name helper
+```{r}
+name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
+                                    "Baltic Sea Q1",
+                                    "Baltic Sea Q4",
+                                    "Chile",
+                                    "Newfoundland",
+                                    "Queen Charlotte Sound",
+                                    "Eastern Bering Sea",
+                                    "Bay of Biscay",
+                                    "English Channel",
+                                    "Gulf of Mexico Summer",
+                                    "Gulf of Alaska",
+                                    "Greenland",
+                                    "N Gulf of St. Lawrence",
+                                    "S Gulf of St. Lawrence",
+                                    "Iceland",
+                                    "Irish Sea",
+                                    "Mediterranean",
+                                    "Namibia",
+                                    "NE US Fall",
+                                    "NE US Spring",
+                                    "N Ireland Q1",
+                                    "N Ireland Q4",
+                                    "Barents Sea Norway Q3",
+                                    "N Sea Q1",
+                                    "N Sea Q3",
+                                    "Chatham Rise NZ",
+                                    "E Coast S Island NZ",
+                                    "W Coast S Island NZ",
+                                    "Portugal",
+                                    "S Georgia",
+                                  "Scotian Shelf Summer",
+                                  "SE US Fall",
+                                  "SE US Spring",
+                                  "SE US Summer",
+                                  "W Coast US",
+                                  "Atlantic Ocean ZA",
+                                  "Indian Ocean ZA",
+                                   "Rockall Plateau",
+                                  "Scotland Shelf Sea Q1",
+                                  "Scotland Shelf Sea Q4",
+                                  "Falkland Islands",
+                                  "Gulf of Mexico Fall",
+                                  "Barents Sea Norway Q1",
+                                  "Sub-Arctic NZ",
+                                  "Scotian Shelf Spring"),
+                          survey_unit = c(
+                                  "AI",        
+                                  "BITS-1",    
+                                  "BITS-4",    
+                                  "CHL",       
+                                  "DFO-NF",    
+                                  "DFO-QCS",   
+                                  "EBS",       
+                                  "EVHOE",     
+                                  "FR-CGFS",   
+                                  "GMEX-Summer",
+                                  "GOA",       
+                                  "GRL-DE",    
+                                  "GSL-N",     
+                                  "GSL-S",     
+                                  "ICE-GFS",   
+                                  "IE-IGFS",   
+                                  "MEDITS",    
+                                  "NAM",       
+                                  "NEUS-Fall", 
+                                  "NEUS-Spring",
+                                  "NIGFS-1",   
+                                  "NIGFS-4",   
+                                  "Nor-BTS-3", 
+                                  "NS-IBTS-1", 
+                                  "NS-IBTS-3", 
+                                  "NZ-CHAT",   
+                                  "NZ-ECSI",   
+                                  "NZ-WCSI",   
+                                  "PT-IBTS",   
+                                  "S-GEORG",   
+                                  "SCS-SUMMER",
+                                  "SEUS-fall", 
+                                  "SEUS-spring",
+                                  "SEUS-summer",
+                                  "WCANN",     
+                                  "ZAF-ATL",   
+                                  "ZAF-IND",
+                                  "ROCKALL",
+                                  "SWC-IBTS-1",
+                                  "SWC-IBTS-4",
+                                  "FALK",
+                                  "GMEX-Fall",
+                                  "Nor-BTS-1",
+                                  "NZ-SUBA",
+                                  "SCS-SPRING"
+                          ))
+
 ```
 
 
@@ -48,7 +148,7 @@ FishGlob.10year.spp_manualclean <- FishGlob.10year.spp_manualclean[complete.case
 
 ```
 
-Match lat/lon sampling points to hexagonal cells, so that we can see how many cells to keep to maintain a lot of observation points
+Match lat/lon sampling points to hexagonal cells, so that we can see how many cells to keep to maintain a high portiion of observation points
 
 ```{r match lat lon to hex cells}
 FishGlob.cells <- data.table()
@@ -59,7 +159,13 @@ FishGlob.cells <- data.table()
   cell_area_norway <- 23322.2 #km2 (7 from dggrdr; if you want to use different resolution, not doing as of now)
   
 all_survey_units <- unique(FishGlob.10year.spp_manualclean[,survey_unit])
-  
+
+#baseplot list
+fishglob_cell_plots <- list()
+
+#save cells as list of spatial polygons
+fishglob_cell_polygons <- list()
+
 
 for(i in 1:length(all_survey_units)){
   FishGlob.10year.spp_manualclean_subset <- FishGlob.10year.spp_manualclean[survey_unit == all_survey_units[i],]
@@ -119,9 +225,27 @@ proj <-  ifelse(max(FishGlob.10year.spp_manualclean_subset_unique[,longitude]) -
     # convert center points to hexagons
   g <- HexPoints2SpatialPolygons(g, dx = cell_diameter_km)
   
- plot(g)
- plot(sp.p, add = T, pch = ".")
- title(paste0(all_survey_units[i]))
+  #save spatial polygons
+  fishglob_cell_polygons[[i]] <- g
+  
+  #convert hexagons to simple features
+  g_sf <- sf::st_as_sf(g, coords = c("x","y"))
+  
+  g_sf.t <- st_make_valid(g_sf)
+  
+ fishglob_cell_plots[[i]] <- ggplot() +
+   geom_sf(data = sp, size = 0.2, color = "darkgrey") +
+   geom_sf(data = g_sf.t, fill = NA, color = "black") +
+   theme_classic() +
+   ggtitle(paste0(all_survey_units[i]))
+   
+   
+  #base R plot, replaced by fishglob_cell_plots[[i]]
+#  plot(g)
+# plot(sp.p, add = T, pch = ".")
+# title(paste0(all_survey_units[i]))
+ 
+ #
 
   #link lat lon to cell#
     #where do they overlap
@@ -156,21 +280,12 @@ polygon_spapol.forbind <- spTransform(polygon_spapol.p,
 #writeOGR(all_survey_units_polygon, dsn = here::here("output/shapefiles"))
 ```
 
-
-
-
-Merge all shapefiles together in order to send to Sea Around Us team to obtain fishing specific fishing data.
-```{r}
-
-```
-
-
 ________
 
-Standardize observations by # of hauls per cell and # cells sampled per year
+###Standardize observations by # of hauls per cell and # cells sampled per year
 
-Remove any years that sample less than 70% of cells  ever sampled
-Remove any cells that are sampled in less than 70% of years
+Remove any years for a survey that sample less than 70% of cells ever sampled for that survey
+THEN remove any cells that are sampled in less than 70% of years
 
 ```{r standardize observations all regions}
 
@@ -187,10 +302,18 @@ data_loss <- data.table(survey_unit=all_survey_units,
 
 FishGlob.wellsampledyearscells_complete <- data.table()
 
+#empty vector for plots with years excluded
+fishglob_exclude_years_plots <- list()
+#empty vector for plots with cells excluded
+fishglob_exclude_cells_plots <- list()
+
 for (i in 1:length(all_survey_units)) {
       
       #subset to region
       FishGlob.cells.subset <- FishGlob.cells[survey_unit == all_survey_units[i],]
+      
+      #new column calculate hauls per year
+      FishGlob.cells.subset[,hauls_per_year := uniqueN(haul_id),.(year,survey_unit)]
       
       #unique year, #cells  sampled
       year_cells_sampled <- unique(FishGlob.cells.subset[,.(year,cell_ID)])
@@ -216,13 +339,28 @@ for (i in 1:length(all_survey_units)) {
      
      print(paste0(years_deleted_percent, "% of Years Excluded"))
       
+     
+     #mark years excluded
+     FishGlob.cells.subset[,`Excluded year` := ifelse(year %in% years_kept, "No","Yes")]
+     
+     
       #reduce to years that are well sampled
       FishGlob.cells.subset.wellsampledyears <- FishGlob.cells.subset[year %in% years_kept,]
       
+     
       #how many observations does this remove?
       percent_obs_removed_year <- round((nrow(FishGlob.cells.subset)-nrow(FishGlob.cells.subset.wellsampledyears))/nrow(FishGlob.cells.subset)*100,2)
       
       percent_hauls_removed_year <- round((length(unique(FishGlob.cells.subset[,haul_id]))-length(unique(FishGlob.cells.subset.wellsampledyears[,haul_id])))/length(unique(FishGlob.cells.subset[,haul_id]))*100,2)
+      
+    #plot years that are removed
+     fishglob_exclude_years_plots[[i]] <- 
+       ggplot() +
+  geom_col(data = unique(FishGlob.cells.subset[,.(year, survey_unit, `Excluded year`,hauls_per_year)]), aes(x = year, y = hauls_per_year, fill = `Excluded year`)) +
+       labs(x = "Year",y = "Unique tows per year") +
+       scale_fill_manual(values = c("grey","turquoise")) +
+  theme_classic() +
+       ggtitle(paste0(all_survey_units[i], ", ",percent_hauls_removed_year, "% tows excluded" ))
       
       #identify any cells that are not sampled in 70% of years
       FishGlob.cells.subset.wellsampledyears[,year_cell_count := length(unique(haul_id)),.(year,cell_ID)] # unique haul ids per cell per year
@@ -231,6 +369,7 @@ for (i in 1:length(all_survey_units)) {
       
       cell_by_year[,years_per_cell := .N,cell_ID]
       
+      
       #cell ids to remove and keep
       #in any year, which cells are sampled in less than 70% of years
       #we'll make benchmark 70% just for now
@@ -238,14 +377,30 @@ for (i in 1:length(all_survey_units)) {
       benchmark_value_year_count <- cell_benchmark*max(cell_by_year[,years_per_cell])
       
       cell_id_remove <- unique(cell_by_year[years_per_cell<benchmark_value_year_count,cell_ID])
+
       
       cells_deleted_percent <- round(length(cell_id_remove)/length(unique(FishGlob.cells.subset.wellsampledyears[,cell_ID]))*100,1)
+      
       
       #reduce to cells that are well sampled
       FishGlob.cells.subset.wellsampledyearscells <- FishGlob.cells.subset.wellsampledyears[!(cell_ID %in% cell_id_remove),]
       
       #What percent of hauls does this remove?
       hauls_removed_yearcell <- round((length(unique(FishGlob.cells.subset[,haul_id]))-length(unique(FishGlob.cells.subset.wellsampledyearscells[,haul_id])))/length(unique(FishGlob.cells.subset[,haul_id]))*100,1) 
+      
+          #plot cells that are removed
+      
+      #pull in spatial polygons of cells and extract those that we keep
+        #save spatial polygons
+      cell_remove_polygon <- fishglob_cell_polygons[[i]][c(cell_id_remove)]
+  
+  #convert hexagons to simple features
+  cell_remove_polygon_sf <- sf::st_as_sf(cell_remove_polygon, coords = c("x","y"))
+      
+      fishglob_exclude_cells_plots[[i]] <- 
+        fishglob_cell_plots[[i]] +
+        geom_sf(data= cell_remove_polygon_sf, fill = "turquoise",color = "turquoise", alpha = 0.2)  +
+       ggtitle(paste0(all_survey_units[i], ", ",hauls_removed_yearcell, "% tows excluded" ))
       
       #What percent of observations does this remove?
       obs_removed_yearcell <- round((nrow(FishGlob.cells.subset)-nrow(FishGlob.cells.subset.wellsampledyearscells))/nrow(FishGlob.cells.subset)*100,1)
@@ -271,18 +426,46 @@ for (i in 1:length(all_survey_units)) {
       
       }
      
+#visual data cleaning summaries
+#years
+saveRDS(fishglob_exclude_years_plots, here::here("figures","standardization","fishglob_exclude_years_plots.Rds"))
 
+#cells
+saveRDS(fishglob_exclude_cells_plots, here::here("figures","standardization","fishglob_exclude_cells_plots.Rds"))
 
 #now, check again to see if any are less than 10 years
 FishGlob.wellsampledyearscells_complete[,years_sampled_update := length(unique(year)),.(survey_unit)]
 FishGlob.wellsampledyearscells_complete.10year <- FishGlob.wellsampledyearscells_complete[years_sampled_update >= 10,]
 
-#only keep survey units for which fewer than 20% of observations were deleted by 70% thresholds
-survey_units_keep <- unique(data_loss[percent_obs_excluded_total <= 20,survey_unit])
+#only keep survey units for which fewer than 50% of hauls were deleted by 70% thresholds
+survey_units_keep <- unique(data_loss[percent_hauls_excluded_total <= 50,survey_unit])
 
 FishGlob.wellsampledyearscells_complete.final <- FishGlob.wellsampledyearscells_complete.10year[survey_unit %in% survey_units_keep,]
 
 saveRDS(FishGlob.wellsampledyearscells_complete.final, here::here("data","cleaned","FishGlob.wellsampledyearscells_complete.final.rds"))
 
+#add more helpful names
+data_loss <- name_helper[data_loss, on = "survey_unit"]
+
+#more helpful column names
+data_loss.final <- data_loss[,.(Survey_Name_Season, year_threshold, percent_years_excluded, percent_hauls_excluded_by_year, cell_threshold, percent_cells_excluded, percent_hauls_excluded_total)]
+
+colnames(data_loss.final)<-c("Survey", "Year inclusion threshold\n(% cells sampled in year)", "Percent years excluded", "Percent hauls excluded\nfrom year standardization","Cell inclusion threshold\n(% years sampled in cells)", "Percent cells excluded", "Total percent hauls excluded")
+
+#data loss
+saveRDS(data_loss, here::here("data","cleaned","data_loss.rds"))
+fwrite(data_loss.final, here::here("data","cleaned","data_loss.final.csv"))
+
+#change in haul id count
+(length(unique(FishGlob.cells$haul_id))-length(unique(FishGlob.wellsampledyearscells_complete.final$haul_id)))/length(unique(FishGlob.cells$haul_id)) *100
+
+length(unique(FishGlob.wellsampledyearscells_complete.final$haul_id))
+
+
+#change in observations
+(nrow(FishGlob.cells)-nrow(FishGlob.wellsampledyearscells_complete.final))/nrow(FishGlob.cells) *100
+
+#numbere of unique speciees
+length(unique(FishGlob.wellsampledyearscells_complete.final$accepted_name))
 
 ```

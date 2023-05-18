@@ -151,6 +151,7 @@ palette_37 <- c(
   "#325A9B", #EBS
   "#3283FE", #EVHOE
   "#FEAF16", #FR-CGFS
+  "#fccb6d", #GMEX-Fall
   "#1C8356", #GMEX-Summer
   "#C4451C", #GOA
   "#85660D", #GRL-DE
@@ -169,13 +170,17 @@ palette_37 <- c(
   "#95E2F4", #NS-IBTS-3
   "#B3CE73", #NZ-CHAT
   "#689500", #NZ-ECSI
+  "#364d02",#NZ-SUBA
   "#AAF400", #NZ-WCSI
   "#AA0DFE", #PT-IBTS
+  "#7f9eb8", #ROCKALL
   "#FA0087", #S-GEORG
   "#DEA0FD", #SCS-Summer
   "#FCEF88", #SEUS-fall
   "#A59405", #SEUS-spring
   "#FCE100", #SEUS-summer
+  "#544563", #SWC-IBTS-1
+  "#a37fc7", #SWC-IBTS-4
   "#C075A6", #WCANN
   "#BDCDFF", #ZAF-ATL
   "#003EFF"  #ZAF-IND
@@ -228,7 +233,7 @@ all_survey_units_polygons <- purrr::map(unique(all_survey_units_sf$survey_unit),
 world <- rnaturalearth::ne_countries(type = "countries", scale="large", returnclass="sf")
 
 #delete areas where this polygon overlaps with land
-all_survey_units_polygons.clean <- ms_erase(all_survey_units_polygons,world[1])
+all_survey_units_polygons.clean <- rmapshaper::ms_erase(all_survey_units_polygons,world[1])
 
 #find polygon centroid
 all_survey_units_centroid_points <- sf::st_centroid(all_survey_units_polygons.clean)
@@ -308,9 +313,9 @@ map_bray_coef_trend <- ggplot() +
   geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
   geom_sf(st_jitter(all_survey_units_centroid_points_stats, 2), mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
   scale_fill_manual(values = c("#73BA4D","#E0962C","#cbbfde"),
-                    labels = c("Differentiation","Homogenization","No directional change")) +
+                    labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
   scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"),
-                     labels = c("Differentiation","Homogenization","No directional change")) +
+                     labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
     # Labels
   scale_x_continuous(breaks=seq(-180, 50, 30)) +
   scale_y_continuous(breaks=seq(-90, 90, 30)) +
@@ -318,8 +323,8 @@ map_bray_coef_trend <- ggplot() +
   # Crop
   coord_sf(y=c(-60,85), x=c(-200,40), expand = F) +
   lims(x = c(-200,60)) +
-  guides(fill = guide_legend(title = "Trend in spatial\ndissimilarity"),
-         color = guide_legend(title = "Trend in spatial\ndissimilarity")) +
+  guides(fill = guide_legend(title = "Dissimilarity trend"),
+         color = guide_legend(title = "Dissimilarity trend")) +
   theme_bw() +
   base_theme +
     theme(legend.position = c(0.2, 0.4),
@@ -329,33 +334,35 @@ map_bray_coef_trend
 
 ggsave(map_bray_coef_trend, path = here::here("figures"), filename = "map_bray_coef_trend.pdf", height = 4, width = 8, unit = "in")
 ```
-Merge completed map with coefficient vs. characteristic plots
+Merge completed map with visualizations of NMDS
 ```{r}
 library(cowplot)
 
 #load extra plots
-mean_temp_vs_coef <- readRDS(here::here("figures","bray_coef_vs_survey_characteristics","mean_temp_vs_coef.rds"))
-spp_num_vs_coef <- readRDS(here::here("figures","bray_coef_vs_survey_characteristics","spp_num_vs_coef.rds"))
-mid_lat_vs_coef <- readRDS(here::here("figures","bray_coef_vs_survey_characteristics","mid_lat_vs_coef.rds"))
+mds_contrast <- readRDS(here::here("figures","mds_contrast.rds"))
 
-merge_coef_characteristics <- plot_grid(
-  spp_num_vs_coef + theme(legend.position = "null", text=element_text(size=8)),
-  mid_lat_vs_coef + theme(legend.position = "null", axis.title.y = element_blank(),axis.text.y = element_blank(), text=element_text(size=8)),
-  mean_temp_vs_coef + theme(legend.position = "null", axis.title.y = element_blank(),axis.text.y = element_blank(), text=element_text(size=8)),
-  ncol = 3, nrow = 1, labels = c("","c.","d."), label_size = 8, hjust = 1,
-  rel_widths = c(1.2,1,1)
-  )
-
-merge_coef_characteristics_map <- plot_grid(
+merge_nmds_map <- plot_grid(
   map_bray_coef_trend,
-  merge_coef_characteristics, 
-  ncol = 1, nrow = 2, labels = c("a.","b."), label_size = 8,
+  mds_contrast, 
+  ncol = 1, nrow = 2, labels = c("a.","b."), label_size = 10, label_face = "bold",
   rel_heights = c(2,1)
 )
 
-ggsave(merge_coef_characteristics_map, path = here::here("figures"), filename = "merge_coef_characteristics_map.jpg", height = 7, width = 7, unit = "in")
+ggsave(merge_nmds_map, path = here::here("figures"), filename = "merge_nmds_map.jpg", height = 7, width = 7, unit = "in")
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

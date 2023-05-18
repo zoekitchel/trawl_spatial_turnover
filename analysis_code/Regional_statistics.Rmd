@@ -56,7 +56,7 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "Eastern Bering Sea",
                                     "Bay of Biscay",
                                     "English Channel",
-                                    "Gulf of Mexico",
+                                    "Gulf of Mexico Summer",
                                     "Gulf of Alaska",
                                     "Greenland",
                                     "N Gulf of St. Lawrence",
@@ -69,21 +69,29 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "NE US Spring",
                                     "N Ireland Q1",
                                     "N Ireland Q4",
-                                    "Norway",
+                                    "Barents Sea Norway Q3",
                                     "N Sea Q1",
                                     "N Sea Q3",
                                     "Chatham Rise",
                                     "E Coast S Island NZ",
                                     "W Coast S Island NZ",
                                     "Portugal",
-                                    "S Georgia Straight",
-                                  "Scotian Shelf",
+                                    "S Georgia",
+                                  "Scotian Shelf Summer",
                                   "SE US Fall",
                                   "SE US Spring",
                                   "SE US Summer",
                                   "W Coast US",
                                   "Atlantic Ocean ZA",
-                                  "Indian Ocean ZA"),
+                                  "Indian Ocean ZA",
+                                   "Rockall Plateau",
+                                  "Scotland Shelf Sea Q1",
+                                  "Scotland Shelf Sea Q4",
+                                  "Falkland Islands",
+                                  "Gulf of Mexico Fall",
+                                  "Barents Sea Norway Q1",
+                                  "Sub-Arctic NZ",
+                                  "Scotian Shelf Spring"),
                           survey_unit = c(
                                   "AI",        
                                   "BITS-1",    
@@ -121,8 +129,17 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "SEUS-summer",
                                   "WCANN",     
                                   "ZAF-ATL",   
-                                  "ZAF-IND"   
+                                  "ZAF-IND",
+                                  "ROCKALL",
+                                  "SWC-IBTS-1",
+                                  "SWC-IBTS-4",
+                                  "FALK",
+                                  "GMEX-Fall",
+                                  "Nor-BTS-1",
+                                  "NZ-SUBA",
+                                  "SCS-SPRING"
                           ))
+
 ```
 
 
@@ -205,6 +222,9 @@ ggplot(data = trend_coefs, aes(x = Year_Coef_richness, y = year_adj)) +
   theme_classic()
 
 ggsave(path = here::here("figures"), filename = "trends_beta_gamma.jpg")
+
+#linear model?
+summary(lm(Year_Coef_richness~year_adj, data = trend_coefs))
 ```
 
 
@@ -316,10 +336,29 @@ plot(conc)
 plot(conc_nooverlap)
 ```
 
-Check some linear models
-```{r linear models}
-colnames(region_stats)
+Proportion test (prop homogenizing/differentiating vs. prop not)
 
+H0: The null hypothesis is that the two hemispheres from which
+   the regions were drawn have the same true proportion of homogenizers.
+A:  The alternative is that this proportion is different in at
+   least one of the hemispheres.
+   
+H0: The null hypothesis is that the two hemispheres from which
+   the regions were drawn have the same true proportion of differentiators.
+A:  The alternative is that this proportion is different in at
+   least one of the hemispheres.
+   
+   Differentiation was more common in the southern hemisphere (four out of eight surveys), while homogenization was more common in the northern hemisphere (eight out of 29 surveys).
+
+```{r prop test}
+                #N, S
+homogenizers <- c(8,0)
+differentiators <- c(2,4)
+total_surveys <- c(29,8)
+
+
+prop.test(homogenizers,total_surveys) #p value << 0.05, so groups are differennt
+prop.test(differentiators,total_surveys) #p value >> 0.05, so groups are different
 
 ```
 
@@ -418,6 +457,8 @@ summary(lm(bray_coef~lat_range, data = region_stats)) #nearly but not significan
 
 Differentiation occurs below 30 degrees latitude, homogenization and no change both common at higher latitudes in the northern hemisphere, NO homogenization below 30 degrees latitude
 ```{r middle latitude}
+
+summary(lm(bray_coef~mid_lat, data = region_stats))
 
 
 mid_lat_vs_coef <- ggplot() +

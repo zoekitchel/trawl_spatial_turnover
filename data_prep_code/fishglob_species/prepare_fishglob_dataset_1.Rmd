@@ -32,6 +32,8 @@ set.seed(1)
 
 Pull in compiled and cleaned data from FishGlob, downloaded on November 28, 2022 (V 1.5) at [this link](https://drive.google.com/file/d/1MgXKhmIufUtjE_Y_mWpDeldJKfd7nDEM/view?usp=share_link). This is typically compiled by Dr. Aurore Maureaud.
 
+#WILL NEED TO HIDE LINK FOR PUBLIC REPOSITORY
+
 ```{r pull in fishglob database}
 
 FishGlob_1.5 <- fread(here::here("data","FISHGLOB_v1.5_clean.csv"))
@@ -64,6 +66,12 @@ ZAF (South Africa) has distinct Atlantic and Indian surveys (split  at ~20.01˚ 
 ```{r add longitudinal region to ZAF}
 FishGlob_1.5[survey == "ZAF" & longitude <20.01, survey_unit := "ZAF-ATL"][survey == "ZAF" & longitude >= 20.01, survey_unit := "ZAF-IND"]
 ```
+
+Region names
+```{r}
+sort(unique(FishGlob_1.5[,survey_unit]))
+```
+
 
 ##Preliminary Data Cuts
 ###Specific Regional Changes Before Cutting to 10 years only
@@ -952,13 +960,13 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "GMEX-Fall",], ae
 ```
 
 -Keep 9,10,11
--In consistent spatial distribution through time, but this will be fixed in spatial standardization step
+-Inconsistent spatial distribution through time, will restrict to <-87.5 longitude
 -Seemingly consistent richness through time
 -Seeemingly consistent #hauls through time
 
 
 ```{r GMEX-Fall processing}
-gmex_fall_hauls_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "GMEX-Fall" & month %in% c(9,10,11), haul_id])
+gmex_fall_hauls_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "GMEX-Fall" & month %in% c(9,10,11) & longitude_adj < -87.5, haul_id])
 ```
 
 GMEX Summer
@@ -1894,12 +1902,12 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "Nor-BTS-1",], ae
 
 -Use 1:3 months
 -Somewhat inconsistent spatial distribution through time (northern sites sampled later), but should be caught in standardization step below
--Richness higher in second half of time series, so we will limit to >=2000
--From 2000, consistent number of hauls except for 2013 which we will exclude
+-Laurene Pecuchet (U Tromso) told us that only surveys 2004 and onwards work for biodiversity analyses
+-From 2004, consistent number of hauls except for 2013 which we will exclude
 
 
 ```{r Nor-BTS-1 processing}
-nor_bts_1_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "Nor-BTS-1" & month %in% c(1:3) & year >= 2000 & year != 2013, haul_id])
+nor_bts_1_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "Nor-BTS-1" & month %in% c(1:3) & year >= 2004 & year != 2013, haul_id])
 ```
 
 
@@ -1954,12 +1962,12 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "Nor-BTS-3",], ae
 
 -Use months 8,9,10
 -Somewhat inconsistent spatial distribution through time, but should be caught in standardization step below
--Richness higher in second half of time series, so we will limit to >=2000
 -Number of hauls is variable, but no clear years to exclude
+-Laurene Pecuchet (U Tromso) told us that only surveys 2004 and onwards work for biodiversity analyses
 
 
 ```{r Nor-BTS-3 processing}
-nor_bts_3_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "Nor-BTS-3" & month %in% c(8:10) & year >= 2000, haul_id])
+nor_bts_3_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "Nor-BTS-3" & month %in% c(8:10) & year >= 2004, haul_id])
 ```
 
 ####NS-IBTS
@@ -2548,13 +2556,13 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "SCS-SPRING",], a
 ```
 
 -Use months 2,3,4
--Inconsistent spatial distribution through time (northern latitudes only sampled in early years), but this should be fixed in spatial standardization procedure
+-Inconsistent spatial distribution through time (northern latitudes only sampled in early years), only include longitudes < -62 and latitudes < 45.5
 -Seemingly consistent richness
 -Number of hauls is variable, exclude super low and high numbers (1985,1994,2015,2019)
 
 
 ```{r scs_spring processing}
-scs_spring_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "SCS-SPRING" & month %in% c(2,3,4) & !(year %in% c(1985,1994,2015,2019)), haul_id])
+scs_spring_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "SCS-SPRING" & month %in% c(2,3,4) & !(year %in% c(1985,1994,2015,2019)) & longitude_adj < -62 & latitude < 45.5, haul_id])
 ```
 
 SUMMER
@@ -2609,6 +2617,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "SCS-SUMMER",], a
 -Consistent spatial distribution through time
 -Richness increases linearly, not a clear break point, using breakpoint from # of hauls, but will exclude 2010 which has a very high richness
 -# Hauls increases linearly from ~120 in 1970 to ~220 in 2020, not a clear breakpoint, but will go with 1986 because there is a jump between 85 and 86
+-Gear change in 1983 (Ellingsen et al. 2015)
 
 
 ```{r scs_summer processing}
@@ -2799,6 +2808,8 @@ seus_fall_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "SEUS-fall" 
 
 ####SWC-IBTS
 
+Scotland Shelf Sea
+
 SWC-IBTS 1
 
 ```{r SWC-IBTS-1}
@@ -2852,6 +2863,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "SWC-IBTS-1",], a
 -Somewhat inconsistent spatial distribution through time, but this should be addressed in spatial standardization procedure 
 -Richness consistent through time
 -# Hauls consistent except low in 1995, just exclude 1995
+
 
 
 ```{r swc-ibts-1 processing}
@@ -2988,7 +3000,7 @@ wctri_keep <- NULL
 ####ZAF
 
 ATL
-```{r ZAF}
+```{r ZAF ATL}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "ZAF-ATL",]) +
   geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
   scale_fill_viridis() +
@@ -3047,7 +3059,7 @@ zaf_atl_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "ZAF-ATL" & mo
 
 
 IND
-```{r ZAF}
+```{r ZAF IND}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "ZAF-IND",]) +
   geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
   scale_fill_viridis() +
@@ -3111,7 +3123,7 @@ zaf_ind_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "ZAF-IND" & mo
 list_obj <- ls(pattern = "_keep")
 
 #combine
-fishglob_haulids_to_keep <- unlist(lapply(list_obj, get)) #243539 hauls (Started with 296799)
+fishglob_haulids_to_keep <- unlist(lapply(list_obj, get)) #240529 hauls (Started with 296800)
 
 FishGlob.10year.spp_manualclean <- FishGlob.10year.spp[haul_id %in% fishglob_haulids_to_keep,]
 

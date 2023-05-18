@@ -28,29 +28,15 @@ FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyea
 
 Are any survey_units missing CPUE?
 ```{r missing cpue}
-View(FishGlob_clean[, sum(is.na(wgt_cpue)), survey_unit])
+
+View(FishGlob_clean[, .(sum(is.na(wgt_cpue)),.N,(round(sum(is.na(wgt_cpue))/.N*100,1))), survey_unit])
 ```
 
 Survey Season: NAs for wgt_cpue
 MEDITS: 350911 (no weights,  only abundances,  use abundances (num_cpue) instead?)
-GSL-N: 4347 (we don't have area swept for these observations 4347/39383 --> 11%,  leave out)
-FR-CGFS: 2244 (we don't have weight for these observations,  2244/23327 --> 10%,  leave out)
-BITS_1: 1180 (we don't have weight for these observations,  1180/39966 --> 3%,  leave out)
-NS-IBTS-1: 1133 (we don't have weight for these observations,  1133/188128 --> 0.6%,  leave out)
-PT-IBTS: 502 (we don't have weight for these observations,  502/12165 --> 4%,  leave out)
-WCANN: 154 (we don't have weight for these observations,  154/123861 --> 0.1%,  leave out)
-EVHOE: 111 (we don't have weight for these observations,  111/58458 --> 0.2%,  not a big deal,  just leave out)
-NIGFS-1: 79 (we don't have weight for these observations,  79/14956 --> 0.5%,  leave out)
-NS-IBTS-3: 57 (we don't have weight for these observations,  57/104733 --> 0.05%,  leave out)
-IE-IGFS: 33 (we don't have weight for these observations,  33/45267 --> 0.07%,  leave out)
-NIGFS-4: 20 (we don't have weight for these observations,  20/12890 --> 0.2%,  leave out)
-GMEX-Summer: 20 (we don't have weight for these observations,  20/89281 --> 0.02%,  leave out)
-NEUS-Fall: 8 (we don't have weight for these observations,  8/155150 --> 0.00005%,  leave out)
-SEUS-summer: 6 (we don't have weight for these observations,  6/87616 --> 0.00007%,  leave out)
-ICE-GFS: 5 (we don't have weight for these observations,  5/184429 --> 0.00003%,  leave out)
-NEUS-Spring: 4 (we don't have weight for these observations,  4/151367 --> 0.00003%,  leave out)
-SEUS-spring: 3 (we don't have weight for these observations,  3/76119 --> 0.00004,  leave out)
-CHL: 1 (we don't have weight for these observations,  1/7446 --> 0.01%,  leave out)
+
+Otherwise, very small proportions, so will just exclude these observations.
+
 
 Delete these observations above except for MEDITS (we will do trends in abundance metrics for this region)
 ```{r}
@@ -64,7 +50,7 @@ FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
 ```
 
 
-Loop through all regions (takes  a few hours to run)
+Loop through all regions (takes 6+ hours to run)
 
 ```{r list of all survey season combinations}
 all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
@@ -73,6 +59,15 @@ all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
 For NZ-CHAT, we want to lump December observations with next year of observations (January,  February)
 ```{r}
 FishGlob_clean.noNA[survey_unit == "NZ-CHAT" & month == 12,  year := year+1, ]
+```
+
+Quick data set characteristics
+```{r}
+#number of hauls
+nrow(unique(FishGlob_clean.noNA[,.(haul_id)]))
+nrow(unique(FishGlob_clean.noNA[,.(accepted_name)]))
+sort(unique(FishGlob_clean.noNA$year))
+
 ```
 
 Some spp are duplicated within a haul. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
@@ -87,10 +82,57 @@ FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][,
 FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
 ```
 
+Survey Statistics for all regions
+```{r}
+#Calculate survey details only
+
+survey_stats <- data.table(survey = character() ,  
+                           survey_unit = character(),  spp_num = numeric(),  
+                           study_period = numeric(),  study_duration = numeric(),  
+                           lat_range = numeric(),  mid_lat = numeric(),  lon_range = numeric(),  
+                           area = numeric(),  depth_range = numeric(),   mid_depth = numeric())
+
+
+for (i in 1:length(all_survey_units)) {
+  
+  FishGlob_clean_subset <- FishGlob_clean.noNA[survey_unit == all_survey_units[i], ]
+  
+  #map
+  ####unique lat lon
+  #add column with adjusted longitude for few surveys that cross dateline (NZ-CHAT and AI)
+  FishGlob_clean_subset[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
+  
+  lat_lon <- unique(FishGlob_clean_subset[, .(latitude,  longitude_adj)])
+  
+  pts <- st_as_sf(lat_lon,  coords=c('longitude_adj', 'latitude'),  crs=4326 )
+  
+  conc <- concaveman(pts,  concavity = 5)
+  sf::sf_use_s2(FALSE) #turn off the s2 processing; GEOS treats projected coordinates as planar (i.e. two points lie on a line of infinite max lenght) while s2 is more "correct" (two points lie on a great circle of circumference of 40 075 kilometers)
+  area <- st_area(conc) #m2,  check this later
+  
+  #fill row
+  row <- data.table(FishGlob_clean_subset[1, survey], 
+                    FishGlob_clean_subset[1, as.character(survey_unit)], 
+                    as.numeric(length(unique(FishGlob_clean_subset[, accepted_name]))), 
+                    as.numeric(max(FishGlob_clean_subset[, year])-min(FishGlob_clean_subset[, year])), 
+                    as.numeric(length(unique(FishGlob_clean_subset[, year]))), 
+                    as.numeric(max(FishGlob_clean_subset[, latitude])-min(FishGlob_clean_subset[, latitude])), 
+                    as.numeric(mean(FishGlob_clean_subset[, latitude])), 
+                    as.numeric(max(FishGlob_clean_subset[, longitude_adj])-min(FishGlob_clean_subset[, longitude_adj])), 
+                    as.numeric(area), 
+                    as.numeric(max(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)-min(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)), 
+                    as.numeric(mean(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)))
+  
+  survey_stats <- rbind(survey_stats,  row,  use.names = F)
+  
+  
+}
+```
+
+
 
 Calculate Beta Dissimilarity between all sampling sites within every survey unit
 ```{r loop through all regions and years}
-survey_stats <- data.table(survey = character() ,  survey_unit = character(),  spp_num = numeric(),  study_period = numeric(),  study_duration = numeric(),  lat_range = numeric(),  mid_lat = numeric(),  lon_range = numeric(),  area = numeric(),  depth_range = numeric(),   mid_depth = numeric())
 
 distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), 
                                                  "haul_id2" = integer(), 
@@ -117,27 +159,6 @@ for (i in 1:length(all_survey_units)) {
 
     lat_lon <- unique(FishGlob_clean_subset[, .(latitude,  longitude_adj)])
 
-  pts <- st_as_sf(lat_lon,  coords=c('longitude_adj', 'latitude'),  crs=4326 )
-
-  conc <- concaveman(pts,  concavity = 5)
-  sf::sf_use_s2(FALSE) #turn off the s2 processing; GEOS treats projected coordinates as planar (i.e. two points lie on a line of infinite max lenght) while s2 is more "correct" (two points lie on a great circle of circumference of 40 075 kilometers)
-  area <- st_area(conc) #m2,  check this later
-
-  #fill row
- row <- data.table(FishGlob_clean_subset[1, survey], 
-                        FishGlob_clean_subset[1, as.character(survey_unit)], 
-                        as.numeric(length(unique(FishGlob_clean_subset[, accepted_name]))), 
-                        as.numeric(max(FishGlob_clean_subset[, year])-min(FishGlob_clean_subset[, year])), 
-                        as.numeric(length(unique(FishGlob_clean_subset[, year]))), 
-                        as.numeric(max(FishGlob_clean_subset[, latitude])-min(FishGlob_clean_subset[, latitude])), 
-                        as.numeric(mean(FishGlob_clean_subset[, latitude])), 
-                        as.numeric(max(FishGlob_clean_subset[, longitude_adj])-min(FishGlob_clean_subset[, longitude_adj])), 
-                        as.numeric(area), 
-                        as.numeric(max(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)-min(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)), 
-                   as.numeric(mean(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)))
- 
-   survey_stats <- rbind(survey_stats,  row,  use.names = F)
-   
    #list years
   FishGlob_clean_subset[, year:= as.numeric(year)] #make numeric
   setorder(FishGlob_clean_subset,  year)
@@ -367,9 +388,9 @@ for (i in 1:length(all_survey_units)) {
   } #closes survey/region
 
 
-#saveRDS(distances_dissimilarities_allyears,  here::here("output", "distance_decay", "distances_dissimilarities_allyears.rds"))
+saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilarities, "distances_dissimilarities_allyears.rds"))
 
-distances_dissimilarities_allyears <- readRDS(here::here("output", "distance_decay", "distances_dissimilarities_allyears.rds"))
+distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
 ```
 
 

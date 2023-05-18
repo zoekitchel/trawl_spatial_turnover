@@ -170,6 +170,9 @@ color_link <- color_link[name_helper, on = "survey_unit"]
 #from local (will have to change)
 balanced_dissimilarity_sbt_model_results <- readRDS(here::here("output","balanced_dissimilarity_sbt_model_results.rds"))
 
+#save csv
+fwrite(balanced_dissimilarity_sbt_model_results, here::here("output","balanced_dissimilarity_sbt_model_results.csv"))
+
 setorder(balanced_dissimilarity_sbt_model_results,-AICc)
 
 balanced_dissimilarity_sbt_model_results[Scaled == F,]
@@ -278,6 +281,8 @@ Best model only includes survey unit (probably because of differences in baselin
 #model rankings (temp and fishing)
 #from local (will have to change)
 balanced_dissimilarity_sbt_fishing_model_results <- readRDS(here::here("output", "balanced_dissimilarity_sbt_fishing_model_results.Rds"))
+
+fwrite(balanced_dissimilarity_sbt_fishing_model_results, here::here("output", "balanced_dissimilarity_sbt_fishing_model_results.csv"))
 
 setorder(balanced_dissimilarity_sbt_fishing_model_results, -AICc)
 balanced_dissimilarity_sbt_fishing_model_results

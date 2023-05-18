@@ -200,21 +200,28 @@ name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),`Su
 
 full_mds.dt <- full_mds.dt[name_key, on = "survey_unit"]
 
+#mark years as early and late
+full_mds.dt[,`Time period`:= ifelse(year==min(year),"Early","Late"),.(survey_unit)]
+
 #change factor order to match other components of manuscript
 full_mds.dt[,`Survey Unit` := factor(`Survey Unit`, levels = c("W Coast S Island, NZ","SE US","Scotian Shelf, CA"))]
 
 mds_contrast <- ggplot(data = full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2, color = `Survey Unit`), size = 0.5) +
-  stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
-  facet_wrap(vars(`Survey Unit`, year), nrow = 3, ncol = 2) +
-  scale_color_manual(values = c("#91c874","#e7ac5b", "#cbbfde")) +
+  geom_point(aes(x = NMDS1, y = NMDS2, fill = `Survey Unit`, color = factor(`Time period`)), size = 2, shape = 21) +
+  stat_ellipse(aes(x = NMDS1, y = NMDS2,linetype=`Time period`)) +
+  facet_wrap(vars(`Survey Unit`), nrow = 1) +
+  scale_fill_manual(values = c("#91c874","#e7ac5b", "#cbbfde")) +
+  scale_color_manual(values=c("white","black")) +
+  scale_linetype_manual(values = c("dotted","solid")) +
   theme_classic() +
   theme(legend.position = "null")
 
 mds_contrast
 
 ggsave(mds_contrast, path = here::here("figures"), filename = "mds_contrast.jpg",
-       height = 7, width = 5, unit = "in")
+       height = 3, width = 9, unit = "in")
+
+saveRDS(mds_contrast, here::here("figures","mds_contrast.rds"))
 ```
 
 

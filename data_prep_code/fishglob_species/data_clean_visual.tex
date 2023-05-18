@@ -1,0 +1,689 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\renewcommand{\figurename}{Supplementary Figure }
+\renewcommand{\tablename}{Supplementary Table}
+\makeatletter
+\def\fnum@figure{\figurename\thefigure}
+\makeatother
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={Data cleaning visualization},
+  pdfauthor={Zoë J. Kitchel},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Data cleaning visualization}
+\author{Zoë J. Kitchel}
+\date{5/1/2023}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+This code is a supplemental script 2 for Kitchel et al.~TITLE manuscript. Run after standardize\_temp\_space\_2 for visual of years and cells that are excluded using 70\% year 70\% cell code.
+
+\begin{itemize}
+\item
+  This project is a collaborative effort to describe changes in taxonomic composition of fish communities around the world--as sampled by bottom trawl surveys.
+\item
+  Code by Zoë J. Kitchel
+\end{itemize}
+
+SESSION INFO TO DO
+
+Load plots
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#years}
+\NormalTok{fishglob\_exclude\_years\_plots }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(here}\SpecialCharTok{::}\FunctionTok{here}\NormalTok{(}\StringTok{"figures"}\NormalTok{,}\StringTok{"standardization"}\NormalTok{,}\StringTok{"fishglob\_exclude\_years\_plots.Rds"}\NormalTok{))}
+
+\CommentTok{\#cells}
+\NormalTok{fishglob\_exclude\_cells\_plots }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(here}\SpecialCharTok{::}\FunctionTok{here}\NormalTok{(}\StringTok{"figures"}\NormalTok{,}\StringTok{"standardization"}\NormalTok{,}\StringTok{"fishglob\_exclude\_cells\_plots.Rds"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+Plot years excluded
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-1.pdf}
+\caption{\label{fig:fig-plot-years-1}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-2.pdf}
+\caption{\label{fig:fig-plot-years-2}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-3.pdf}
+\caption{\label{fig:fig-plot-years-3}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-4.pdf}
+\caption{\label{fig:fig-plot-years-4}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-5.pdf}
+\caption{\label{fig:fig-plot-years-5}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-6.pdf}
+\caption{\label{fig:fig-plot-years-6}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-7.pdf}
+\caption{\label{fig:fig-plot-years-7}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-8.pdf}
+\caption{\label{fig:fig-plot-years-8}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-9.pdf}
+\caption{\label{fig:fig-plot-years-9}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-10.pdf}
+\caption{\label{fig:fig-plot-years-10}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-11.pdf}
+\caption{\label{fig:fig-plot-years-11}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-12.pdf}
+\caption{\label{fig:fig-plot-years-12}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-13.pdf}
+\caption{\label{fig:fig-plot-years-13}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-14.pdf}
+\caption{\label{fig:fig-plot-years-14}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-15.pdf}
+\caption{\label{fig:fig-plot-years-15}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-16.pdf}
+\caption{\label{fig:fig-plot-years-16}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-17.pdf}
+\caption{\label{fig:fig-plot-years-17}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-18.pdf}
+\caption{\label{fig:fig-plot-years-18}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-19.pdf}
+\caption{\label{fig:fig-plot-years-19}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-20.pdf}
+\caption{\label{fig:fig-plot-years-20}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-21.pdf}
+\caption{\label{fig:fig-plot-years-21}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-22.pdf}
+\caption{\label{fig:fig-plot-years-22}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-23.pdf}
+\caption{\label{fig:fig-plot-years-23}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-24.pdf}
+\caption{\label{fig:fig-plot-years-24}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-25.pdf}
+\caption{\label{fig:fig-plot-years-25}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-26.pdf}
+\caption{\label{fig:fig-plot-years-26}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-27.pdf}
+\caption{\label{fig:fig-plot-years-27}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-28.pdf}
+\caption{\label{fig:fig-plot-years-28}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-29.pdf}
+\caption{\label{fig:fig-plot-years-29}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-30.pdf}
+\caption{\label{fig:fig-plot-years-30}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-31.pdf}
+\caption{\label{fig:fig-plot-years-31}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-32.pdf}
+\caption{\label{fig:fig-plot-years-32}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-33.pdf}
+\caption{\label{fig:fig-plot-years-33}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-34.pdf}
+\caption{\label{fig:fig-plot-years-34}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-35.pdf}
+\caption{\label{fig:fig-plot-years-35}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-36.pdf}
+\caption{\label{fig:fig-plot-years-36}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-37.pdf}
+\caption{\label{fig:fig-plot-years-37}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-38.pdf}
+\caption{\label{fig:fig-plot-years-38}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-39.pdf}
+\caption{\label{fig:fig-plot-years-39}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-40.pdf}
+\caption{\label{fig:fig-plot-years-40}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-41.pdf}
+\caption{\label{fig:fig-plot-years-41}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-42.pdf}
+\caption{\label{fig:fig-plot-years-42}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-43.pdf}
+\caption{\label{fig:fig-plot-years-43}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-44.pdf}
+\caption{\label{fig:fig-plot-years-44}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-years-45.pdf}
+\caption{\label{fig:fig-plot-years-45}Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70\% of cells.}
+\end{figure}
+
+Plot cells excluded
+
+-Check EBS, GOA later which aren't printing for some reason
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-1.pdf}
+\caption{\label{fig:fig-plot-cells-1}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-2.pdf}
+\caption{\label{fig:fig-plot-cells-2}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-3.pdf}
+\caption{\label{fig:fig-plot-cells-3}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-4.pdf}
+\caption{\label{fig:fig-plot-cells-4}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-5.pdf}
+\caption{\label{fig:fig-plot-cells-5}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-6.pdf}
+\caption{\label{fig:fig-plot-cells-6}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-7.pdf}
+\caption{\label{fig:fig-plot-cells-7}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-8.pdf}
+\caption{\label{fig:fig-plot-cells-8}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-9.pdf}
+\caption{\label{fig:fig-plot-cells-9}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-10.pdf}
+\caption{\label{fig:fig-plot-cells-10}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-11.pdf}
+\caption{\label{fig:fig-plot-cells-11}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-12.pdf}
+\caption{\label{fig:fig-plot-cells-12}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-13.pdf}
+\caption{\label{fig:fig-plot-cells-13}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-14.pdf}
+\caption{\label{fig:fig-plot-cells-14}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-15.pdf}
+\caption{\label{fig:fig-plot-cells-15}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-16.pdf}
+\caption{\label{fig:fig-plot-cells-16}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-17.pdf}
+\caption{\label{fig:fig-plot-cells-17}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-18.pdf}
+\caption{\label{fig:fig-plot-cells-18}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-19.pdf}
+\caption{\label{fig:fig-plot-cells-19}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-20.pdf}
+\caption{\label{fig:fig-plot-cells-20}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-21.pdf}
+\caption{\label{fig:fig-plot-cells-21}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-22.pdf}
+\caption{\label{fig:fig-plot-cells-22}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-23.pdf}
+\caption{\label{fig:fig-plot-cells-23}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-24.pdf}
+\caption{\label{fig:fig-plot-cells-24}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-25.pdf}
+\caption{\label{fig:fig-plot-cells-25}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-26.pdf}
+\caption{\label{fig:fig-plot-cells-26}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-27.pdf}
+\caption{\label{fig:fig-plot-cells-27}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-28.pdf}
+\caption{\label{fig:fig-plot-cells-28}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-29.pdf}
+\caption{\label{fig:fig-plot-cells-29}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-30.pdf}
+\caption{\label{fig:fig-plot-cells-30}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-31.pdf}
+\caption{\label{fig:fig-plot-cells-31}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-32.pdf}
+\caption{\label{fig:fig-plot-cells-32}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-33.pdf}
+\caption{\label{fig:fig-plot-cells-33}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-34.pdf}
+\caption{\label{fig:fig-plot-cells-34}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-35.pdf}
+\caption{\label{fig:fig-plot-cells-35}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-36.pdf}
+\caption{\label{fig:fig-plot-cells-36}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-37.pdf}
+\caption{\label{fig:fig-plot-cells-37}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-38.pdf}
+\caption{\label{fig:fig-plot-cells-38}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-39.pdf}
+\caption{\label{fig:fig-plot-cells-39}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-40.pdf}
+\caption{\label{fig:fig-plot-cells-40}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-41.pdf}
+\caption{\label{fig:fig-plot-cells-41}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-42.pdf}
+\caption{\label{fig:fig-plot-cells-42}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{data_clean_visual_files/figure-latex/fig-plot-cells-43.pdf}
+\caption{\label{fig:fig-plot-cells-43}Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70\% of years after accounting for undersampled years (See previous bar plots).}
+\end{figure}
+
+\end{document}
