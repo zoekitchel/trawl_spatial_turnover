@@ -98,7 +98,7 @@ spp_survey_keep_key <- unique(FishGlob_abundance_survey[,.(survey_unit, accepted
 
 FishGlob_clean.noNA_15perc <- spp_survey_keep_key[FishGlob_clean.noNA, on = .(survey_unit, accepted_name)]
 
-FishGlob_clean.noNA_15perc_excluded <- FishGlob_clean.noNA_15perc_omit[exclude_spp == F,]
+FishGlob_clean.noNA_15perc_excluded <- FishGlob_clean.noNA_15perc[exclude_spp == F,]
 
 #drops 
 nrow(FishGlob_clean.noNA)-nrow(FishGlob_clean.noNA_15perc_excluded)
@@ -200,7 +200,7 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                           ))
 
 FishGlob_clean.noNA <- name_helper[FishGlob_clean.noNA, on = "survey_unit"]
-FishGlob_clean.noNA_15perc_omit <- name_helper[FishGlob_clean.noNA_15perc_omit, on = "survey_unit"]
+FishGlob_clean.noNA_15perc_excluded <- name_helper[FishGlob_clean.noNA_15perc_excluded, on = "survey_unit"]
 ```
 
 

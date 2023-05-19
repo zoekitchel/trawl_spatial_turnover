@@ -62,7 +62,7 @@ spp_survey_keep_key <- unique(FishGlob_abundance_survey[,.(survey_unit, accepted
 
 FishGlob_clean.noNA_15perc <- spp_survey_keep_key[FishGlob_clean.noNA, on = .(survey_unit, accepted_name)]
 
-FishGlob_clean.noNA_15perc_excluded <- FishGlob_clean.noNA_15perc_omit[exclude_spp == F,]
+FishGlob_clean.noNA_15perc_excluded <- FishGlob_clean.noNA_15perc[exclude_spp == F,]
 
 distances_dissimilarities_allyears_15perc_excluded <- data.table("haul_id1" = integer(), 
                                                  "haul_id2" = integer(), 
@@ -323,3 +323,13 @@ for (i in 1:length(all_survey_units)) {
 
 
 saveRDS(distances_dissimilarities_allyears_15perc_excluded,  here::here("homogenization_analyses", "distances_dissimilarities_allyears_15perc_excluded.rds"))
+
+distances_dissimilarities_allyears_15perc_excluded[, bray_curtis_dissimilarity_balanced_mean := mean(bray_curtis_dissimilarity_balanced, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_gradient_mean := mean(bray_curtis_dissimilarity_gradient, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_total_mean := mean(bray_curtis_dissimilarity_total, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_turnover_mean := mean(jaccard_dissimilarity_turnover, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_nestedness_mean := mean(jaccard_dissimilarity_nestedness, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_total_mean := mean(jaccard_dissimilarity_total, na.rm = T),.(survey_unit,year)]
+
+distances_dissimilarities_allyears_15perc_excluded.r <- unique(distances_dissimilarities_allyears_15perc_excluded[,.(survey, survey_unit, year,abund_biomass, bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
+
+rm(distances_dissimilarities_allyears_15perc_excluded)
+
+
+saveRDS(distances_dissimilarities_allyears_15perc_excluded.r,  here::here("homogenization_analyses","distances_dissimilarities_allyears_15perc_excluded.r.rds"))
+

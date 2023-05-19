@@ -137,11 +137,11 @@ unique_lat_lon_survey_units.spdf$lat <- unique_lat_lon_survey_units$latitude
 
 ```
 
-Palette for plotting all 37 survey units
+Palette for plotting all 42 survey units
 ```{r link colors to survey units}
 survey_unit.list <- levels(as.factor(FishGlob_clean.noNA[,survey_unit]))
 
-palette_37 <- c(
+palette_42 <- c(
   "#5A5156", #AI
   "#DF00DB", #BITS-1
   "#DB8EDA", #BITS-4
@@ -186,7 +186,7 @@ palette_37 <- c(
   "#003EFF"  #ZAF-IND
 )
 
-color_link <- data.table(survey_unit = survey_unit.list,hex = palette_37)
+color_link <- data.table(survey_unit = survey_unit.list,hex = palette_42)
 ```
 
 Base map
@@ -204,7 +204,7 @@ basemap_points_color_survey_unit <- ggplot() +
   geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
   geom_point(data = data.frame(unique_lat_lon_survey_units.spdf),
              aes(x = long, y = lat, group = survey_unit, color = survey_unit), size = 0.001, alpha = 0.8) +
-  scale_color_manual(values = palette_37) +
+  scale_color_manual(values = palette_42) +
   coord_map() +
   theme_classic() +
   theme(legend.position = "null")
@@ -242,7 +242,7 @@ all_survey_units_centroid_points <- sf::st_centroid(all_survey_units_polygons.cl
 ggplot() +
   geom_sf(data = all_survey_units_polygons.clean, aes(fill = survey_unit), color = NA) +
   geom_sf(data = all_survey_units_centroid_points, aes(fill = survey_unit)) +
-  scale_fill_manual(values = palette_37) +
+  scale_fill_manual(values = palette_42) +
   theme_classic()
 ```
 Link with name helper
@@ -256,7 +256,7 @@ all_survey_units_polygons.names <- left_join(all_survey_units_polygons.clean, na
 (survey_unit_filled_polygons <- ggplot() +
   geom_sf(data = all_survey_units_polygons.names, aes(fill = reorder(Survey_Name_Season,survey_unit)), color = NA, alpha = 0.3) +
   geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
-  scale_fill_manual(values = palette_37) +
+  scale_fill_manual(values = palette_42) +
   coord_sf() +
   lims(x = c(-200,60)) +
   theme_classic() +
@@ -268,7 +268,7 @@ ggsave(survey_unit_filled_polygons, path = here::here("figures"), filename = "su
 (survey_unit_outline_polygons <- ggplot() +
   geom_sf(data = all_survey_units_polygons.names, aes(color = reorder(Survey_Name_Season,survey_unit)), fill = NA, alpha = 0.5, linewidth = 0.1) +
   geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
-  scale_color_manual(values = palette_37) +
+  scale_color_manual(values = palette_42) +
   coord_sf() +
   lims(x = c(-200,60)) +
   theme_classic() +
@@ -276,6 +276,7 @@ ggsave(survey_unit_filled_polygons, path = here::here("figures"), filename = "su
 
 ggsave(survey_unit_outline_polygons, path = here::here("figures"), filename = "survey_unit_outline_polygons.pdf", height =10, width = 18, unit = "in")
 ```
+
 Base theme (by Chris)
 ```{r}
 # Base theme
@@ -334,6 +335,7 @@ map_bray_coef_trend
 
 ggsave(map_bray_coef_trend, path = here::here("figures"), filename = "map_bray_coef_trend.pdf", height = 4, width = 8, unit = "in")
 ```
+
 Merge completed map with visualizations of NMDS
 ```{r}
 library(cowplot)
@@ -400,7 +402,7 @@ map_bray_coef_trend_withpoints_coloredpoly <- ggplot() +
                               override.aes = list(size=10))) +
   new_scale_color() +
   geom_sf(data = all_survey_units_polygons_stats.names, aes(color = reorder(Survey_Name_Season,survey_unit)), fill = NA, alpha = 0.5, linewidth = 0.1) +
-  scale_color_manual(values = palette_37) +
+  scale_color_manual(values = palette_42) +
   coord_sf() +
   theme_classic() +
   lims(x = c(-200,60)) +

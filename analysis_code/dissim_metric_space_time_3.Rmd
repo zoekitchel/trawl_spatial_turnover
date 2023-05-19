@@ -388,7 +388,7 @@ for (i in 1:length(all_survey_units)) {
   } #closes survey/region
 
 
-saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilarities, "distances_dissimilarities_allyears.rds"))
+saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
 
 distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
 ```
