@@ -3,11 +3,12 @@ title: "Regional Statistics"
 output: html_notebook
 ---
 
-Here, we're looking at Balanced Bray Curtis Dissimilarity
+Here, we're looking at Total Bray Curtis Dissimilarity
 
 This code is to look at regional statistics, and figures and stats will end up in supplement.
 
-TO DO: Add bottom temperature, right now it is surface temperature
+
+RUN BEFORE DRIVERS (7 and 8)
 
 ```{r setup}
 library(data.table)
@@ -25,10 +26,12 @@ library(nlme)
 #raw data
 FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
 
-#model coefficients from year_dissimilarity_models.Rmd
-model_coefs_reduced_length.unique <- readRDS(here::here("output","region_stats","model_coefs_reduced_length.unique.Rds"))
+#model coefficients from year_dissimilarity_BC_total_models_4a.Rmd
+BC_total_model_coefs_reduced_length.unique <- readRDS(here::here("output","region_stats","BC_total_model_coefs_reduced_length.unique.Rds"))
 
 #NB: years sampled = last_year-first_year+1
+
+distances_dissimilarities_allyears.r <- readRDS(here::here("output","dissimilarities","distances_dissimilarities_allyears.r.rds"))
 
 ```
 
@@ -47,6 +50,7 @@ FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
 ```
 Full Name Helper
 ```{r}
+
 name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "Baltic Sea Q1",
                                     "Baltic Sea Q4",
@@ -72,7 +76,7 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "Barents Sea Norway Q3",
                                     "N Sea Q1",
                                     "N Sea Q3",
-                                    "Chatham Rise",
+                                    "Chatham Rise NZ",
                                     "E Coast S Island NZ",
                                     "W Coast S Island NZ",
                                     "Portugal",
@@ -140,6 +144,62 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "SCS-SPRING"
                           ))
 
+
+
+```
+
+Color link
+```{r}
+survey_unit.list <- levels(factor(distances_dissimilarities_allyears.r[,survey_unit]))
+
+palette_42 <- c(
+  "#5A5156", #AI
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#fccb6d", #GMEX-Fall
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#364d02",#NZ-SUBA
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#7f9eb8", #ROCKALL
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#544563", #SWC-IBTS-1
+  "#a37fc7", #SWC-IBTS-4
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)
+
+color_link <- data.table(survey_unit = survey_unit.list,hex = palette_42)
+
+color_link <- name_helper[color_link, on = "survey_unit", nomatch = NULL]
 ```
 
 
@@ -211,41 +271,96 @@ fwrite(richness_trend_coefs.exp, file = here::here("output","richness_trend_coef
 Link trend in beta diversity to trend in gamma diversity
 ```{r}
 #merge
-trend_coefs <- richness_trend_coefs.exp[model_coefs_reduced_length.unique, on = c("survey_unit")]
+trend_coefs <- richness_trend_coefs.exp[BC_total_model_coefs_reduced_length.unique, on = c("survey_unit")]
 
-ggplot(data = trend_coefs, aes(x = Year_Coef_richness, y = year_adj)) +
-  geom_point() +
-  geom_text(aes(label = survey_unit), size = 2, nudge_y = 0.0003) +
-  labs(x = "Trend in gamma diversity", y = "Trend in beta diversity") +
-  geom_hline(yintercept = 0, color = "grey", linetype = "dashed") +
+trends_beta_gamma <- ggplot(data = trend_coefs, aes(x = Year_Coef_richness, y = year_adj)) +
+    geom_hline(yintercept = 0, color = "grey", linetype = "dashed") +
   geom_vline(xintercept = 0, color = "grey", linetype = "dashed") +
+  geom_point() +
+  geom_text(aes(label = Survey_Name_Season), size = 1.5, nudge_y = 0.0003) +
+  labs(x = "Trend in γ-diversity", y = "Trend in β-diversity") +
   theme_classic()
 
-ggsave(path = here::here("figures"), filename = "trends_beta_gamma.jpg")
+ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_gamma.jpg")
 
 #linear model?
 summary(lm(Year_Coef_richness~year_adj, data = trend_coefs))
 ```
 
+Beta vs. gamma raw
+```{r}
+#link names
+distances_dissimilarities_allyears.r <- name_helper[distances_dissimilarities_allyears.r, on = "survey_unit"]
 
-Pull in avg temp values and pull in avg fishing values
-```{r avg temp and fishing values}
- #open fishing and temp data
-distances_dissimilarities_allyears.r.temp.fishing <- readRDS( here::here("output","distance_decay","distances_dissimilarities_allyears.r.temp.fishing.rds"))
+distances_dissimilarities_allyears.r <- FishGlob_richness_year_survey[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
 
-distances_dissimilarities_allyears.r.temp.fishing[,mean_reg_temp_allyears := mean(sst_mean, na.rm = T),.(survey_unit)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey_unit)]
+setkey(color_link, survey_unit)
+
+setkey(distances_dissimilarities_allyears.r,  survey_unit)
+
+beta_gamma_raw_plot <- ggplot(data = distances_dissimilarities_allyears.r, aes(x = spp_count_annual, y = bray_curtis_dissimilarity_total_mean)) +
+  geom_point(aes(color = survey_unit), alpha = 0.4) +
+  labs(x = "γ-diversity", y = "β-diversity") +
+  scale_color_manual(values = color_link$hex, labels = color_link$Survey_Name_Season) +
+  guides(color = guide_legend(override.aes = list(size=3))) +
+  theme_classic() +
+  theme(legend.position = "bottom", legend.text = element_text(size = 6),  legend.title = element_blank())
+
+ggsave(beta_gamma_raw_plot, path = here::here("figures"), filename = "beta_gamma_raw_plot.jpg", width = 7, unit = "in", height = 7)
+```
 
 
-avg_temp_avg_fishing <- unique(distances_dissimilarities_allyears.r.temp.fishing[,.(survey_unit,mean_reg_fishing_allyears, mean_reg_temp_allyears)]) 
+Pull in and format temp and fishing 
+```{r}
+SODA_data_temp_avgs_full <- readRDS(here::here("data","Temperature","SODA_data_temp_avgs_full.rds"))
+
+#no actual data before 1980 because. only using SODA 2.2.4
+SODA_data_temp_avgs_full <- SODA_data_temp_avgs_full[year_for_avg >= 1980,]
+
+SODA_data_temp_avgs_full[,year := year_for_avg]
+
+
+#pull in fishing data
+SAU_summed_tonnes.r <- readRDS(here::here("data","sea_around_us","SAU_summed_tonnes.rds"))
+
+#pull in regional statistics
+#region_stats <- readRDS(here::here("output","region_stats", "region_stats.rds"))
+
+#year by year gamma diversity and other stats
+#FishGlob_richness_year_survey <- readRDS(file = here::here("output","FishGlob_richness_year_survey.Rds"))
+```
+
+
+Merge with temp and fishing values
+```{r}
+#temp
+distances_dissimilarities_allyears.r.temp <- SODA_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
+
+#fishing
+dissimilarities_temp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.r.temp, on = c("year", "survey_unit")]
+
+```
+
+
+Merge with temp and fishing
+```{r merge with avg temp and fishing values}
+
+dissimilarities_temp_fishing[,mean_reg_temp_allyears := mean(yearly_mean_bypoint_avg, na.rm = T),.(survey_unit)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey_unit)]
+
+#merge dissimilarities with spp counts
+
+dissimilarities_temp_fishing <- dissimilarities_temp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit")]
+
+avg_temp_avg_fishing <- unique(dissimilarities_temp_fishing[,.(survey_unit,mean_reg_fishing_allyears, mean_reg_temp_allyears)]) 
 
 #link coefficients
-year_survey_unit_characteristics <- model_coefs_reduced_length.unique[avg_temp_avg_fishing, on = "survey_unit"]
+year_survey_unit_characteristics <- BC_total_model_coefs_reduced_length.unique[avg_temp_avg_fishing, on = "survey_unit"]
 
 ```
 
 We need to look at gamma vs beta for all regions independently
 ```{r}
-Fishglob_gamma_beta <- FishGlob_richness_year_survey[distances_dissimilarities_allyears.r.temp.fishing, on = c("survey_unit","year")]
+Fishglob_gamma_beta <- FishGlob_richness_year_survey[dissimilarities_temp_fishing, on = c("survey_unit","year")]
 
 ggplot(Fishglob_gamma_beta) +
   geom_point(aes(x = spp_count_annual, y = bray_curtis_dissimilarity_balanced_mean), color = "orange", size = 1) +
@@ -319,7 +434,7 @@ for (i in 1:length(all_survey_units)) {
 invisible(lapply(names(region_stats),function(.name) set(region_stats, which(is.infinite(region_stats[[.name]])), j = .name,value =NA)))
 
 #add significant directions column
-region_stats[,"Significant Trends" := ifelse(significant==T, Directional_Change, "No directional change")]
+region_stats[,"Significant Trends" := ifelse(significant==T, Directional_Change, "No trend in dissimilarity")]
 
 #add column for avg # of hauls per area
 region_stats[,avg_hauls_area := mean_haul_id_count_annual/area_km]
@@ -352,25 +467,25 @@ A:  The alternative is that this proportion is different in at
 
 ```{r prop test}
                 #N, S
-homogenizers <- c(8,0)
-differentiators <- c(2,4)
-total_surveys <- c(29,8)
+homogenizers <- c(6,0)
+differentiators <- c(4,4)
+total_surveys <- c(34,8)
 
 
-prop.test(homogenizers,total_surveys) #p value << 0.05, so groups are differennt
-prop.test(differentiators,total_surveys) #p value >> 0.05, so groups are different
+prop.test(homogenizers,total_surveys) #p value >> 0.05, so groups are not differennt
+prop.test(differentiators,total_surveys) #p value << 0.04, so groups are significantly different
 
 ```
 
-Regions that are homogenizing tend to have lower overall gamma diversity than regions that are differentiating
+No trend, except for abs of bray coef
 ```{r spp num}
 
 spp_num_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = spp_num, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = spp_num , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
-  geom_smooth(data = region_stats, aes(x = spp_num, y = bray_coef), method = "lm", color = "black", se = F, size = 0.5) +
+  #geom_smooth(data = region_stats, aes(x = spp_num, y = bray_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("γ-diversity") +
   theme_classic()
@@ -380,10 +495,9 @@ spp_num_vs_coef
 ggsave(spp_num_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "spp_num_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
-summary(lm(abs(bray_coef)~spp_num, data = region_stats)) #not significant
-summary(lm(bray_coef~spp_num, data = region_stats)) #significant
+summary(lm(abs(bray_coef)~spp_num, data = region_stats)) #significant
+summary(lm(bray_coef~spp_num, data = region_stats)) #not significant
 
-#low# of species, more likely to experience differentiation, high # of species, more likely to experience homogenization
 
 saveRDS(spp_num_vs_coef, here::here("figures","bray_coef_vs_survey_characteristics","spp_num_vs_coef.rds"))
 
@@ -393,12 +507,12 @@ More likely to detect both homogenization and differentation for longer study pe
 ```{r study period}
 
 study_period_vs_coef <- ggplot() +
-    geom_errorbar(data = region_stats, aes(x = study_period, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+    geom_errorbar(data = region_stats, aes(x = study_period, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3, width = 0) + #add confidence intervals
         geom_point(data = region_stats, aes(x = study_period , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
-  xlab("Survey period") + #first minus last
+  xlab("Survey period (years)") + #first minus last
   theme_classic()
 
 study_period_vs_coef
@@ -414,9 +528,9 @@ More likely to detect differentiation when fewer years are sampled and more like
 ```{r study duration}
 
 years_sampled_vs_coef <- ggplot() +
-    geom_errorbar(data = region_stats, aes(x = years_sampled, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+    geom_errorbar(data = region_stats, aes(x = years_sampled, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3, width = 0) + #add confidence intervals
         geom_point(data = region_stats, aes(x = years_sampled , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Total years sampled") + #count of years sampled
@@ -440,10 +554,10 @@ More likely to detect differentiation when a small latitudinal range is sampled,
 lat_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = lat_range, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = lat_range , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
-  xlab("Latitudinal range (\u00B0s)") + #count of years sampled
+  xlab("Latitudinal range (\u00B0)") + #count of years sampled
   theme_classic()
 
 lat_range_vs_coef
@@ -452,7 +566,7 @@ ggsave(lat_range_vs_coef, path = here::here("figures","bray_coef_vs_survey_chara
 
 #linear model
 summary(lm(abs(bray_coef)~lat_range, data = region_stats)) #not significant
-summary(lm(bray_coef~lat_range, data = region_stats)) #nearly but not significant
+summary(lm(bray_coef~lat_range, data = region_stats)) #not significant
 ```
 
 Differentiation occurs below 30 degrees latitude, homogenization and no change both common at higher latitudes in the northern hemisphere, NO homogenization below 30 degrees latitude
@@ -464,9 +578,9 @@ summary(lm(bray_coef~mid_lat, data = region_stats))
 mid_lat_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mid_lat, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = mid_lat , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
-  geom_smooth(data = region_stats, aes(x = mid_lat, y = bray_coef), method = "lm", color = "black", se = F, size = 0.5) +
+  geom_smooth(data = region_stats, aes(x = mid_lat, y = bray_coef), method = "lm", color = "black", se = T, size = 0.5,  linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab(paste0("Latitude (\u00B0N)")) + #middle latitude
   theme_classic()
@@ -479,7 +593,7 @@ ggsave(mid_lat_vs_coef, path = here::here("figures","bray_coef_vs_survey_charact
 
 #linear model
 summary(lm(abs(bray_coef)~mid_lat, data = region_stats)) #not significant
-summary(lm(bray_coef~mid_lat, data = region_stats)) #significant
+summary(lm(bray_coef~mid_lat, data = region_stats)) #nearly significant
 
       
 ```
@@ -501,7 +615,7 @@ Areas that are differentiating tend to be smaller than areas that are homogenizi
 area_km_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = area_km/1000, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (area_km/1000) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Area (1000s of squared km)") + #area_km
@@ -522,10 +636,11 @@ summary(lm(bray_coef~area_km, data = region_stats)) #not significant
 avg_hauls_area_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = avg_hauls_area, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (avg_hauls_area) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
+  scale_x_continuous(breaks = seq(0,0.008,by = 0.002), labels = c("0","0.002","0.004","0.006","")) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
-  xlab("Hauls per area (squared km)") + #avg_hauls_area
+  xlab("Tows per area (per squared km)") + #avg_hauls_area
   theme_classic()
 
 avg_hauls_area_vs_coef
@@ -544,7 +659,7 @@ summary(lm(bray_coef~avg_hauls_area, data = region_stats)) #not significant
 depth_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = depth_range, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (depth_range) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Depth range (m)") + #depth_range
@@ -564,7 +679,7 @@ summary(lm(bray_coef~depth_range, data = region_stats)) #not significant
 mid_depth_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mid_depth, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mid_depth) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average depth (m)") + #mid_depth
@@ -579,13 +694,14 @@ summary(lm(abs(bray_coef)~mid_depth, data = region_stats)) #not significant
 summary(lm(bray_coef~mid_depth, data = region_stats)) #not significant
 ```
 
+Excludes ZAF_IND, Nor-BTS-3, MEDITS, ICE-GFS, GSL-S, GOA for now
 ```{r mean_temp}
 mean_temp_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mean_temp, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mean_temp) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
-  geom_smooth(data = region_stats, aes(x = mean_temp, y = bray_coef), method = "lm", color = "black", se = F, linetype = "dashed", size = 0.5) +
+  geom_smooth(data = region_stats, aes(x = mean_temp, y = bray_coef), method = "lm", color = "black", se = T, linetype = "solid", size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average temperature (\u00B0C)") + #mean_temp
   theme_classic()
@@ -596,7 +712,7 @@ ggsave(mean_temp_vs_coef, path = here::here("figures","bray_coef_vs_survey_chara
 
 #linear model
 summary(lm(abs(bray_coef)~mean_temp, data = region_stats)) #not significant
-summary(lm(bray_coef~mean_temp, data = region_stats)) #not significant
+summary(lm(bray_coef~mean_temp, data = region_stats)) #SIGNIFICANT
 
 saveRDS(mean_temp_vs_coef, here::here("figures","bray_coef_vs_survey_characteristics","mean_temp_vs_coef.rds"))
 ```
@@ -605,7 +721,7 @@ saveRDS(mean_temp_vs_coef, here::here("figures","bray_coef_vs_survey_characteris
 mean_landings_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = (mean_landings/1000), y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mean_landings/1000) , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Mean landings (1000s of tonnes)") + #average annual landings
@@ -625,10 +741,10 @@ summary(lm(bray_coef~mean_landings, data = region_stats)) #not significant
 mean_haul_id_count_annual_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mean_haul_id_count_annual, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = mean_haul_id_count_annual , y = bray_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Trend in dissimilarity") +
+    scale_color_manual(values = c("#91c874", "#e7ac5b", "#cbbfde"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
-  xlab("Average number of hauls per year") + #average annual landings
+  xlab("Average number of tows per year") + 
   theme_classic()
 
 mean_haul_id_count_annual_vs_coef
@@ -638,5 +754,80 @@ ggsave(mean_haul_id_count_annual_vs_coef, path = here::here("figures","bray_coef
 #linear model
 summary(lm(abs(bray_coef)~mean_haul_id_count_annual, data = region_stats)) #not significant
 summary(lm(bray_coef~mean_haul_id_count_annual, data = region_stats)) #not significant
+```
+
+Merge all vs_coef plots into one
+```{r}
+plots_vs_coef <- grep("*_vs_coef",names(.GlobalEnv),value=TRUE)
+
+all_vs_coef_plots <- plot_grid(
+years_sampled_vs_coef + theme(legend.position = "null"),
+study_period_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+                             axis.text.y = element_blank()),
+mean_landings_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+                              axis.text.y = element_blank()),
+mid_depth_vs_coef + theme(legend.position = "null"),
+depth_range_vs_coef  + theme(legend.position = "null", axis.title.y=element_blank(),
+                             axis.text.y = element_blank()),             
+area_km_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+                        axis.text.y = element_blank()),
+mid_lat_vs_coef  + theme(legend.position = "null"),  
+lat_range_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+                          axis.text.y = element_blank()), 
+spp_num_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+                        axis.text.y = element_blank()),
+mean_temp_vs_coef  + theme(legend.position = "null"),
+mean_haul_id_count_annual_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+                                          axis.text.y = element_blank()),
+avg_hauls_area_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+                               axis.text.y = element_blank()),
+ncol = 3, nrow = 4, rel_widths = c(1.2,1,1,1.2,1,1,1.2,1,1,1.2,1,1),
+labels = c("a.","b.","c.","d.","e.","f.","g.","h.","i.","j.","k.","l."), label_size = 10,
+label_x = c(0,0.04,0.04,0,0.04,0.04,0,0.04,0.04,0,0.04,0.04))
+
+#legend
+legend <- get_legend(avg_hauls_area_vs_coef +   guides(color = guide_legend(override.aes = list(size=3))) + theme(legend.position = "top", legend.direction = "horizontal"))
+
+
+#merge
+dissimilarity_coef_characteristic_plots_merged <- plot_grid(legend, all_vs_coef_plots, ncol = 1, rel_heights = c(1,15))
+
+ggsave(dissimilarity_coef_characteristic_plots_merged, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "dissimilarity_coef_characteristic_plots_merged.jpg", height =9, width = 7.8, unit = "in")
+```
+
+
+Merge region stats with dissimilarities
+```{r}
+#region_statistics
+dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing[region_stats, on = "survey_unit"]
+dissimilarities_temp_fishing_regstats[,spp_num.s := scale(spp_num)]
+
+dissimilarities_temp_fishing_regstats[,bray_curtis_dissimilarity_balanced_mean.s := scale(bray_curtis_dissimilarity_balanced_mean, center = F),survey_unit]
+
+dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing_regstats[FishGlob_richness_year_survey, on = c("year","survey_unit")]
+
+dissimilarities_temp_fishing_regstats[,spp_count_annual.s := scale(spp_count_annual)]
+
+#save avg values
+saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","dissimilarities","dissimilarities_temp_fishing_regstats.rds"))
+```
+
+Format region_stats for paper supplement
+```{r}
+region_stats.format <- copy(region_stats)
+
+region_stats.format <- region_stats[name_helper, on = "survey_unit", nomatch = F]
+
+region_stats.format[,`Mean annual biomass (1000s of kg)` := round(mean_annual_biomass/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled]
+
+region_stats.format <- region_stats.format[,.(Survey_Name_Season, `Mean annual biomass (1000s of kg)`, `Number of species across all years`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`, `Mean annual fisheries landings (1000s of tonnes)`, `Mean annual tow count`)]
+
+View(region_stats.format)
+
+colnames(region_stats.format)
+
+#export to csv
+fwrite(region_stats.format, here::here("output","region_stats","region_stats.format.csv"))
+
 ```
 
