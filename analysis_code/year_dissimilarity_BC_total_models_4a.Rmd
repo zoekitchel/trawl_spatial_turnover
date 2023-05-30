@@ -3,7 +3,7 @@ title: "Year TOTAL Dissimilarity Models"
 output: html_notebook
 ---
 
-This code is Script 4a  for Kitchel et al. TITLE manuscript.
+This code is Script 4a  for Kitchel et al. Biotic homogenization, the exception and not the rule for marine fish communities manuscript.
 
 COPY FROM THIS SCRIPT
 
@@ -202,24 +202,6 @@ color_link <- name_helper[color_link, on = "survey_unit"]
 
 ```
 
-Total versus balanced BC plot
-```{r}
-ggplot(distances_dissimilarities_allyears.r) +
-  geom_point(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_balanced_mean)) +
-  geom_abline(slope = 1, intercpet = 0) +
-  geom_smooth(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_balanced_mean)) +
-  theme_classic() +
-  labs(x = "Total BC dissimilarity",  y = "Balanced changes in abundance/biomass")
-
-ggplot(distances_dissimilarities_allyears.r) +
-  geom_point(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_gradient_mean)) +
-  geom_abline(slope = 1, intercpet = 0) +
-  geom_smooth(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_gradient_mean)) +
-  theme_classic() +
-  labs(x = "Total BC dissimilarity",  y = "Abundance/biomass gradient")
-  
-```
-
 
 ##Make GAMs
 
@@ -240,14 +222,22 @@ Bray
 bray_curtis_total_lme <- lme(bray_curtis_dissimilarity_total_mean ~ year_adj, random = (~1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
 
 #but also run with lmer for confint
+#total
 bray_curtis_total_lmer <- lmer(bray_curtis_dissimilarity_total_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+#balanced (for comparison plot)
+bray_curtis_balanced_lmer <- lmer(bray_curtis_dissimilarity_balanced_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+#gradient (for comparison plot)
+bray_curtis_gradient_lmer <- lmer(bray_curtis_dissimilarity_gradient_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+#Jaccard total (for comparison plot)
+jaccard_total_lmer <- lmer(jaccard_dissimilarity_total_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+
 
 summary(bray_curtis_total_lme)
 anova(bray_curtis_total_lme)
 
 bray_curtis_total_coefs <- data.table(coef(bray_curtis_total_lme))
 bray_curtis_total_coefs[,survey_unit := rownames(coef(bray_curtis_total_lme))][,Year := round(year_adj,5)][,Intercept := round(`(Intercept)`,2)]
-View(bray_curtis_total_coefs)
+#View(bray_curtis_total_coefs)
 
 bray_curtis_total_coefs <- bray_curtis_total_coefs[color_link, on = "survey_unit"]
 
@@ -258,7 +248,7 @@ fwrite(bray_curtis_total_coefs.exp, file = here::here("output","bray_curtis_tota
 ```
 
 Get LMER model as predictions
-```{r}
+```{r TOTAL BC}
 
 # need to sort out year in seq versus overall year models
 #new data for lmer
@@ -276,9 +266,52 @@ bray_curtis_total_lmer_confint <- confint(bray_curtis_total_lmer)
 lmer_bray_total_predictions[,bray_curtis_lmer_preds := fixef(bray_curtis_total_lmer)[[1]] + fixef(bray_curtis_total_lmer)[[2]] * year_adj][,bray_curtis_lmer_preds_lowerCI := bray_curtis_total_lmer_confint[5] + bray_curtis_total_lmer_confint[6] * year_adj][,bray_curtis_lmer_preds_upperCI := bray_curtis_total_lmer_confint[11] + bray_curtis_total_lmer_confint[12] * year_adj]
 ```
 
+```{r BALANCED BC}
+
+# need to sort out year in seq versus overall year models
+#new data for lmer
 
 
-###Move forward with Bray Curtis total (others to supplement)
+#predict average lmer
+lmer_bray_balanced_predictions <- data.table(year = lmer_year, year_adj = lmer_year_adj)
+
+#confidence intervals
+bray_curtis_balanced_lmer_confint <- confint(bray_curtis_balanced_lmer)
+
+#populate data table of lmer predictions
+lmer_bray_balanced_predictions[,bray_curtis_lmer_preds := fixef(bray_curtis_balanced_lmer)[[1]] + fixef(bray_curtis_balanced_lmer)[[2]] * year_adj][,bray_curtis_lmer_preds_lowerCI := bray_curtis_balanced_lmer_confint[5] + bray_curtis_balanced_lmer_confint[6] * year_adj][,bray_curtis_lmer_preds_upperCI := bray_curtis_balanced_lmer_confint[11] + bray_curtis_balanced_lmer_confint[12] * year_adj]
+```
+
+```{r GRADIENT BC}
+
+# need to sort out year in seq versus overall year models
+
+
+#predict average lmer
+lmer_bray_gradient_predictions <- data.table(year = lmer_year, year_adj = lmer_year_adj)
+
+#confidence intervals
+bray_curtis_gradient_lmer_confint <- confint(bray_curtis_gradient_lmer)
+
+#populate data table of lmer predictions
+lmer_bray_gradient_predictions[,bray_curtis_lmer_preds := fixef(bray_curtis_gradient_lmer)[[1]] + fixef(bray_curtis_gradient_lmer)[[2]] * year_adj][,bray_curtis_lmer_preds_lowerCI := bray_curtis_gradient_lmer_confint[5] + bray_curtis_gradient_lmer_confint[6] * year_adj][,bray_curtis_lmer_preds_upperCI := bray_curtis_gradient_lmer_confint[11] + bray_curtis_gradient_lmer_confint[12] * year_adj]
+```
+
+```{r total jaccard}
+
+# need to sort out year in seq versus overall year models
+
+
+#predict average lmer
+lmer_jaccard_total_predictions <- data.table(year = lmer_year, year_adj = lmer_year_adj)
+
+#confidence intervals
+jaccard_total_lmer_confint <- confint(jaccard_total_lmer)
+
+#populate data table of lmer predictions
+lmer_jaccard_total_predictions[,jaccard_lmer_preds := fixef(jaccard_total_lmer)[[1]] + fixef(jaccard_total_lmer)[[2]] * year_adj][,jaccard_lmer_preds_lowerCI := jaccard_total_lmer_confint[5] + jaccard_total_lmer_confint[6] * year_adj][,jaccard_lmer_preds_upperCI := jaccard_total_lmer_confint[11] + jaccard_total_lmer_confint[12] * year_adj]
+```
+###Move forward with Bray Curtis total (others to supplement, although will include in plot below)
 
 
 Coefficients for LMER by survey_unit
@@ -306,7 +339,7 @@ model_coefs_reduced_length[,years_sampled := as.numeric(years_sampled)][,Directi
 model_coefs_reduced_length[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
 
 #significant directional change
-model_coefs_reduced_length[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in dissimilarity"))]
+model_coefs_reduced_length[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
 
 
 #min max distances_dissimilarities
@@ -329,10 +362,82 @@ color_year_adj_order <- BC_total_model_coefs_reduced_length.unique[,hex]
 
 #alphabetical order
 BC_total_model_coefs_reduced_length.unique.alpha <- setorder(BC_total_model_coefs_reduced_length.unique, Survey_Name_Season)
+
+BC_total_model_coefs_reduced_length.unique.alpha[,trend_color := ifelse(Directional_Change_sig == "Homogenization", "#e7ac5b", ifelse(Directional_Change_sig == "Differentiation","#91c874","#cbbfde"))]
+
 color_alpha_order <- BC_total_model_coefs_reduced_length.unique.alpha[,hex]
+color_alpha_order_bytrend <- BC_total_model_coefs_reduced_length.unique.alpha[, trend_color]
 
 saveRDS(BC_total_model_coefs_reduced_length.unique, here::here("output","region_stats","BC_total_model_coefs_reduced_length.unique.Rds"))
 ```
+
+Total versus balanced BC plot
+```{r}
+ggplot(distances_dissimilarities_allyears.r) +
+  geom_point(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_balanced_mean)) +
+  geom_abline(slope = 1, intercpet = 0) +
+  geom_smooth(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_balanced_mean)) +
+  theme_classic() +
+  labs(x = "Total BC dissimilarity",  y = "Balanced changes in abundance/biomass")
+
+ggplot(distances_dissimilarities_allyears.r) +
+  geom_point(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_gradient_mean)) +
+  geom_abline(slope = 1, intercpet = 0) +
+  geom_smooth(aes(bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_gradient_mean)) +
+  theme_classic() +
+  labs(x = "Total BC dissimilarity",  y = "Abundance/biomass gradient")
+
+#all on one plot
+#reduced
+distances_dissimilarities_allyears.r.r <- distances_dissimilarities_allyears.r[,.(year, bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_balanced_mean, jaccard_dissimilarity_total_mean)]
+
+#wide to long
+dissim_long <- melt(distances_dissimilarities_allyears.r.r, id.vars = c("year"), variable.name = "Dissimilarity metric")
+
+dissim_long[,`Dissimilarity metric` := factor(`Dissimilarity metric`, levels = c( "bray_curtis_dissimilarity_total_mean","bray_curtis_dissimilarity_balanced_mean","bray_curtis_dissimilarity_gradient_mean", "jaccard_dissimilarity_total_mean"))]
+
+BC_dissimilarity_components <- ggplot() +
+  geom_point(data = dissim_long[`Dissimilarity metric` != "jaccard_dissimilarity_total_mean",], aes(x = year, y = value, color = `Dissimilarity metric`), alpha = 0.2, size = 1) +
+  geom_ribbon(data = lmer_bray_total_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "black", alpha = 0.3) +
+  geom_line(data = lmer_bray_total_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
+  #balanced
+    geom_ribbon(data = lmer_bray_gradient_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "cadetblue3", alpha = 0.3) +
+  geom_line(data = lmer_bray_gradient_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "cadetblue3") +
+  #gradient
+    geom_ribbon(data = lmer_bray_balanced_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "darksalmon", alpha = 0.3) +
+  geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "darksalmon") +
+  #fix. colors of points
+  scale_color_manual(values = c("black","darksalmon","cadetblue3"), labels = c("Total","Balanced variation\nin abundance","Biomass gradient")) +
+  labs(x = "Year", y = "Value") +
+  lims(y = c(min(dissim_long$value), max(dissim_long$value))) +
+  theme_classic() +
+  theme(legend.position = c(0.17,0.37))
+
+ggsave(BC_dissimilarity_components, path = here::here("figures"), filename=("BC_dissimilarity_components.jpg"), width = 6.5, height = 5, units = "in")
+
+#Jaccard
+Jaccard_dissimilarity <- ggplot() +
+  geom_point(data = dissim_long[`Dissimilarity metric` == "jaccard_dissimilarity_total_mean"], aes(x = year, y = value), alpha = 0.2, size = 1) +
+  geom_ribbon(data = lmer_jaccard_total_predictions, aes(x = year, ymin = jaccard_lmer_preds_lowerCI, ymax = jaccard_lmer_preds_upperCI), fill = "black", alpha = 0.3) +
+  geom_line(data = lmer_jaccard_total_predictions, aes(x = year, y = jaccard_lmer_preds), color = "black") +
+  labs(x = "Year", y = "Total Jaccard dissimilarity") +
+  lims(y = c(min(dissim_long$value), max(dissim_long$value))) +
+  theme_classic()
+
+ggsave(Jaccard_dissimilarity, path = here::here("figures"), filename=("Jaccard_dissimilarity.jpg"), width = 6.5, height = 5, units = "in")
+
+#merge
+library(cowplot)
+all_dissimilarities_over_time <- plot_grid(BC_dissimilarity_components + theme(legend.background = element_rect(fill = "transparent")),
+                                           Jaccard_dissimilarity,
+                                           ncol = 2, align = "hv", labels = c("a.","b."))
+
+ggsave(all_dissimilarities_over_time, filename = "all_dissimilarities_over_time.jpg", path = here::here("figures"), width = 10, height = 4.5, units = "in")
+
+  
+```
+
+
 
 Bar Plot Coefficient LMER
 ```{r bar plot of coefficients}
@@ -341,7 +446,7 @@ BC_total_Dissimilarity_Coef_errorbar_reduced <- ggplot() +
   geom_point(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, size = years_sampled, fill = Directional_Change_sig, color = Directional_Change_sig), stat = 'identity', shape = 21) +
   scale_fill_manual(values = c("white","black","grey"), name = "Dissimilarity trend", guide="none") +
   scale_color_manual(values = c("black","black","grey"), name = "Dissimilarity trend", guide="none") +
-  scale_size_binned(range = c(1,8), name = "Survey period length") +
+  scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
   xlab("Survey unit") +
@@ -367,7 +472,7 @@ BC_total_Dissimilarity_Coef_errorbar_reduced_greyscale <- ggplot() +
   geom_point(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, size = years_sampled, fill = Directional_Change_sig, color = Directional_Change_sig), stat = 'identity', shape = 21) +
   scale_fill_manual(values = c("white","black","grey"), name = "Dissimilarity trend", guide="none") +
   scale_color_manual(values = c("black","black","grey"), name = "Dissimilarity trend", guide="none") +
-  scale_size_binned(range = c(1,8), name = "Survey period length") +
+  scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
   xlab("Survey unit") +
@@ -376,6 +481,31 @@ BC_total_Dissimilarity_Coef_errorbar_reduced_greyscale <- ggplot() +
   theme_classic() +
   theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.25,0.7), legend.direction = "vertical")
 ```
+
+Alternatively, we color  this plot by trend experienced
+
+```{r}
+#"#73BA4D","#E0962C","#cbbfde"
+
+BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend <- ggplot() +
+    geom_errorbar(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, size = years_sampled, color = Directional_Change_sig), stat = 'identity') +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"), name = "Dissimilarity trend", guide="none") +
+  scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend") + #total BC dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16))
+
+directional_change_legend_plot_colorbytrend <- BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend + 
+  theme(legend.position = "right", legend.background = element_rect(fill= "transparent"), 
+         legend.text = element_text(size = 15), legend.title = element_text(size = 16)) +
+  guides(colour = guide_legend(override.aes = list(size=6)), size = "none")
+```
+
 
 Wavy Line Plot for GAMs
 
@@ -497,6 +627,33 @@ ylab("β-diversity") +
 points_wavylines_bray_total_year_reduced_gam_greyscale
 
 ggsave(points_wavylines_bray_total_year_reduced_gam_greyscale, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_greyscale.jpg", height = 6, width = 6, unit = "in")
+```
+Alternative, color by trend
+```{r color wavy lines by trend}
+
+points_wavylines_bray_total_year_reduced_gam_colorbytrend <- ggplot() +
+  geom_ribbon(data = lmer_bray_total_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "grey", alpha = 0.3) +
+  geom_point(data = na.omit(distances_dissimilarities_allyears.r, cols = "year_adj"),
+             aes(x = year,
+                 y = bray_curtis_dissimilarity_total_mean,
+                 fill = Survey_Name_Season), alpha = 0.4, size = 1, shape = 21, color = "white") +
+    geom_line(data = na.omit(year_survey_unit_expand.dt, cols = "year_adj"),
+             aes(x = year,
+                 y = bray_glm_mod_fit,
+                 color = Survey_Name_Season), alpha = 0.6) +
+  geom_ribbon(data = na.omit(year_survey_unit_expand.dt, cols = "year_adj"), aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill =  Survey_Name_Season), alpha=0.1) + #add standard error
+  geom_line(data = lmer_bray_total_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
+    scale_color_manual(values =  color_alpha_order_bytrend, name = "Survey Unit") +
+  scale_fill_manual(values =  color_alpha_order_bytrend, guide = "none") +
+  theme_classic() +
+  lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year]))) +
+  xlab("Year") +
+ylab("β-diversity") +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+points_wavylines_bray_total_year_reduced_gam_colorbytrend
+
+ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend.jpg", height = 6, width = 6, unit = "in")
 ```
 
 ```{r plot each independently}
@@ -722,6 +879,25 @@ BC_total_GAM_LMER_merge_legend_greyscale <- ggdraw(xlim = c(0, 40.5), ylim = c(0
 
 ggsave(BC_total_GAM_LMER_merge_legend_greyscale, path = here::here("figures"), filename = "BC_total_GAM_LMER_merge_legend_greyscale.png", height = 8, width = 14, units = "in")
 
+#ALT COLOR BY TREND
+BC_total_GAM_LMER_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
+    draw_plot(points_wavylines_bray_total_year_reduced_gam_colorbytrend,
+                                         x = 1, y = 1, width = 20, height = 20) +
+    draw_plot(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend +
+        theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+       # legend.title = element_text(size=16), #change legend title font size
+       # legend.text = element_text(size=14)
+       ), #change legend text font size),
+                                         x = 20, y = 1, width = 19, height = 20) +
+    draw_plot(get_legend(directional_change_legend_plot_colorbytrend + 
+      theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+        legend.title = element_text(size=16), #change legend title font size
+        legend.text = element_text(size=15))), #change legend text font size)
+                                x = 27, y = 8, width = 3, height = 2) +
+  geom_text(aes(x = 2, y = 20.7), label = ("a."), size =8, fontface = "bold") +
+  geom_text(aes(x =20, y = 20.7), label = ("b."), size =8, fontface = "bold")
+
+ggsave(BC_total_GAM_LMER_merge_legend_colorbytrend, path = here::here("figures"), filename = "BC_total_GAM_LMER_merge_legend_colorbytrend.png", height = 8, width = 14, units = "in")
 
 ```
 
