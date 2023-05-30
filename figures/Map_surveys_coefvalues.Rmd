@@ -30,7 +30,7 @@ region_stats <- readRDS(here::here("output","region_stats","region_stats.rds"))
 #raw data
 FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
 
-#Additional cleaning (first written in "dissim_metric_space_time.Rmd")*
+#Additional cleaning (first written in "BC_total_dissim_metric_space_time.Rmd")*
 
 #Delete observations without CPUE except for MEDITS (we will do trends in abundance metrics for this region)
 FishGlob_clean.noNA <- FishGlob_clean[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS",]
@@ -52,7 +52,7 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "Eastern Bering Sea",
                                     "Bay of Biscay",
                                     "English Channel",
-                                    "Gulf of Mexico",
+                                    "Gulf of Mexico Summer",
                                     "Gulf of Alaska",
                                     "Greenland",
                                     "N Gulf of St. Lawrence",
@@ -65,21 +65,29 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                     "NE US Spring",
                                     "N Ireland Q1",
                                     "N Ireland Q4",
-                                    "Norway",
+                                    "Barents Sea Norway Q3",
                                     "N Sea Q1",
                                     "N Sea Q3",
-                                    "Chatham Rise",
+                                    "Chatham Rise NZ",
                                     "E Coast S Island NZ",
                                     "W Coast S Island NZ",
                                     "Portugal",
-                                    "S Georgia Straight",
-                                  "Scotian Shelf",
+                                    "S Georgia",
+                                  "Scotian Shelf Summer",
                                   "SE US Fall",
                                   "SE US Spring",
                                   "SE US Summer",
                                   "W Coast US",
                                   "Atlantic Ocean ZA",
-                                  "Indian Ocean ZA"),
+                                  "Indian Ocean ZA",
+                                   "Rockall Plateau",
+                                  "Scotland Shelf Sea Q1",
+                                  "Scotland Shelf Sea Q4",
+                                  "Falkland Islands",
+                                  "Gulf of Mexico Fall",
+                                  "Barents Sea Norway Q1",
+                                  "Sub-Arctic NZ",
+                                  "Scotian Shelf Spring"),
                           survey_unit = c(
                                   "AI",        
                                   "BITS-1",    
@@ -117,8 +125,19 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "SEUS-summer",
                                   "WCANN",     
                                   "ZAF-ATL",   
-                                  "ZAF-IND"   
+                                  "ZAF-IND",
+                                  "ROCKALL",
+                                  "SWC-IBTS-1",
+                                  "SWC-IBTS-4",
+                                  "FALK",
+                                  "GMEX-Fall",
+                                  "Nor-BTS-1",
+                                  "NZ-SUBA",
+                                  "SCS-SPRING"
                           ))
+
+
+
 ```
 
 
@@ -329,7 +348,9 @@ map_bray_coef_trend <- ggplot() +
   theme_bw() +
   base_theme +
     theme(legend.position = c(0.2, 0.4),
-        legend.key.size = unit(0.6, "cm"))
+        legend.key.size = unit(0.6, "cm"),
+        legend.text = element_text(size = 12), legend.title = element_text(size = 12),
+        axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 
 map_bray_coef_trend
 
@@ -345,8 +366,8 @@ mds_contrast <- readRDS(here::here("figures","mds_contrast.rds"))
 
 merge_nmds_map <- plot_grid(
   map_bray_coef_trend,
-  mds_contrast, 
-  ncol = 1, nrow = 2, labels = c("a.","b."), label_size = 10, label_face = "bold",
+  mds_contrast + theme(plot.margin = unit(c(0,1,0,0), "cm")), 
+  ncol = 1, nrow = 2, labels = c("a.","b."), label_size = 12, label_face = "bold",
   rel_heights = c(2,1)
 )
 
