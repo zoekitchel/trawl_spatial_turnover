@@ -739,7 +739,7 @@ evhoe_hauls_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "EVHOE" & 
 ```
 
 
-####FALK
+####FALK (excluded from final dataset)
 ```{r FALK visual}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "FALK",]) +
   geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
@@ -853,7 +853,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "FR-CGFS",], aes(
 fr_cgfs_hauls_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "FR-CGFS" & month %in% c(9,10,11), haul_id])
 ```
 
-####GIN
+####GIN (excluded from final dataset)
 
 ```{r  GIN visual}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "GIN",]) +
@@ -1374,7 +1374,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "IE-IGFS",], aes(
 ie_igfs_hauls_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "IE-IGFS" & month %in% c(10:12) & year  > 2004, haul_id])
 ```
 
-####IS-MOAG
+####IS-MOAG (excluded from final dataset)
 ```{r IS-MOAG visual}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "IS-MOAG",]) +
   geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
@@ -1486,7 +1486,7 @@ medits_hauls_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "MEDITS",
 ```
 
 
-####MRT
+####MRT (excluded from final dataset)
 ```{r MRT visual}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "MRT",]) +
   geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
@@ -1601,7 +1601,6 @@ nam_hauls_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "NAM" & mont
 
 ####NEUS
 
-In the Northeast U.S., we excluded data from years prior to 1982 (data begin in 1968).  Years prior to 1979 were excluded because strata in the southern tip of the region (between  approximately 34.5º N and 35º N) were not regularly sampled during this time. (Batt et al. 2017)
 
 NEUS Spring
 ```{r NEUS-Spring visual}
@@ -1782,7 +1781,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "NIGFS-1",], aes(
 ```
 
 -Keep 2,3,4 months
--Consistent spatial distribution through time, but should be caught in standardization step below
+-Inconsistent spatial distribution through time, but should be caught in standardization step below
 -Seemingly consistent richness
 -Seemingly consistent number of hauls
 
@@ -1851,7 +1850,7 @@ nigfs_4_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "NIGFS-4" & mo
 
 ####Nor-BTS
 
-First half of year (1:6)
+First half of year (1:6), Excluded from final dataset
 Nor-BTS-1
 ```{r Nor-BTS-1}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "Nor-BTS-1",]) +
@@ -2626,7 +2625,7 @@ scs_summer_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "SCS-SUMMER
 
 
 ###SEUS
-- In the Southeast U.S., data from 1989 (data begin in 1989) were excluded because several  sites were not sampled in this year, and if this year had been used, the number of sites sampled in  at least 85% of years would drop from 24 to 23 (with only 21 sites sampled in 1989). (Batt et al. 2017)
+
 
 Spring
 
