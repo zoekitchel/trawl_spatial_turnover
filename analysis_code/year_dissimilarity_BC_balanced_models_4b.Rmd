@@ -289,7 +289,7 @@ model_coefs_reduced_length[,years_sampled := as.numeric(years_sampled)][,Directi
 model_coefs_reduced_length[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
 
 #significant directional change
-model_coefs_reduced_length[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in dissimilarity"))]
+model_coefs_reduced_length[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
 
 
 #min max distances_dissimilarities
@@ -312,7 +312,11 @@ color_year_adj_order <- BC_balanced_model_coefs_reduced_length.unique[,hex]
 
 #alphabetical order
 BC_balanced_model_coefs_reduced_length.unique.alpha <- setorder(BC_balanced_model_coefs_reduced_length.unique, Survey_Name_Season)
+
+BC_balanced_model_coefs_reduced_length.unique.alpha[,trend_color := ifelse(Directional_Change_sig == "Homogenization", "#e7ac5b", ifelse(Directional_Change_sig == "Differentiation","#91c874","#cbbfde"))]
+
 color_alpha_order <- BC_balanced_model_coefs_reduced_length.unique.alpha[,hex]
+color_alpha_order_bytrend <- BC_balanced_model_coefs_reduced_length.unique.alpha[, trend_color]
 
 saveRDS(BC_balanced_model_coefs_reduced_length.unique, here::here("output","region_stats","BC_balanced_model_coefs_reduced_length.unique.Rds"))
 ```
@@ -358,6 +362,29 @@ BC_BALANCED_Dissimilarity_Coef_errorbar_reduced_greyscale <- ggplot() +
   coord_flip() +
   theme_classic() +
   theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.25,0.8), legend.direction = "vertical")
+```
+Alternatively, we color  this plot by trend experienced
+
+```{r}
+#"#73BA4D","#E0962C","#cbbfde"
+
+BC_balanced_Dissimilarity_Coef_errorbar_reduced_colorbytrend <- ggplot() +
+    geom_errorbar(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, size = years_sampled, color = Directional_Change_sig), stat = 'identity') +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"), name = "Dissimilarity trend", guide="none") +
+  scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend") + #balanced BC dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16))
+
+directional_change_legend_plot_colorbytrend <- BC_balanced_Dissimilarity_Coef_errorbar_reduced_colorbytrend + 
+  theme(legend.position = "right", legend.background = element_rect(fill= "transparent"), 
+         legend.text = element_text(size = 15), legend.title = element_text(size = 16)) +
+  guides(colour = guide_legend(override.aes = list(size=6)), size = "none")
 ```
 
 Wavy Line Plot for GAMs
@@ -482,7 +509,37 @@ points_wavylines_bray_balanced_year_reduced_gam_greyscale
 
 ggsave(points_wavylines_bray_balanced_year_reduced_gam_greyscale, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_greyscale.jpg", height = 6, width = 6, unit = "in")
 
+```
 
+Alternative, color by trend
+```{r color wavy lines by trend}
+
+points_wavylines_bray_balanced_year_reduced_gam_colorbytrend <- ggplot() +
+  geom_ribbon(data = lmer_bray_balanced_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "grey", alpha = 0.3) +
+  geom_point(data = na.omit(distances_dissimilarities_allyears.r, cols = "year_adj"),
+             aes(x = year,
+                 y = bray_curtis_dissimilarity_balanced_mean,
+                 fill = Survey_Name_Season), alpha = 0.4, size = 1, shape = 21, color = "white") +
+    geom_line(data = na.omit(year_survey_unit_expand.dt, cols = "year_adj"),
+             aes(x = year,
+                 y = bray_glm_mod_fit,
+                 color = Survey_Name_Season), alpha = 0.6) +
+  geom_ribbon(data = na.omit(year_survey_unit_expand.dt, cols = "year_adj"), aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill =  Survey_Name_Season), alpha=0.1) + #add standard error
+  geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
+    scale_color_manual(values =  color_alpha_order_bytrend, name = "Survey Unit") +
+  scale_fill_manual(values =  color_alpha_order_bytrend, guide = "none") +
+  theme_classic() +
+  lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year]))) +
+  xlab("Year") +
+ylab("β-diversity") +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+points_wavylines_bray_balanced_year_reduced_gam_colorbytrend
+
+ggsave(points_wavylines_bray_balanced_year_reduced_gam_colorbytrend, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_colorbytrend.jpg", height = 6, width = 6, unit = "in")
+```
+
+```{r}
 #plot each independently for supplement
 #all survey names = 
 all_survey_names <- sort(unique(distances_dissimilarities_allyears.r$Survey_Name_Season))
@@ -518,111 +575,6 @@ ggsave(
    plot = marrangeGrob(points_wavylines_bray_balanced_year_reduced_gam_individual, nrow=1, ncol=1), 
    width = 8.5, height = 11
 )
-
-
-```
-
-Region by region build up
-```{r region build up}
-#just EBS for personal interest
-points_wavylines_bray_balanced_year_reduced_gam_EBS_only <- ggplot() +
-  geom_point(data = distances_dissimilarities_allyears.r[survey_unit == "EBS",],
-             aes(x = year,
-                 y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.5, size = 1
-            # , 
-            # color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "Eastern Bering Sea",hex]
-             ) +
-  #  geom_line(data = year_survey_unit_expand.dt[survey_unit == "EBS",],
-   #          aes(x = year,
-    #             y = bray_glm_mod_fit),
-     #        color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "Eastern Bering Sea",hex]) +
- # geom_ribbon(data = year_survey_unit_expand.dt[survey_unit == "EBS",], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE), alpha=0.3, fill = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "Eastern Bering Sea",hex]) + #add standard error
- # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
-  #  scale_color_manual(name = "Survey Unit") +
- # scale_fill_manual(values =  palette_42, guide = "none") +
- #   lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
- #      y = c(0.15,0.9)) +
-  theme_classic() +
-  xlab("Year") +
-ylab("Balanced BC dissimilarity")
-
-points_wavylines_bray_balanced_year_reduced_gam_EBS_only
-
-#just one region that's homogenizing (NZ WCSI)
-points_wavylines_bray_balanced_year_reduced_gam_NZ_only <- ggplot() +
-  geom_point(data = distances_dissimilarities_allyears.r[survey_unit == "NZ-WCSI",],
-             aes(x = year,
-                 y = bray_curtis_dissimilarity_balanced_mean), alpha = 0.5, size = 1, color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) +
-    geom_line(data = year_survey_unit_expand.dt[survey_unit == "NZ-WCSI",],
-             aes(x = year,
-                 y = bray_glm_mod_fit),
-             color = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) +
-  geom_ribbon(data = year_survey_unit_expand.dt[survey_unit == "NZ-WCSI",], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE), alpha=0.3, fill = BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season == "W Coast S Island NZ",hex]) + #add standard error
- # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
-    scale_color_manual(name = "Survey Unit") +
- # scale_fill_manual(values =  palette_42, guide = "none") +
-    lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
-       y = c(0.15,0.9)) +
-  theme_classic() +
-  xlab("Year") +
-ylab("Balanced BC dissimilarity")
-
-points_wavylines_bray_balanced_year_reduced_gam_NZ_only
-
-#just two regions, another that's differentiating (SEUS Summer)
-
-points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only <- ggplot() +
-  geom_point(data = distances_dissimilarities_allyears.r[survey_unit %in% c("NZ-WCSI","SEUS-summer"),],
-             aes(x = year,
-                 y = bray_curtis_dissimilarity_balanced_mean,
-                 color = Survey_Name_Season), alpha = 0.5, size = 1) +
-    geom_line(data = year_survey_unit_expand.dt[survey_unit %in% c("NZ-WCSI","SEUS-summer"),],
-             aes(x = year,
-                 y = bray_glm_mod_fit,
-                 color = Survey_Name_Season)) +
-  geom_ribbon(data = year_survey_unit_expand.dt[survey_unit %in% c("NZ-WCSI","SEUS-summer"),], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill = survey_unit), alpha=0.3) + #add standard error
- # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
-    scale_color_manual(name = "Survey Unit", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer"),hex])) +
-  scale_fill_manual(guide = "none", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer"),hex])) +
-    lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
-       y = c(0.15,0.9)) +
-  theme_classic() +
-  xlab("Year") +
-ylab("Balanced BC dissimilarity") +
-  theme(legend.position = "null")
-
-points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only
-
-#just three regions, another one that's stable, (Canada Scotian Shelf)
-
-points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only <- ggplot() +
-  geom_point(data = distances_dissimilarities_allyears.r[survey_unit %in% c("NZ-WCSI","SEUS-summer", "SCS-SUMMER"),],
-             aes(x = year,
-                 y = bray_curtis_dissimilarity_balanced_mean,
-                 color = Survey_Name_Season), alpha = 0.5, size = 1) +
-    geom_line(data = year_survey_unit_expand.dt[survey_unit %in% c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),],
-             aes(x = year,
-                 y = bray_glm_mod_fit,
-                 color = Survey_Name_Season)) +
-  geom_ribbon(data = year_survey_unit_expand.dt[survey_unit %in% c("NZ-WCSI","SEUS-summer","SCS-SUMMER"),], aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill = Survey_Name_Season), alpha=0.3) + #add standard error
- # geom_line(data = lmer_bray_balanced_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
-    scale_color_manual(name = "Survey Unit", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer","Scotian Shelf"),hex])) +
-  scale_fill_manual(guide = "none", values = c(BC_balanced_model_coefs_reduced_length.unique[Survey_Name_Season %in% c("W Coast S Island NZ","SE US Summer","Scotian Shelf"),hex])) +
-    lims(x = c(min(distances_dissimilarities_allyears.r[,year]),max(distances_dissimilarities_allyears.r[,year])),
-       y = c(0.15,0.9)) +
-  theme_classic() +
-  xlab("Year") +
-ylab("Balanced BC dissimilarity") +
-  theme(legend.position = "null")
-
-points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only
-
-ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_only.jpg", height = 5, width = 5, unit = "in")
-ggsave(points_wavylines_bray_balanced_year_reduced_gam_EBS_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_EBS_only.jpg", height = 5, width = 9, unit = "in")
-ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_Summer_only.jpg", height = 5, width = 5, unit = "in")
-ggsave(points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only, path = here::here("figures"), filename ="points_wavylines_bray_balanced_year_reduced_gam_NZ_SEUS_ScoShelf_only.jpg", height = 5, width = 5, unit = "in")
-
-
 
 
 ```
@@ -668,6 +620,26 @@ BC_BALANCED_GAM_LMER_merge_legend_greyscale <- ggdraw(xlim = c(0, 40.5), ylim = 
   geom_text(aes(x =20, y = 20.7), label = ("b."), size =8, fontface = "bold")
 
 ggsave(BC_BALANCED_GAM_LMER_merge_legend_greyscale, path = here::here("figures"), filename = "BC_BALANCED_GAM_LMER_merge_legend_greyscale.png", height = 8, width = 14, units = "in")
+
+#ALT COLOR BY TREND
+BC_balanced_GAM_LMER_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
+    draw_plot(points_wavylines_bray_balanced_year_reduced_gam_colorbytrend,
+                                         x = 1, y = 1, width = 20, height = 20) +
+    draw_plot(BC_balanced_Dissimilarity_Coef_errorbar_reduced_colorbytrend +
+        theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+       # legend.title = element_text(size=16), #change legend title font size
+       # legend.text = element_text(size=14)
+       ), #change legend text font size),
+                                         x = 20, y = 1, width = 19, height = 20) +
+    draw_plot(get_legend(directional_change_legend_plot_colorbytrend + 
+      theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+        legend.title = element_text(size=16), #change legend title font size
+        legend.text = element_text(size=15))), #change legend text font size)
+                                x = 25.6, y = 8, width = 3, height = 2) +
+  geom_text(aes(x = 2, y = 20.7), label = ("a."), size =8, fontface = "bold") +
+  geom_text(aes(x =20, y = 20.7), label = ("b."), size =8, fontface = "bold")
+
+ggsave(BC_balanced_GAM_LMER_merge_legend_colorbytrend, path = here::here("figures"), filename = "BC_balanced_GAM_LMER_merge_legend_colorbytrend.png", height = 8, width = 14, units = "in")
 
 ```
 
