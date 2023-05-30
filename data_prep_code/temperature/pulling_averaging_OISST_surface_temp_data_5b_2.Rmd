@@ -3,7 +3,7 @@ title: "Pulling OISST Temp Data"
 output: html_notebook
 ---
 
-This code is Script 5 for Kitchel et al. TITLE manuscript.
+This code is Script 5 v2 for Kitchel et al. TITLE manuscript.
 
 - This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
 
@@ -87,7 +87,7 @@ dl_years <- data.frame(date_index = 1:5,
 
 ```
 
-I am running AI separately because it spans dateline, and I need to do some edits
+I am running AI separately because it spans dateline
 
 ```{r AI alone}
 # Download all of the data with one nested request
@@ -256,6 +256,7 @@ FishGlob_clean.months_surveys[survey_unit == "GRL-DE", month := 8] #NEED TO CHEC
 
 #Greenland and Mediterranean don't have months
 #Mediterranean: All observations in quarter 2, so I will say April as month 1
+#Greenland, some publications mention August, so will go for that
 
 rm(FishGlob_clean)
 
@@ -266,10 +267,10 @@ for (i in 1:length(all_survey_units)) {
   
   #pull in data from rds files if not already in console
   
-  OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
+  #OISST_data <- data.table(readRDS(here::here("data","Temperature",paste0("OISST_data_",all_survey_units[i],".rds"))))
   
   #for annotate (HPC)
-#  OISST_data <- data.table(readRDS(here::here(paste0("OISST_data_",all_survey_units[i],".rds"))))
+  OISST_data <- data.table(readRDS(file.path("OISST_temp_data_homogenization", paste0("OISST_data_",all_survey_units[i],".rds"))))
   
   OISST_data[,month := month(t)][,year := year(t)]
   
@@ -305,8 +306,7 @@ for (i in 1:length(all_survey_units)) {
                  yearly_max_bypoint_avg.s := scale(yearly_max_bypoint_avg)][,                                                                        yearly_min_bypoint_avg.s := scale(yearly_min_bypoint_avg)][,   
                  yearly_seas_bypoint_avg.s := scale(yearly_seas_bypoint_avg)]
   
-  #next, to calculate SD of mean, take mean of each cell in each year, and then calculate the SD of the means
-  #to calculate SD of max, take max of each cell in each year, and then calculate the SD of the maxes, etc.
+#scaled SD versions by region
     OISST_data[, yearly_mean_bypoint_SD.s := scale(yearly_mean_bypoint_SD)][,
               yearly_max_bypoint_SD.s := scale(yearly_max_bypoint_SD)][,                                                                           yearly_min_bypoint_SD.s := scale(yearly_min_bypoint_SD)][,   
               yearly_seas_bypoint_SD.s := scale(yearly_seas_bypoint_SD)]
@@ -328,8 +328,8 @@ for (i in 1:length(all_survey_units)) {
 #save summary table!!!
 saveRDS(OISST_data_temp_avgs_full, here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
 
-#annotate
-#saveRDS(OISST_data_temp_avgs_full, here::here("OISST_data_temp_avgs_full.rds"))
+#annotate cluster
+#saveRDS(OISST_data_temp_avgs_full, file.path("OISST_temp_data_homogenization","OISST_data_temp_avgs_full.rds"))
 
 ```
 
