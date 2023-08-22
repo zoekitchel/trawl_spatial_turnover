@@ -21,6 +21,7 @@ library(stringr)
 library(rnaturalearth)
 library(rmapshaper)
 library(nlme)
+library(MuMIn)
 
 
 #raw data
@@ -239,11 +240,29 @@ FishGlob_clean.noNA[,wgt_cpue_annual := sum(wgt_cpue,na.rm = T),.(year, survey_u
 FishGlob_clean.noNA[,haul_id_count_annual := uniqueN(haul_id),.(year, survey_unit)]
 
 #add column for yearly summed # of spp
-FishGlob_clean.noNA[,spp_count_annual := uniqueN(accepted_name),.(year_adj, survey_unit)]
+FishGlob_clean.noNA[,spp_count_annual := uniqueN(accepted_name),.(year, survey_unit)]
 
-FishGlob_richness_year_survey <- unique(FishGlob_clean.noNA[,.(year_adj, survey_unit, spp_count_annual,  year)])
+#add column for avg depth per year
+FishGlob_clean.noNA[,depth_annual_avg := mean(depth, na.rm = T),.(year, survey_unit)]
+
+#add column for avg latitude per year
+FishGlob_clean.noNA[,latitude_annual_avg := mean(latitude, na.rm = T),.(year, survey_unit)]
+
+#add column for latitude range per year
+FishGlob_clean.noNA[,latitude_annual_range := max(latitude,na.rm =T)-min(latitude,na.rm =T),.(year, survey_unit)]
+
+#add column for depth range per year
+FishGlob_clean.noNA[,depth_annual_range := max(depth,na.rm =T)-min(depth,na.rm =T),.(year, survey_unit)]
+
+#unique rows
+FishGlob_richness_year_survey <- unique(FishGlob_clean.noNA[,.(survey_unit, year, wgt_cpue_annual, haul_id_count_annual, spp_count_annual, depth_annual_avg,depth_annual_range, latitude_annual_avg, latitude_annual_range)])
+
+FishGlob_richness_year_survey[,year_adj := year-min(year)+1]
+
 
 saveRDS(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richness_year_survey.Rds"))
+fwrite(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richness_year_survey.csv"))
+
 ```
 
 Calculate coefficients from lmer for trend in species richness within a region over time
@@ -360,9 +379,8 @@ year_survey_unit_characteristics <- BC_total_model_coefs_reduced_length.unique[a
 
 We need to look at gamma vs beta for all regions independently
 ```{r}
-Fishglob_gamma_beta <- FishGlob_richness_year_survey[dissimilarities_temp_fishing, on = c("survey_unit","year")]
 
-ggplot(Fishglob_gamma_beta) +
+ggplot(dissimilarities_temp_fishing) +
   geom_point(aes(x = spp_count_annual, y = bray_curtis_dissimilarity_balanced_mean), color = "orange", size = 1) +
   geom_point(aes(x = spp_count_annual, y = jaccard_dissimilarity_turnover_mean), color = "slateblue", size = 1) +
   facet_wrap(~survey_unit, scales = "free") +
@@ -380,24 +398,28 @@ world <- rnaturalearth::ne_countries(type = "countries", scale="large", returncl
 
 ```
 
-
 Calculate stats of all regions
 ```{r calculate all region stats}
 
 #survey_unit
 region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_annual_biomass := as.numeric()][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_annual_biomass := as.numeric()][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
 
   region_stats[,V1:=NULL]
 
 for (i in 1:length(all_survey_units)) {
   reduced_FishGlob_cleaned.10year <- FishGlob_clean.noNA[survey_unit == all_survey_units[i]]
-  
-    ####unique lat lon
-    lat_lon <- unique(reduced_FishGlob_cleaned.10year[,.(latitude, longitude)])
+
     
-    pts <- st_as_sf(lat_lon, coords=c('longitude','latitude'), crs=4326 )
+    #fix those that cross dateline
+    reduced_FishGlob_cleaned.10year[,long_range := max(longitude)-min(longitude)]
+    reduced_FishGlob_cleaned.10year[,long_shift := ifelse(long_range >300 & longitude > 0, longitude - 360, longitude)]
+    
+        ####unique lat lon
+    lat_lon <- unique(reduced_FishGlob_cleaned.10year[,.(latitude, long_shift)])
+    
+    pts <- st_as_sf(lat_lon, coords=c('long_shift','latitude'), crs=4326 )
     
     conc <- concaveman(pts, 1,2)
     
@@ -413,11 +435,13 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"spp_num"] <- length(unique(reduced_FishGlob_cleaned.10year[,accepted_name]))
                   region_stats[i,"mean_annual_biomass"] <- mean(reduced_FishGlob_cleaned.10year[,wgt_cpue_annual])
                   region_stats[i,"mean_haul_id_count_annual"] <- mean(reduced_FishGlob_cleaned.10year[,haul_id_count_annual])
+                  region_stats[i,"first_year"] <- min(reduced_FishGlob_cleaned.10year$year)
+                  region_stats[i,"last_year"] <- max(reduced_FishGlob_cleaned.10year$year)
                   region_stats[i,"study_period"] <- max(reduced_FishGlob_cleaned.10year$year)-min(reduced_FishGlob_cleaned.10year$year)+1
                   region_stats[i,"years_sampled"] <- length(unique(reduced_FishGlob_cleaned.10year$year))
-                  region_stats[i,"lat_range"] <- max(reduced_FishGlob_cleaned.10year$latitude)-min(reduced_FishGlob_cleaned.10year$latitude)
-                  region_stats[i,"mid_lat"] <- mean(reduced_FishGlob_cleaned.10year$latitude)
-                  region_stats[i,"lon_range"] <- max(reduced_FishGlob_cleaned.10year$longitude)-min(reduced_FishGlob_cleaned.10year$longitude)
+                  region_stats[i,"lat_range"] <- max(lat_lon$latitude)-min(lat_lon$latitude)
+                  region_stats[i,"mid_lat"] <- mean(lat_lon$latitude)
+                  region_stats[i,"lon_range"] <- max(lat_lon$long_shift)-min(lat_lon$long_shift)
                   region_stats[i,"area_km"] <- area/(1000^2)
                   region_stats[i,"depth_range"] <- max(reduced_FishGlob_cleaned.10year$depth, na.rm = T)-min(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
                   region_stats[i,"mid_depth"] <- mean(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
@@ -450,6 +474,62 @@ region_stats <- readRDS(here::here("output","region_stats","region_stats.rds"))
 plot(conc)
 plot(conc_nooverlap)
 ```
+
+Calculate annual area of sampling
+```{r calculate annual area of sampling}
+
+#set up empty data table with year and region
+region_area_byyear <- data.table(survey_unit = as.character(),year = as.numeric(), area_km = as.numeric())
+
+
+for (i in 1:length(all_survey_units)) {
+  reduced_FishGlob_cleaned.10year <- FishGlob_clean.noNA[survey_unit == all_survey_units[i]]
+  
+  #then, year
+  survey_years <- unique(reduced_FishGlob_cleaned.10year$year)
+  
+  #data table to fill
+  
+      #single table
+    region_area_byyear_single <- as.data.table(matrix(nrow = length(survey_years)))
+    region_area_byyear_single[,survey_unit := all_survey_units[i]][,year := as.integer(V1)][,area_km := as.numeric(V1)][,V1 := NULL]
+    
+    
+  for (j in 1:length(survey_years)) {
+    #single year
+    FishGlob_1year <- reduced_FishGlob_cleaned.10year[year == survey_years[j],]
+    
+        #fix those that cross dateline
+    FishGlob_1year[,long_range := max(longitude)-min(longitude)]
+    FishGlob_1year[,long_shift := ifelse(long_range >300 & longitude > 0, longitude - 360, longitude)]
+    
+        ####unique lat lon
+    lat_lon <- unique(FishGlob_1year[,.(latitude, long_shift)])
+    
+    pts <- st_as_sf(lat_lon, coords=c('long_shift','latitude'), crs=4326 )
+    
+    conc <- concaveman(pts, 1,2)
+    
+    #delete areas that overlap with land
+    conc_nooverlap <- ms_erase(conc,world[1])
+    
+    sf_use_s2(FALSE) #helps with spherical geometry
+    area <- st_area(conc_nooverlap) #m2
+    
+    #compile into region_Stats table    
+                  region_area_byyear_single[j,"year"] <- as.numeric(survey_years[j])
+                  region_area_byyear_single[j,"area_km"] <- as.numeric(area/(1000^2))
+
+                  paste0(all_survey_units[i],", ", "year ", j, " out of ",length(survey_years))
+  }
+  #merge across surveys
+  region_area_byyear <- rbind(region_area_byyear, region_area_byyear_single)
+                  }
+
+  
+fwrite(region_area_byyear, file = here::here("output","region_area_byyear.csv"))
+```
+
 
 Proportion test (prop homogenizing/differentiating vs. prop not)
 
@@ -670,8 +750,8 @@ depth_range_vs_coef
 ggsave(depth_range_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "depth_range_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
-summary(lm(abs(bray_coef)~depth_range, data = region_stats)) #not significant
-summary(lm(bray_coef~depth_range, data = region_stats)) #not significant
+summary(lm(abs(bray_coef)~depth_range, data = region_stats[survey_unit != "GSL-S",])) #not significant
+summary(lm(bray_coef~depth_range, data = region_stats[survey_unit != "GSL-S",])) #not significant
 ```
 
 ```{r mid_depth}
@@ -690,11 +770,11 @@ mid_depth_vs_coef
 ggsave(mid_depth_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "mid_depth_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
-summary(lm(abs(bray_coef)~mid_depth, data = region_stats)) #not significant
-summary(lm(bray_coef~mid_depth, data = region_stats)) #not significant
+summary(lm(abs(bray_coef)~mid_depth, data = region_stats[survey_unit != "GSL-S"])) #not significant
+summary(lm(bray_coef~mid_depth, data = region_stats[survey_unit != "GSL-S"])) #not significant
 ```
 
-Excludes ZAF_IND, Nor-BTS-3, MEDITS, ICE-GFS, GSL-S, GOA for now
+
 ```{r mean_temp}
 mean_temp_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mean_temp, y = bray_coef, ymin = bray_coef_lwr, ymax = bray_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
@@ -732,8 +812,8 @@ mean_landings_vs_coef
 ggsave(mean_landings_vs_coef, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "mean_landings_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
-summary(lm(abs(bray_coef)~mean_landings, data = region_stats)) #not significant
-summary(lm(bray_coef~mean_landings, data = region_stats)) #not significant
+summary(lm(abs(bray_coef)~mean_landings, data = region_stats[survey_unit != "ROCKALL"])) #not significant
+summary(lm(bray_coef~mean_landings, data = region_stats[survey_unit != "ROCKALL"])) #not significant
 ```
 
 #Avg number of tows per year
@@ -818,9 +898,9 @@ region_stats.format <- copy(region_stats)
 
 region_stats.format <- region_stats[name_helper, on = "survey_unit", nomatch = F]
 
-region_stats.format[,`Mean annual biomass (1000s of kg)` := round(mean_annual_biomass/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled]
+region_stats.format[,`Mean annual biomass (1000s of kg)` := round(mean_annual_biomass/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
 
-region_stats.format <- region_stats.format[,.(Survey_Name_Season, `Mean annual biomass (1000s of kg)`, `Number of species across all years`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`, `Mean annual fisheries landings (1000s of tonnes)`, `Mean annual tow count`)]
+region_stats.format <- region_stats.format[,.(Survey_Name_Season, `Mean annual biomass (1000s of kg)`, `Number of species across all years`,`First year`,`Last year`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`, `Mean annual fisheries landings (1000s of tonnes)`, `Mean annual tow count`)]
 
 View(region_stats.format)
 
@@ -830,4 +910,356 @@ colnames(region_stats.format)
 fwrite(region_stats.format, here::here("output","region_stats","region_stats.format.csv"))
 
 ```
+
+###Alternatively, predict annual dissimilarity with annual characteristics, temperature and fishing values
+
+
+Pull in
+- region areas (if not already loaded)
+- region characteristics (if not already loaded); saveRDS(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richness_year_survey.Rds"))
+
+- fishing (if not already loaded)
+- temp (if not already loaded)
+```{r}
+#physical area by year
+region_area_byyear <- fread(here::here("output","region_area_byyear.csv"))
+
+
+dissimilarities_temp_fishing_area <- dissimilarities_temp_fishing[region_area_byyear, on = c("survey_unit","year")]
+
+```
+
+Dredge
+```{r}
+# Example from Burnham and Anderson (2002), page 100:
+
+#  prevent fitting sub-models to different datasets
+
+options(na.action = "na.fail")
+
+dissimilarity_covariates_dredge.dt <- dissimilarities_temp_fishing_area[,.
+                  (year, survey_unit,
+                    yearly_mean_bypoint_avg, yearly_max_bypoint_avg, yearly_min_bypoint_avg,yearly_seas_bypoint_avg,
+                    yearly_mean_bypoint_SD, yearly_max_bypoint_SD, yearly_min_bypoint_SD,yearly_seas_bypoint_SD,
+                    yearly_mean_bypoint_avg.s, yearly_max_bypoint_avg.s, yearly_min_bypoint_avg.s,yearly_seas_bypoint_avg.s,
+                    bray_curtis_dissimilarity_total_mean,
+                    wgt_cpue_annual, haul_id_count_annual,
+                    spp_count_annual, depth_annual_avg,
+                    depth_annual_range, latitude_annual_avg,
+                    latitude_annual_range, area_km, summed_tonnes_scaled_byreg)]
+
+#If NA for any covariate, delete row
+View(dissimilarity_covariates_dredge.dt)
+#Deleted:
+  #Before 1980 and after 2019
+  #Gulf of Saint Laurence South (no depth data)
+  #No clear SAU match for Rockall Plateau
+dissimilarity_covariates_dredge.dt <- dissimilarity_covariates_dredge.dt[complete.cases(dissimilarity_covariates_dredge.dt)]
+
+
+dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,wgt_cpue_annual.scaledacrossall := scale(wgt_cpue_annual)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)]
+
+
+```
+
+Full model
+~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls
+
+For temperature, we will look at:
+-mean (scaled across all regions)
+-max  (scaled across all regions)
+-min (scaled across all regions)
+-seas  (scaled across all regions)
+-SD
+```{r fit global mod}
+
+global_mod_mean_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_max_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_max_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_min_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_min_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_seas_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_seas_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_SD_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_mean_bypoint_SD.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+View(AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp))
+
+#build data table to report AICc
+global_mod_temp_table <- data.table(
+  `Model structure` = c(paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average mean SBT",            
+              "Survey * relative catch",            
+              "Survey * avg mean SBT", sep = " + "),
+              paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average maximum SBT",            
+              "Survey * relative catch",            
+              "Survey * avg max SBT", sep = " + "),
+                 paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average minimum SBT",            
+              "Survey * relative catch",            
+              "Survey * avg min SBT", sep = " + "),
+                 paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average SBT seasonality",            
+              "Survey * relative catch",            
+              "Survey * avg SBT seas", sep = " + "),
+                 paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "SBT SD",            
+              "Survey * relative catch",            
+              "Survey * SBT SD", sep = " + ")),
+  deltaAICc = signif(min(AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp)[,2])-AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp)[,2],2))
+
+#order by aicc
+setorder(global_mod_temp_table,cols = -"deltaAICc")
+
+global_mod_temp_table[,Rank := seq(1,5,by = 1)]
+
+global_mod_temp_table <- global_mod_temp_table[,.(Rank,`Model structure`, deltaAICc)]
+
+fwrite(global_mod_temp_table, here::here("output","global_mod_temp_table.csv"))
+
+```
+
+Best performing global model includes minimum temperature (centered and scaled)
+
+Now, look at different combinations of all predictors (min temp) using dredge
+
+Global model: global_mod_min_temp
+
+```{r}
+options(na.action = "na.fail") #  prevent fitting sub-models to different datasets
+dd <- dredge(global_mod_min_temp)
+dd.dt <- data.table(dd)
+View(dd)
+
+#only models less than 2 delta AICc (12 models)
+dd.dt.2 <- dd.dt[delta <= 2,]
+
+colnames(dd.dt.2)
+
+#in this step, we delete coefficient values because we will pull them back in later when we calculate both SE and coefficients (other than interaction, which we keep here)
+dd.dt.2.formatted <- dd.dt.2[,Rank := as.numeric(rownames(dd.dt.2))][,.(Rank,
+                                `summed_tonnes_scaled_byreg:survey_unit`,
+                                `survey_unit:yearly_min_bypoint_avg.scaledacrossall`,
+                                delta,
+                                weight, survey_unit
+                                )]
+
+#add r-squared values
+# Iterate through the best models and extract R-squared values
+r_squared_values <-list()
+for (i in 1:nrow(dd.dt.2.formatted)) {
+  summary_data <- summary(get.models(dd, subset = i)[[1]])
+  r_squared <- signif(summary_data$r.squared,2)
+  r_squared_values <- unlist(c(r_squared_values,r_squared))
+}
+
+dd.dt.2.formatted[,"R squared" := r_squared_values]
+
+#empty data table
+
+model_coef_se_fill <- data.table(Rank = as.numeric(), coef_name = as.character(),coef = as.numeric(), se = as.numeric())
+
+for (i in 1:nrow(dd.dt.2.formatted)){
+  model_coef_se_single <- data.table(unlist(coefTable(dd,full = T)[[i]]))
+  model_coef_se_single[,coef_names := rownames(unlist(coefTable(dd,full = T)[[i]]))]
+  model_coef_se_single[,Rank := i]
+  
+  colnames(model_coef_se_single) <- c("coef","se","df","coef_name","Rank")
+  
+  #reduce to columns we need
+  model_coef_se_single <- model_coef_se_single[,.(Rank, coef_name, coef, se)]
+  
+  model_coef_se_fill <- rbind(model_coef_se_fill,model_coef_se_single)
+}
+
+#format to merge with model rankings and averaged model
+model_coef_se_fill[,coef_se := paste0(round(coef,3)," ± ",round(se,3))]
+
+#delete extra columns
+model_coef_se_fill <- model_coef_se_fill[,.(Rank,coef_name,coef_se)]
+
+#long to wide
+model_coef_se_fill.w <- dcast(model_coef_se_fill, formula = Rank ~ coef_name, value.var = c("coef_se"))
+
+#merge model_coef_se_fill with dd.dt.2.formatted
+model_coef_se_AIC <- dd.dt.2.formatted[model_coef_se_fill.w, on = "Rank"]
+
+#model average all models with delta < 4 (50 models)
+
+model_avg_values <- as.data.table(coefTable(model.avg(dd, subset = delta < 4),fill = T)) # with SE
+coef_names <- names(coef(model.avg(dd, subset = delta < 4)))
+model_avg_values[,coef_name:=coef_names][,coef:=Estimate][,Estimate:=NULL][,df:=NULL][,se:= `Std. Error`][,`Std. Error` := NULL]
+
+#new column with coef and SE
+model_avg_values[,coef_se := paste0(round(coef,3)," ± ",round(se,3))]
+
+#long to wide for model avg
+model_avg.wide <- dcast(model_avg_values, formula = . ~ coef_name, value.var = c("coef_se"))
+
+#add rank of "model avg" to table
+model_avg.wide[,Rank := "Model avg"]
+
+best_model_table_formatted <- rbind(model_coef_se_AIC, model_avg.wide, fill = T)
+
+#get rid of interaction coefficients
+best_model_table_formatted.r <- best_model_table_formatted[,.(Rank,`(Intercept)`,area_km.scaledacrossall,
+                                depth_annual_avg.scaledacrossall,
+                                depth_annual_range.scaledacrossall,
+                                haul_id_count_annual.scaledacrossall,
+                                latitude_annual_avg.scaledacrossall,
+                                latitude_annual_range.scaledacrossall,
+                                spp_count_annual.scaledacrossall,
+                                summed_tonnes_scaled_byreg,
+                                survey_unit,
+                                yearly_min_bypoint_avg.scaledacrossall,
+                                `summed_tonnes_scaled_byreg:survey_unit`,
+                                `survey_unit:yearly_min_bypoint_avg.scaledacrossall`,
+                                `R squared`,
+                                delta,
+                                weight
+                                )]
+
+#round to 2 significant figures
+
+#names of numeric columns
+numeric_cols <- names(best_model_table_formatted.r)[sapply(best_model_table_formatted.r, is.numeric)]
+
+# Apply signif() only to numeric columns
+best_model_table_formatted.r[, (numeric_cols) := lapply(.SD, function(x) if (is.numeric(x)) signif(x, digits = 2) else x), .SDcols = numeric_cols]
+
+#change column names, in caption note that all variables are centered and scaled
+colnames(best_model_table_formatted.r) <- c(
+"Rank",                                              
+"Intercept",                                     
+"Area",       #scaled across all                    
+"Average depth",                  
+"Depth range",                
+"Number of tows",              
+"Average latitude",               
+"Latitude range",             
+"Species count",                  
+"Relative catch", #scaled within region                       
+"Survey",                                       
+"Average minimum temperature",            
+"Survey * relative catch",            
+"Survey * avg min temperature",
+"R squared",
+paste0("\u0394"," AICc"),                                             
+paste0("\u03C9"))
+
+
+
+#save as csv
+
+fwrite(best_model_table_formatted.r,here::here("output","best_model_table_formatted.csv"))
+```
+
+
+
+Dissimilarity increases with increasing avg # hauls
+Dissimilarity increases with increasing avg latitude
+Dissimilarity increases with increasing latitude range
+Dissimilarity increases with increasing fishing effort
+Dissimilarity increases with increasing depth range
+Dissimilarity decreases with increasing average depth
+Dissimilarity increases with increasing area
+Dissimilarity decreases with increasing minimum temperature
+Dissimilarity increases with increasing # spp
+
 

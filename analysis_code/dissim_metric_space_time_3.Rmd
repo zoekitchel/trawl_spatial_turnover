@@ -579,4 +579,3 @@ colnames(distances_dissimilarities_allyears)
 distances_dissimilarities_allyears[, mean_jaccard := mean(jaccard_dissimilarity_turnover),  .(survey,  season,  year)]
 distances_dissimilarities_allyears[, mean_bray := mean(bray_curtis_dissimilarity_balanced),  .(survey,  season,  year)]
 ```
-

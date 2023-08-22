@@ -38,9 +38,9 @@ OISST_data_temp_avgs_full[,year:=year_for_avg]
 #fishing
 SAU_summed_tonnes <- readRDS(here::here("data", "sea_around_us", "SAU_summed_tonnes.rds"))
 
-dissimilarities_temp_fishing_regstats <- distances_dissimilarities_allyears.r[OISST_data_temp_avgs_full, on = c("survey_unit","year")]
+dissimilarities_temp_fishing_regstats <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("survey_unit","year")]
 
-dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing_regstats[SAU_summed_tonnes, on = c("survey_unit","year")]
+dissimilarities_temp_fishing_regstats <- SAU_summed_tonnes[dissimilarities_temp_fishing_regstats, on = c("survey_unit","year")]
 
 #get rid of any years not between 1981-2019
 dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing_regstats[year >= 1981 & year <=2019]
@@ -228,7 +228,7 @@ total_dissimilarity_sst_fishing_model_results <- data.table(Depth = as.character
 ```{r build fishing mod}
 
 #fishing and random slope and intercept for survey
-allreg_dissimilarity_fishing_mean_mod <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod)))
 
@@ -258,7 +258,7 @@ total_dissimilarity_sst_fishing_model_results_row <- data.table(matrix(c(NA, #de
 total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_fishing_model_results, total_dissimilarity_sst_fishing_model_results_row, use.names = F)
 
 #fixed effect for survey and interaction with fishing
-allreg_dissimilarity_fishing_fixed_mean_mod <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_fixed_mean_mod <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_fixed_mean_mod)))
 
@@ -289,7 +289,7 @@ total_dissimilarity_sst_fishing_model_results_row <- data.table(matrix(c(NA, #de
 total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_fishing_model_results, total_dissimilarity_sst_fishing_model_results_row, use.names = F)
 
 #fixed effect for survey and fishing, no interaction
-allreg_dissimilarity_fishing_fixed_mean_mod_nointer <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_fixed_mean_mod_nointer <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_fixed_mean_mod_nointer)))
 
@@ -319,7 +319,7 @@ total_dissimilarity_sst_fishing_model_results_row <- data.table(matrix(c(NA, #de
 total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_fishing_model_results, total_dissimilarity_sst_fishing_model_results_row, use.names = F)
 
 #fixed effect for survey only
-allreg_dissimilarity_survey_fixed_mod <- lm(bray_curtis_dissimilarity_total_mean ~ survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_survey_fixed_mod <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_survey_fixed_mod)))
 
@@ -401,7 +401,7 @@ Mean temperature
 
 
 #fishing and temperature interaction
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg)))
@@ -440,7 +440,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #raw temp values AND interaction with both fishing and fixed survey unit
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_two_interact <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_two_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_two_interact)))
@@ -478,7 +478,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #scaled temp values AND interaction with fishing but no interaction with fixed survey unit
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_fish_interact <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_fish_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_fish_interact)))
@@ -516,7 +516,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #scaled temp values AND interact with survey unit but no interact with fishing
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_survey_interact <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_survey_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_survey_interact)))
@@ -552,7 +552,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #temp values AND interact with survey unit but no interact with fishing
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_survey_interact <- lm(bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_survey_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_survey_interact)))
@@ -588,7 +588,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #scaled temp values, fixed effects for fishing and survey unit, no interact
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_no_interact <- lm(bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg + survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_no_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg + survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_no_interact)))
@@ -625,7 +625,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #temp only with interaction with fixed effect with survey unit
 
-allreg_dissimilarity_sst_mean_avg_fixed <- lm(bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_sst_mean_avg_fixed <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_sst_mean_avg_fixed)))
@@ -657,7 +657,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #temp only with fixed effect with survey unit, no interact
 
-allreg_dissimilarity_sst_mean_avg_fixed_nointeract <- lm(bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_sst_mean_avg_fixed_nointeract <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_sst_mean_avg_fixed_nointeract)))
@@ -712,41 +712,6 @@ Best overall model (by AICc)
 
 Carry these forward
 ---
-
-
-OA
-  "#85660D", #GRL-DE
-  "#B0009F", #GSL-N
-  "#BF79B8", #GSL-S
-  "#1CBE4F", #ICE-GFS
-  "#782AB6", #IE-IGFS
-  "#90AD1C", #MEDITS
-  "#6B003A", #NAM
-  "#A75B00", #NEUS-Fall
-  "#E3B072", #NEUS-Spring
-  "#02E8B6", #NIGFS-1
-  "#97E7D5", #NIGFS-4
-  "#B00068", #Nor-BTS-3
-  "#00B9E3", #NS-IBTS-1
-  "#95E2F4", #NS-IBTS-3
-  "#B3CE73", #NZ-CHAT
-  "#689500", #NZ-ECSI
-  "#364d02",#NZ-SUBA
-  "#AAF400", #NZ-WCSI
-  "#AA0DFE", #PT-IBTS
-  "#7f9eb8", #ROCKALL
-  "#FA0087", #S-GEORG
-  "#DEA0FD", #SCS-Summer
-  "#FCEF88", #SEUS-fall
-  "#A59405", #SEUS-spring
-  "#FCE100", #SEUS-summer
-  "#544563", #SWC-IBTS-1
-  "#a37fc7", #SWC-IBTS-4 "#BDCDFF", #ZAF-ATL
-  "#003EFF"  #ZAF-IND
-)
-
-color_link <- data.table(survey_unit = survey_unit.list,hex = palette_42)
-```
 
 Add names for plotting
 ```{r add names for plotting}
@@ -876,7 +841,7 @@ total_dissimilarity_sst_fishing_model_results <- data.table(Depth = as.character
 ```{r build fishing mod}
 
 #fishing and random slope and intercept for survey
-allreg_dissimilarity_fishing_mean_mod <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod)))
 
@@ -906,7 +871,7 @@ total_dissimilarity_sst_fishing_model_results_row <- data.table(matrix(c(NA, #de
 total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_fishing_model_results, total_dissimilarity_sst_fishing_model_results_row, use.names = F)
 
 #fixed effect for survey and interaction with fishing
-allreg_dissimilarity_fishing_fixed_mean_mod <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_fixed_mean_mod <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_fixed_mean_mod)))
 
@@ -937,7 +902,7 @@ total_dissimilarity_sst_fishing_model_results_row <- data.table(matrix(c(NA, #de
 total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_fishing_model_results, total_dissimilarity_sst_fishing_model_results_row, use.names = F)
 
 #fixed effect for survey and fishing, no interaction
-allreg_dissimilarity_fishing_fixed_mean_mod_nointer <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_fixed_mean_mod_nointer <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_fixed_mean_mod_nointer)))
 
@@ -967,7 +932,7 @@ total_dissimilarity_sst_fishing_model_results_row <- data.table(matrix(c(NA, #de
 total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_fishing_model_results, total_dissimilarity_sst_fishing_model_results_row, use.names = F)
 
 #fixed effect for survey only
-allreg_dissimilarity_survey_fixed_mod <- lm(bray_curtis_dissimilarity_total_mean ~ survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_survey_fixed_mod <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 coefs <- data.frame(coef(summary(allreg_dissimilarity_survey_fixed_mod)))
 
@@ -1049,7 +1014,7 @@ Mean temperature
 
 
 #fishing and temperature interaction
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg)))
@@ -1088,7 +1053,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #raw temp values AND interaction with both fishing and fixed survey unit
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_two_interact <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_two_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_two_interact)))
@@ -1126,7 +1091,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #scaled temp values AND interaction with fishing but no interaction with fixed survey unit
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_fish_interact <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_fish_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg*yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_fish_interact)))
@@ -1164,7 +1129,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #scaled temp values AND interact with survey unit but no interact with fishing
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_survey_interact <- lm(bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_survey_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ summed_tonnes_scaled_byreg+yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_temp_survey_interact)))
@@ -1200,7 +1165,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #temp values AND interact with survey unit but no interact with fishing
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_survey_interact <- lm(bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_survey_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_survey_interact)))
@@ -1236,7 +1201,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #scaled temp values, fixed effects for fishing and survey unit, no interact
 
-allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_no_interact <- lm(bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg + survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_no_interact <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~yearly_mean_bypoint_avg + summed_tonnes_scaled_byreg + survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_fishing_mean_mod_sst_mean_avg_fixed_fishing_no_interact)))
@@ -1273,7 +1238,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #temp only with interaction with fixed effect with survey unit
 
-allreg_dissimilarity_sst_mean_avg_fixed <- lm(bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_sst_mean_avg_fixed <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg*survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_sst_mean_avg_fixed)))
@@ -1305,7 +1270,7 @@ total_dissimilarity_sst_fishing_model_results <- rbind(total_dissimilarity_sst_f
 
 #temp only with fixed effect with survey unit, no interact
 
-allreg_dissimilarity_sst_mean_avg_fixed_nointeract <- lm(bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
+allreg_dissimilarity_sst_mean_avg_fixed_nointeract <- lm(na.action=na.omit, bray_curtis_dissimilarity_total_mean ~ yearly_mean_bypoint_avg+survey_unit, data = dissimilarities_temp_fishing_regstats)
 
 
         coefs <- data.frame(coef(summary(allreg_dissimilarity_sst_mean_avg_fixed_nointeract)))
@@ -1358,5 +1323,348 @@ Best overall model (by AICc)
 Carry these forward
 ---
 
+#Alternatively, predict annual dissimilarity with annual characteristics, temperature and fishing values
+ (also in Regional_statistics_runbeforedrivers.Rmd for SODA SBT)
+
+Pull in
+- region areas (if not already loaded)
+- region characteristics (if not already loaded); saveRDS(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richness_year_survey.Rds"))
+
+- fishing (if not already loaded)
+- temp (if not already loaded)
+```{r}
+#physical area by year
+region_area_byyear <- fread(here::here("output","region_area_byyear.csv"))
+
+#yearly stats
+FishGlob_richness_year_survey <- readRDS(file = here::here("output","FishGlob_richness_year_survey.Rds"))
 
 
+dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing_regstats[region_area_byyear, on = c("survey_unit","year")]
+
+dissimilarities_temp_fishing_regstats <- FishGlob_richness_year_survey[dissimilarities_temp_fishing_regstats, on = c("survey_unit","year")]
+
+```
+
+###Dredge
+```{r}
+# Example from Burnham and Anderson (2002), page 100:
+
+#  prevent fitting sub-models to different datasets
+
+options(na.action = "na.fail")
+
+dissimilarity_covariates_dredge.dt <- dissimilarities_temp_fishing_regstats[,.
+                  (year, survey_unit,
+                    yearly_mean_bypoint_avg, yearly_max_bypoint_avg, yearly_min_bypoint_avg,yearly_seas_bypoint_avg,
+                    yearly_mean_bypoint_SD, yearly_max_bypoint_SD, yearly_min_bypoint_SD,yearly_seas_bypoint_SD,
+                    yearly_mean_bypoint_avg.s, yearly_max_bypoint_avg.s, yearly_min_bypoint_avg.s,yearly_seas_bypoint_avg.s,
+                    bray_curtis_dissimilarity_total_mean,
+                    wgt_cpue_annual, haul_id_count_annual,
+                    spp_count_annual, depth_annual_avg,
+                    depth_annual_range, latitude_annual_avg,
+                    latitude_annual_range, area_km, summed_tonnes_scaled_byreg)]
+
+#If NA for any covariate, delete row
+View(dissimilarity_covariates_dredge.dt)
+#Deleted:
+  #Before 1980 and after 2019
+  #Gulf of Saint Laurence South (no depth data)
+  #No clear SAU match for Rockall Plateau
+dissimilarity_covariates_dredge.dt <- dissimilarity_covariates_dredge.dt[complete.cases(dissimilarity_covariates_dredge.dt)]
+
+
+dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,wgt_cpue_annual.scaledacrossall := scale(wgt_cpue_annual)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)]
+
+
+```
+
+Full model
+~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls
+
+For temperature, we will look at:
+-mean (scaled across all regions)
+-max  (scaled across all regions)
+-min (scaled across all regions)
+-seas  (scaled across all regions)
+-SD
+```{r fit global mod}
+
+global_mod_mean_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_max_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_max_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_min_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_min_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_seas_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_seas_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_SD_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+                             survey_unit*yearly_mean_bypoint_SD.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall,
+                             data = dissimilarity_covariates_dredge.dt)
+
+View(AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp))
+
+#build data table to report AICc
+global_mod_SST_temp_table <- data.table(
+  `Model structure` = c(paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average mean SST",            
+              "Survey * relative catch",            
+              "Survey * avg mean SST", sep = " + "),
+              paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average maximum SST",            
+              "Survey * relative catch",            
+              "Survey * avg max SST", sep = " + "),
+                 paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average minimum SST",            
+              "Survey * relative catch",            
+              "Survey * avg min SST", sep = " + "),
+                 paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "Average SST seasonality",            
+              "Survey * relative catch",            
+              "Survey * avg SST seas", sep = " + "),
+                 paste(
+              "Area",                   
+              "Average depth",                  
+              "Depth range",                
+              "Number of tows",              
+              "Average latitude",               
+              "Latitude range",             
+              "Species count",                  
+              "Relative catch", #scaled within region                       
+              "Survey",                                       
+              "SST SD",            
+              "Survey * relative catch",            
+              "Survey * SST SD", sep = " + ")),
+  deltaAICc = signif(min(AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp)[,2])-AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp)[,2],2))
+
+#order by aicc
+setorder(global_mod_SST_temp_table,cols = -"deltaAICc")
+
+global_mod_SST_temp_table[,Rank := seq(1,5,by = 1)]
+
+global_mod_SST_temp_table <- global_mod_SST_temp_table[,.(Rank,`Model structure`, deltaAICc)]
+
+fwrite(global_mod_SST_temp_table, here::here("output","global_mod_SST_temp_table.csv"))
+
+```
+
+CHECK!!!!!
+
+Best performing global model includes mean temperature (centered and scaled)
+
+Now, look at different combinations of all predictors (mean temp) using dredge
+
+Global model: global_mod_mean_temp
+
+```{r}
+options(na.action = "na.fail") #  prevent fitting sub-models to different datasets
+dd <- dredge(global_mod_mean_temp)
+dd.dt <- data.table(dd)
+View(dd)
+
+#only models less than 2 delta AICc (12 models)
+dd.dt.2 <- dd.dt[delta <= 2,]
+
+colnames(dd.dt.2)
+
+#in this step, we delete coefficient values because we will pull them back in later when we calculate both SE and coefficients (other than interaction, which we keep here)
+dd.dt.2.formatted <- dd.dt.2[,Rank := as.numeric(rownames(dd.dt.2))][,.(Rank,
+                                `summed_tonnes_scaled_byreg:survey_unit`,
+                                `survey_unit:yearly_mean_bypoint_avg.scaledacrossall`,
+                                delta,
+                                weight, survey_unit
+                                )]
+
+#add r-squared values
+# Iterate through the best models and extract R-squared values
+r_squared_values <-list()
+for (i in 1:nrow(dd.dt.2.formatted)) {
+  summary_data <- summary(get.models(dd, subset = i)[[1]])
+  r_squared <- signif(summary_data$r.squared,2)
+  r_squared_values <- unlist(c(r_squared_values,r_squared))
+}
+
+dd.dt.2.formatted[,"R squared" := r_squared_values]
+
+#empty data table
+
+model_coef_se_fill <- data.table(Rank = as.numeric(), coef_name = as.character(),coef = as.numeric(), se = as.numeric())
+
+for (i in 1:nrow(dd.dt.2.formatted)){
+  model_coef_se_single <- data.table(unlist(coefTable(dd,full = T)[[i]]))
+  model_coef_se_single[,coef_names := rownames(unlist(coefTable(dd,full = T)[[i]]))]
+  model_coef_se_single[,Rank := i]
+  
+  colnames(model_coef_se_single) <- c("coef","se","df","coef_name","Rank")
+  
+  #reduce to columns we need
+  model_coef_se_single <- model_coef_se_single[,.(Rank, coef_name, coef, se)]
+  
+  model_coef_se_fill <- rbind(model_coef_se_fill,model_coef_se_single)
+}
+
+#format to merge with model rankings and averaged model
+model_coef_se_fill[,coef_se := paste0(round(coef,3)," ± ",round(se,3))]
+
+#delete extra columns
+model_coef_se_fill <- model_coef_se_fill[,.(Rank,coef_name,coef_se)]
+
+#long to wide
+model_coef_se_fill.w <- dcast(model_coef_se_fill, formula = Rank ~ coef_name, value.var = c("coef_se"))
+
+#merge model_coef_se_fill with dd.dt.2.formatted
+model_coef_se_AIC <- dd.dt.2.formatted[model_coef_se_fill.w, on = "Rank"]
+
+#model average all models with delta < 4 (50 models)
+
+model_avg_values <- as.data.table(coefTable(model.avg(dd, subset = delta < 4),fill = T)) # with SE
+coef_names <- names(coef(model.avg(dd, subset = delta < 4)))
+model_avg_values[,coef_name:=coef_names][,coef:=Estimate][,Estimate:=NULL][,df:=NULL][,se:= `Std. Error`][,`Std. Error` := NULL]
+
+#new column with coef and SE
+model_avg_values[,coef_se := paste0(round(coef,3)," ± ",round(se,3))]
+
+#long to wide for model avg
+model_avg.wide <- dcast(model_avg_values, formula = . ~ coef_name, value.var = c("coef_se"))
+
+#add rank of "model avg" to table
+model_avg.wide[,Rank := "Model avg"]
+
+best_model_table_formatted <- rbind(model_coef_se_AIC, model_avg.wide, fill = T)
+
+#get rid of interaction coefficients
+best_SST_temp_model_table_formatted <- best_model_table_formatted[,.(Rank,`(Intercept)`,area_km.scaledacrossall,
+                                depth_annual_avg.scaledacrossall,
+                                depth_annual_range.scaledacrossall,
+                                haul_id_count_annual.scaledacrossall,
+                                latitude_annual_avg.scaledacrossall,
+                                latitude_annual_range.scaledacrossall,
+                                spp_count_annual.scaledacrossall,
+                                summed_tonnes_scaled_byreg,
+                                survey_unit,
+                                yearly_mean_bypoint_avg.scaledacrossall,
+                                `summed_tonnes_scaled_byreg:survey_unit`,
+                                `survey_unit:yearly_mean_bypoint_avg.scaledacrossall`,
+                                `R squared`,
+                                delta,
+                                weight
+                                )]
+
+#round to 2 significant figures
+
+#names of numeric columns
+numeric_cols <- names(best_SST_temp_model_table_formatted)[sapply(best_SST_temp_model_table_formatted, is.numeric)]
+
+# Apply signif() only to numeric columns
+best_SST_temp_model_table_formatted[, (numeric_cols) := lapply(.SD, function(x) if (is.numeric(x)) signif(x, digits = 2) else x), .SDcols = numeric_cols]
+
+#change column names, in caption note that all variables are centered and scaled
+colnames(best_SST_temp_model_table_formatted) <- c(
+"Rank",                                              
+"Intercept",                                     
+"Area",       #scaled across all                    
+"Average depth",                  
+"Depth range",                
+"Number of tows",              
+"Average latitude",               
+"Latitude range",             
+"Species count",                  
+"Relative catch", #scaled within region                       
+"Survey",                                       
+"Average mean temperature",            
+"Survey * relative catch",            
+"Survey * avg mean temperature",
+"R squared",
+paste0("\u0394"," AICc"),                                             
+paste0("\u03C9"))
+
+
+
+#save as csv
+
+fwrite(best_SST_temp_model_table_formatted,here::here("output","best_SST_temp_model_table_formatted.csv"))
+```

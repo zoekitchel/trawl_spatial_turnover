@@ -374,7 +374,39 @@ ggsave(allreg_BC_total_dissimilarity_fishing_mean, path = here::here("figures","
 ggsave(allreg_BC_total_dissimilarity_fishing_mean_facet, path = here::here("figures","predictor_variables"), filename = "allreg_BC_total_dissimilarity_fishing_mean_facet.jpg", height = 13, width = 10, unit = "in")
 
 ```
+#Plot fishing by region for presentation
 
+
+#Fishing: EBS, BARENTS SEA 3, Chatham RISE NZ
+
+```{r}
+(EBS_fishing <- ggplot(data = dissimilarities_temp_fishing_regstats[survey_unit =="EBS"]) +
+  labs(x = "Relative fishing pressure",  y = "BC total dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  theme_classic() +
+    theme(legend.position = "null"))
+
+summary(lm(bray_curtis_dissimilarity_total_mean~summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats[survey_unit =="EBS"]))
+
+(Barents_fishing <- ggplot(data = dissimilarities_temp_fishing_regstats[survey_unit =="Nor-BTS-3"]) +
+  labs(x = "Relative fishing pressure",  y = "BC total dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  theme_classic() +
+    theme(legend.position = "null"))
+
+summary(lm(bray_curtis_dissimilarity_total_mean~summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats[survey_unit =="Nor-BTS-3"]))
+
+(nzchat_fishing <- ggplot(data = dissimilarities_temp_fishing_regstats[survey_unit =="NZ-CHAT"]) +
+  labs(x = "Relative fishing pressure",  y = "BC total dissimilarity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  theme_classic() +
+    theme(legend.position = "null"))
+
+summary(lm(bray_curtis_dissimilarity_total_mean~summed_tonnes_scaled_byreg, data = dissimilarities_temp_fishing_regstats[survey_unit =="NZ-CHAT"]))
+```
 
 ###Temperature x fishing models
 Best temp variables to carry forward: 

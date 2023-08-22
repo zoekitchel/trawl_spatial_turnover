@@ -222,6 +222,40 @@ BC_total_model_coefs_reduced_length.unique <- readRDS(here::here("output","regio
 ```
 
 
+#Plot mean temp by region for presentation
+
+
+#Temp: Rockall Plateau, Baltic Sea Q1, Gulf of Mexico Fall
+
+```{r}
+(Rockall_temp <- ggplot(data = dissimilarities_temp[survey_unit =="ROCKALL"]) +
+  labs(x = "Mean bottom temp (˚C)",  y = "BC total dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  theme_classic() +
+    theme(legend.position = "null"))
+
+summary(lm(bray_curtis_dissimilarity_total_mean~yearly_mean_bypoint_avg, data = dissimilarities_temp[survey_unit =="ROCKALL"]))
+
+(baltic_temp <- ggplot(data = dissimilarities_temp[survey_unit =="BITS-1"]) +
+  labs(x = "Mean bottom temp (˚C)",  y = "BC total dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  theme_classic() +
+    theme(legend.position = "null"))
+
+summary(lm(bray_curtis_dissimilarity_total_mean~yearly_mean_bypoint_avg, data = dissimilarities_temp[survey_unit =="BITS-1"]))
+
+(gmex_temp <- ggplot(data = dissimilarities_temp_fishing_regstats[survey_unit =="GMEX-Summer"]) +
+  labs(x = "Mean bottom temp (˚C)",  y = "BC total dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  theme_classic() +
+    theme(legend.position = "null"))
+
+summary(lm(bray_curtis_dissimilarity_total_mean~yearly_mean_bypoint_avg, data = dissimilarities_temp[survey_unit =="GMEX-Summer"]))
+```
+
 
 Table that will be populated with model results
 ```{r}
