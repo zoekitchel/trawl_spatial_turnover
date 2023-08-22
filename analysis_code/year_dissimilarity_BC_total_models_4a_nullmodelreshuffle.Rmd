@@ -1,0 +1,392 @@
+---
+title: "Year TOTAL Dissimilarity NULL Models (reshuffle and cyclic shift)"
+output: html_notebook
+---
+
+This code is Script 4a  for Kitchel et al. Biotic homogenization, the exception and not the rule for marine fish communities manuscript.
+
+- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
+
+"A null model is a pattern-generating model based on randomization of ecological data and is designed to produce a pattern that would be expected in the absence of a particular ecological mechanism (Gotelli and Graves 1996; Gotelli and McGill 2006). " Ryosuke Nakadai et al 2021
+
+- Code by Zoë J. Kitchel
+
+SESSION INFO TO DO
+
+```{r setup}
+library(data.table)
+library(vegan)
+library(sf)
+library(concaveman) #polygon around points
+library(betapart) #allows us to partition beta diversity
+library(geosphere)
+library(ggpubr) #stat_regline_equation
+library(nlme)
+library(mgcv) #to make gam
+library(cowplot)
+library(lme4)
+
+#Pull Dissimilarity Means
+distances_dissimilarities_allyears.r <- readRDS(here::here("output", "dissimilarities", "distances_dissimilarities_allyears.r.rds"))
+
+#make survey and survey unit factors
+distances_dissimilarities_allyears.r[,survey:=factor(survey)][,survey_unit:=factor(survey_unit)]
+
+#adjust years
+distances_dissimilarities_allyears.r[,year_adj := year-min(year)+1]
+
+#add new variable for year in sequence per region
+distances_dissimilarities_allyears.r[,first_year := min(year),.(survey_unit)]
+distances_dissimilarities_allyears.r[,last_year := max(year),.(survey_unit)]
+
+#distances_dissimilarities_allyears.r[,year_in_seq := year-first_year+1]
+
+distances_dissimilarities_allyears.r[,years_sampled := last_year-first_year+1]
+
+
+```
+
+###Palette for Plotting
+Palette for plotting all 42 survey units
+```{r link colors to survey units}
+survey_unit.list <- levels(factor(distances_dissimilarities_allyears.r[,survey_unit]))
+
+palette_42 <- c(
+  "#5A5156", #AI
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#fccb6d", #GMEX-Fall
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#364d02",#NZ-SUBA
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#7f9eb8", #ROCKALL
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#544563", #SWC-IBTS-1
+  "#a37fc7", #SWC-IBTS-4
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF"  #ZAF-IND
+)
+
+color_link <- data.table(survey_unit = survey_unit.list,hex = palette_42)
+```
+
+Add names for plotting
+```{r add names for plotting}
+
+name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
+                                    "Baltic Sea Q1",
+                                    "Baltic Sea Q4",
+                                    "Chile",
+                                    "Newfoundland",
+                                    "Queen Charlotte Sound",
+                                    "Eastern Bering Sea",
+                                    "Bay of Biscay",
+                                    "English Channel",
+                                    "Gulf of Mexico Summer",
+                                    "Gulf of Alaska",
+                                    "Greenland",
+                                    "N Gulf of St. Lawrence",
+                                    "S Gulf of St. Lawrence",
+                                    "Iceland",
+                                    "Irish Sea",
+                                    "Mediterranean",
+                                    "Namibia",
+                                    "NE US Fall",
+                                    "NE US Spring",
+                                    "N Ireland Q1",
+                                    "N Ireland Q4",
+                                    "Barents Sea Norway Q3",
+                                    "N Sea Q1",
+                                    "N Sea Q3",
+                                    "Chatham Rise NZ",
+                                    "E Coast S Island NZ",
+                                    "W Coast S Island NZ",
+                                    "Portugal",
+                                    "S Georgia",
+                                  "Scotian Shelf Summer",
+                                  "SE US Fall",
+                                  "SE US Spring",
+                                  "SE US Summer",
+                                  "W Coast US",
+                                  "Atlantic Ocean ZA",
+                                  "Indian Ocean ZA",
+                                   "Rockall Plateau",
+                                  "Scotland Shelf Sea Q1",
+                                  "Scotland Shelf Sea Q4",
+                                  "Falkland Islands",
+                                  "Gulf of Mexico Fall",
+                                  "Barents Sea Norway Q1",
+                                  "Sub-Arctic NZ",
+                                  "Scotian Shelf Spring"),
+                          survey_unit = c(
+                                  "AI",        
+                                  "BITS-1",    
+                                  "BITS-4",    
+                                  "CHL",       
+                                  "DFO-NF",    
+                                  "DFO-QCS",   
+                                  "EBS",       
+                                  "EVHOE",     
+                                  "FR-CGFS",   
+                                  "GMEX-Summer",
+                                  "GOA",       
+                                  "GRL-DE",    
+                                  "GSL-N",     
+                                  "GSL-S",     
+                                  "ICE-GFS",   
+                                  "IE-IGFS",   
+                                  "MEDITS",    
+                                  "NAM",       
+                                  "NEUS-Fall", 
+                                  "NEUS-Spring",
+                                  "NIGFS-1",   
+                                  "NIGFS-4",   
+                                  "Nor-BTS-3", 
+                                  "NS-IBTS-1", 
+                                  "NS-IBTS-3", 
+                                  "NZ-CHAT",   
+                                  "NZ-ECSI",   
+                                  "NZ-WCSI",   
+                                  "PT-IBTS",   
+                                  "S-GEORG",   
+                                  "SCS-SUMMER",
+                                  "SEUS-fall", 
+                                  "SEUS-spring",
+                                  "SEUS-summer",
+                                  "WCANN",     
+                                  "ZAF-ATL",   
+                                  "ZAF-IND",
+                                  "ROCKALL",
+                                  "SWC-IBTS-1",
+                                  "SWC-IBTS-4",
+                                  "FALK",
+                                  "GMEX-Fall",
+                                  "Nor-BTS-1",
+                                  "NZ-SUBA",
+                                  "SCS-SPRING"
+                          ))
+
+
+color_link <- name_helper[color_link, on = "survey_unit"]
+
+```
+
+Load up 'true slopes' and CIs for comparison
+```{r}
+BC_total_model_coefs_reduced_length.unique <- readRDS(here::here("output","region_stats","BC_total_model_coefs_reduced_length.unique.Rds"))
+```
+
+
+#NULL MODEL CONSTUCTION
+##1) Reshuffle years (maintain correlation among species, removes autocorrelation within a species)
+
+I need to:
+- reshuffle years
+- reassign years
+- run lmer
+- pull mean and CI for each region
+```{r}
+#surveys
+all_survey_units <- levels(name_helper[,.(survey_unit)])
+years_adj <- sort(unique(distances_dissimilarities_allyears.r$year_adj))
+
+
+for (i in 1:1000){
+
+  BC_dissimilarity_time <- distances_dissimilarities_allyears.r[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
+  
+  year_run_key <- data.table(year_adj = years_adj, years_adj_null = sample(years_adj, length(years_adj)))
+  
+  BC_dissimilarity_time  <- BC_dissimilarity_time[year_run_key, on = "year_adj"]
+  
+  #run overall model
+  bray_curtis_total_lmer <- lmer(bray_curtis_dissimilarity_total_mean ~ years_adj_null + (1 + years_adj_null|survey_unit),data = BC_dissimilarity_time)
+  
+    
+  bray_curtis_total_coefs <- data.table(coef(bray_curtis_total_lmer)[[1]])
+  bray_curtis_total_coefs[,survey_unit := rownames(coef(bray_curtis_total_lmer)[[1]])][,Year_slope := signif(years_adj_null,3)][,Intercept := signif(`(Intercept)`,3)]
+  bray_curtis_total_coefs <- bray_curtis_total_coefs[color_link, on = "survey_unit"]
+  
+  bray_curtis_total_coefs[,run := i]
+  
+  bray_curtis_total_coefs.exp <- bray_curtis_total_coefs[,.(run, Survey_Name_Season, survey_unit, Intercept, Year_slope)]
+  
+  if(i == 1){
+     all_null_runs_reshuffle_year <- bray_curtis_total_coefs.exp }else{
+    all_null_runs_reshuffle_year <- rbind(all_null_runs_reshuffle_year, bray_curtis_total_coefs.exp)
+   }
+  print(i)
+}
+
+#link "true" slope
+
+true_slopes <- BC_total_model_coefs_reduced_length.unique[,.(lwr,upr, survey_unit, year_adj, Directional_Change, significant, Directional_Change_sig, trend_color)]
+
+
+all_null_runs_reshuffle_year <- all_null_runs_reshuffle_year[true_slopes, on = "survey_unit"]
+
+#take averages and quantiles across all runs
+all_null_runs_reshuffle_year[,mean_slope := mean(Year_slope),Survey_Name_Season][,upper_95 := quantile(Year_slope,0.975),Survey_Name_Season][,lower_95 := quantile(Year_slope,0.025),Survey_Name_Season][,true_slope := year_adj]
+
+saveRDS(all_null_runs_reshuffle_year, here::here("output","all_null_runs_reshuffle_year.Rds"))
+
+#plot distribution of slopes for each survey vs. "true" slope
+hist_null_slope_year_reshuffle <- ggplot(all_null_runs_reshuffle_year) +
+  geom_histogram(aes(x = Year_slope)) +
+  geom_vline(aes(xintercept = true_slope), color = "red") +
+  geom_vline(aes(xintercept = upper_95), linetype = "dashed", color = "grey") +
+  geom_vline(aes(xintercept = lower_95), linetype = "dashed", color = "grey") +
+  facet_wrap(~Survey_Name_Season, scales = "free", ncol = 5) +
+  labs(y = "Count",x = "β-diversity trend") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 8))
+
+ggsave(hist_null_slope_year_reshuffle, filename = "hist_null_slope_year_reshuffle.jpg", path = here::here("figures"), height = 10, width = 12)
+
+#unique values per region
+all_null_runs_reshuffle_year.u <- unique(all_null_runs_reshuffle_year[,.(survey_unit, Survey_Name_Season,mean_slope, upper_95, lower_95, true_slope, lwr, upr, Directional_Change, significant, Directional_Change_sig, trend_color)])
+
+#lollipops
+errorbar_slope_year_reshuffle <- ggplot() +
+  geom_errorbar(data = all_null_runs_reshuffle_year.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = mean_slope, label = Survey_Name_Season, ymin = lower_95, ymax = upper_95), color = "grey50", width = 0) + #add confidence intervals
+  geom_point(data = all_null_runs_reshuffle_year.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = true_slope, label = Survey_Name_Season, color = Directional_Change_sig), shape = 18, size = 3) +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"), name = "Dissimilarity trend") +
+  geom_hline(yintercept = 0) +
+ # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend") + #total BC dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.2,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16))
+
+ggsave(errorbar_slope_year_reshuffle, filename = "errorbar_slope_year_reshuffle.jpg", path = here::here("figures"), height = 5, width = 5)
+
+```
+
+##2) Vary start year (maintain correlation among species and autocorrelation within a species, but introduces weird breakpoints)
+
+I need to:
+- pick random starting years
+- reassign years
+- run lmer
+- pull mean and CI for each region
+```{r}
+#surveys
+all_survey_units <- levels(name_helper[,.(survey_unit)])
+years_adj <- sort(unique(distances_dissimilarities_allyears.r$year_adj))
+
+#only 45 possibilities, so does it make sense to sample 1000 times? probably not?
+
+#for (i in 1:1000)){ #if we want 1000 runs
+  for (i in 1:length(years_adj)){ #if we want 45 runs
+
+  BC_dissimilarity_time <- distances_dissimilarities_allyears.r[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
+  
+ # start_year <- sample(1:length(years_adj), 1) #if instead we want 1000 random runs
+  start_year <- years_adj[i]
+  
+  random_sequence <- c(years_adj[start_year:length(years_adj)],years_adj[1:start_year-1])
+  
+  year_run_key <- data.table(year_adj = years_adj, years_adj_null = random_sequence)
+  
+  BC_dissimilarity_time  <- BC_dissimilarity_time[year_run_key, on = "year_adj"]
+  
+  #run overall model
+  bray_curtis_total_lmer <- lmer(bray_curtis_dissimilarity_total_mean ~ years_adj_null + (1 + years_adj_null|survey_unit),data = BC_dissimilarity_time)
+  
+    
+  bray_curtis_total_coefs <- data.table(coef(bray_curtis_total_lmer)[[1]])
+  bray_curtis_total_coefs[,survey_unit := rownames(coef(bray_curtis_total_lmer)[[1]])][,Year_slope := signif(years_adj_null,3)][,Intercept := signif(`(Intercept)`,3)]
+  bray_curtis_total_coefs <- bray_curtis_total_coefs[color_link, on = "survey_unit"]
+  
+  bray_curtis_total_coefs[,run := i]
+  
+  bray_curtis_total_coefs.exp <- bray_curtis_total_coefs[,.(run, Survey_Name_Season, survey_unit, Intercept, Year_slope)]
+  
+  if(i == 1){
+     all_null_runs_cyclic_shift <- bray_curtis_total_coefs.exp }else{
+    all_null_runs_cyclic_shift <- rbind(all_null_runs_cyclic_shift, bray_curtis_total_coefs.exp)
+   }
+  print(i)
+}
+
+#link "true" slope
+
+true_slopes <- BC_total_model_coefs_reduced_length.unique[,.(lwr,upr, survey_unit, year_adj, Directional_Change, significant, Directional_Change_sig, trend_color)]
+
+all_null_runs_cyclic_shift <- all_null_runs_cyclic_shift[true_slopes, on = "survey_unit"]
+
+#take averages and quantiles across all runs
+all_null_runs_cyclic_shift[,mean_slope := mean(Year_slope),Survey_Name_Season][,upper_95 := quantile(Year_slope,0.975),Survey_Name_Season][,lower_95 := quantile(Year_slope,0.025),Survey_Name_Season][,true_slope := year_adj]
+
+saveRDS(all_null_runs_cyclic_shift, here::here("output","all_null_runs_cyclic_shift.Rds"))
+
+#plot distribution of slopes for each survey vs. "true" slope
+hist_null_slope_year_cyclic_shift <- ggplot(all_null_runs_cyclic_shift) +
+  geom_histogram(aes(x = Year_slope)) +
+  geom_vline(aes(xintercept = true_slope), color = "red") +
+  geom_vline(aes(xintercept = upper_95), linetype = "dashed", color = "grey") +
+  geom_vline(aes(xintercept = lower_95), linetype = "dashed", color = "grey") +
+  facet_wrap(~Survey_Name_Season, scales = "free", ncol = 5) +
+  labs(y = "Count",x = "β-diversity trend") +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 8))
+
+ggsave(hist_null_slope_year_cyclic_shift, filename = "hist_null_slope_year_cyclic_shift.jpg", path = here::here("figures"), height = 10, width = 12)
+
+#unique values per region
+all_null_runs_cyclic_shift.u <- unique(all_null_runs_cyclic_shift[,.(survey_unit, Survey_Name_Season,mean_slope, upper_95, lower_95, true_slope, lwr, upr, Directional_Change, significant, Directional_Change_sig, trend_color)])
+
+#lollipops
+errorbar_slope_year_cyclic_shift <- ggplot() +
+  geom_errorbar(data = all_null_runs_cyclic_shift.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = mean_slope, label = Survey_Name_Season, ymin = lower_95, ymax = upper_95), color = "grey50", width = 0) + #add confidence intervals
+  geom_point(data = all_null_runs_cyclic_shift.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = true_slope, label = Survey_Name_Season, color = Directional_Change_sig), shape = 18, size = 3) +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"), name = "Dissimilarity trend", guide="none") +
+  geom_hline(yintercept = 0) +
+ # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend") + #total BC dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.1,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16))
+
+ggsave(errorbar_slope_year_cyclic_shift, filename = "errorbar_slope_year_cyclic_shift.jpg", path = here::here("figures"), height = 5, width = 5)
+
+```
+Merge these two nulls
+```{r}
+
+errorbar_null_models_merge <- plot_grid(errorbar_slope_year_reshuffle + theme(axis.title.x = element_blank(), axis.text.x =element_blank()), errorbar_slope_year_cyclic_shift, ncol = 1, labels = c("a.","b."), vjust = 1, hjust = -0.2)
+
+ggsave(errorbar_null_models_merge, filename = "errorbar_null_models_merge.jpg", path = here::here("figures"), height = 9, width = 10)
+```
+

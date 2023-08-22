@@ -257,6 +257,41 @@ all_survey_units_polygons.clean <- rmapshaper::ms_erase(all_survey_units_polygon
 #find polygon centroid
 all_survey_units_centroid_points <- sf::st_centroid(all_survey_units_polygons.clean)
 
+
+#for all NZ points, convert longitudes
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit %in% c("NZ-WCSI")]=st_point(c(171.4543-360, -41.7294))
+
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit %in% c("NZ-ECSI")]=st_point(c(172.5993-360, -44.17959))
+
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit %in% c("NZ-CHAT")]=st_point(c(178.9788-360, -43.58499))
+
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit %in% c("NZ-SUBA")]=st_point(c(170.3432-360, -50.50603))
+
+#for all seasonal repeats, move duplicates a bit up and down (will label later)
+#BITS
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "BITS-4"]=st_point(c(15.98157, 57.6))
+
+#NIGFS
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "NIGFS-4"]=st_point(c(-4.910924, 55))
+
+#NS-IBTS
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "NS-IBTS-3"]=st_point(c(2.856672, 58.2))
+
+#SWC-IBTS
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "SWC-IBTS-4"]=st_point(c(-7.493093, 59.1))
+
+#GMEX
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "GMEX-Summer"]=st_point(c(-93.15577, 30))
+
+#NEUS
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "NEUS-Spring"]=st_point(c(-70.58172, 42.2))
+
+#SEUS
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "SEUS-summer"]=st_point(c(-78.27192, 32))
+
+all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "SEUS-fall"]=st_point(c(-78.27192, 30.5))
+
+
 #plot_polygons with points
 ggplot() +
   geom_sf(data = all_survey_units_polygons.clean, aes(fill = survey_unit), color = NA) +
@@ -264,6 +299,7 @@ ggplot() +
   scale_fill_manual(values = palette_42) +
   theme_classic()
 ```
+
 Link with name helper
 ```{r}
 all_survey_units_polygons.names <- left_join(all_survey_units_polygons.clean, name_helper, on = "survey_unit")
@@ -331,7 +367,8 @@ map_bray_coef_trend <- ggplot() +
   geom_sf(data = all_survey_units_polygons_stats, aes(fill = `Significant Trends`), alpha = 0.7) +
   #polygon outlines
   geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
-  geom_sf(st_jitter(all_survey_units_centroid_points_stats, 2), mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
+  geom_sf(all_survey_units_centroid_points_stats, mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
+ # geom_sf_text(data = all_survey_units_centroid_points_stats, aes(label = survey_unit), size = 0.5) +
   scale_fill_manual(values = c("#73BA4D","#E0962C","#cbbfde"),
                     labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
   scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"),
