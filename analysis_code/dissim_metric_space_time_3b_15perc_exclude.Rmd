@@ -1,5 +1,5 @@
 ---
-title: "Calculating Dissimilarity Metrics Across Space and Time for top 90% of species"
+title: "Calculating Dissimilarity Metrics Across Space and Time for top 85% of species"
 output: html_notebook
 ---
 This code is Script 3b for Kitchel et al. TITLE manuscript.
@@ -73,7 +73,7 @@ FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][,
 FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
 ```
 
-Delete 10% of least abundant species by biomass (across whole time series)
+Delete 15% of least abundant species by biomass (across whole time series)
 ```{r}
 #add new columns that sum biomass for each individual species per survey, and 
 FishGlob_clean.noNA[survey_unit != "MEDITS",abundance_spp_sum := sum(wgt_cpue),.(accepted_name, survey_unit)][survey_unit != "MEDITS",abundance_sum := sum(wgt_cpue),survey_unit][survey_unit == "MEDITS",abundance_spp_sum := sum(num_cpue),.(accepted_name, survey_unit)][survey_unit == "MEDITS",abundance_sum := sum(num_cpue),survey_unit]
