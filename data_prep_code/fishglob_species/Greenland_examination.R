@@ -1,5 +1,9 @@
 #Greenland exploration
 
+
+#Working with Karl Michael Werner to try to figure out why the lowest 15% species doesn't align with his expectations
+
+
 library(data.table)
 library(ggplot2)
 library(sf)
@@ -66,8 +70,9 @@ for (i in 1:length(GRL_spp)) {
   # Create a ggplot object
   p <- ggplot(Greenland_onespp, aes(year, wgt_cpue_sum)) +
     geom_point() +
-    labs(x = "Year",y="CPUE in tonnes/km^2") +
+    labs(x = "Year",y="CPUE in kg/km^2") +
     ggtitle(paste(GRL_spp[i])) +
+    ylim() +
     xlim(1993,2015) +
       theme_classic()
   
