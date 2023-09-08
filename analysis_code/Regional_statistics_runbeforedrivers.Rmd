@@ -22,6 +22,7 @@ library(rnaturalearth)
 library(rmapshaper)
 library(nlme)
 library(MuMIn)
+library(cowplot)
 
 
 #raw data
@@ -948,6 +949,9 @@ dissimilarity_covariates_dredge.dt <- dissimilarities_temp_fishing_area[,.
                     depth_annual_range, latitude_annual_avg,
                     latitude_annual_range, area_km, summed_tonnes_scaled_byreg)]
 
+#merge in with colors for plotting predictions by survey
+dissimilarity_covariates_dredge.dt <- color_link[dissimilarity_covariates_dredge.dt, on = "survey_unit"]
+
 #If NA for any covariate, delete row
 View(dissimilarity_covariates_dredge.dt)
 #Deleted:
@@ -1181,8 +1185,9 @@ model_coef_se_fill.w <- dcast(model_coef_se_fill, formula = Rank ~ coef_name, va
 model_coef_se_AIC <- dd.dt.2.formatted[model_coef_se_fill.w, on = "Rank"]
 
 #model average all models with delta < 4 (50 models)
+model_avg_delta4 <-model.avg(dd, subset = delta < 4, fit = T) #NB: The ‘subset’ (or ‘conditional’) average only   averages over the models where the parameter appears. An alternative, the ‘full’ average assumes that a variable is included in every model, but in some models the corresponding coefficient (and its respective variance) is set to zero. Unlike the ‘subset average’, it does not have a tendency of biasing the value away from zero. The ‘full’ average is a type of shrinkage estimator, and for variables with a weak relationship to the response it is smaller than ‘subset’ estimators., fit = T fits the component models again
 
-model_avg_values <- as.data.table(coefTable(model.avg(dd, subset = delta < 4),fill = T)) # with SE
+model_avg_values <- as.data.table(coefTable(model_avg_delta4,fill = T)) # with SE
 coef_names <- names(coef(model.avg(dd, subset = delta < 4)))
 model_avg_values[,coef_name:=coef_names][,coef:=Estimate][,Estimate:=NULL][,df:=NULL][,se:= `Std. Error`][,`Std. Error` := NULL]
 
@@ -1262,4 +1267,78 @@ Dissimilarity increases with increasing area
 Dissimilarity decreases with increasing minimum temperature
 Dissimilarity increases with increasing # spp
 
+
+Predict dissimilarity across years using averaged model (model_avg_delta4)
+```{r}
+dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_dredge.dt)
+
+  #allowing temp and fishing to vary
+  dissimilarity_covariates_dredge.dt_predictions[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]]
+
+#and then with consistent temp and fishing in regions
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
+  #allowing temp and fishing to vary only within regs
+  dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[2]]]
+
+#and then with consistent temp and fishing across regions
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing <- copy(dissimilarity_covariates_dredge.dt)
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall)]
+  #allowing temp and fishing to vary across all regs
+  dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[2]]]
+
+#FOR COLOR TO MATCH
+#sort color link by survey name season
+#alphabetical order
+color_link_alpha <- setorder(color_link, survey_unit)
+
+#exclude GSL S and Rockall which we do not include because of missing covariates (depth and fishing respectively)
+color_link_alpha <- color_link_alpha[!(survey_unit %in% c("ROCKALL","GSL-S"))]
+
+color_alpha_order <- color_link_alpha[,hex]
+label_alpha_order <- color_link_alpha[,Survey_Name_Season]
+  
+
+#maintain temp and fishing
+#plot
+predicted_values_temp_fishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions) +
+  geom_point(aes(x = year, y = bray_curtis_dissimilarity_total_mean, color = survey_unit)) +
+  geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
+  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
+  scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+  scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+  labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+  theme_classic() +
+  ggtitle("Average model predictions")
+
+#average temp and fishing for each region
+predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg) +
+  geom_point(aes(x = year, y = bray_curtis_dissimilarity_total_mean, color = survey_unit)) +
+  geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
+  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
+  scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+  scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+  labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+  theme_classic() +
+  ggtitle("Average model predictions with mean\nsurvey temperature and fishing pressure")
+
+#average temp and fishing across all regions
+predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing) +
+  geom_point(aes(x = year, y = bray_curtis_dissimilarity_total_mean, color = survey_unit)) +
+  geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
+  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
+  scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+  scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+  labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+  theme_classic() +
+  ggtitle("Average model predictions with mean\novereall temperature and fishing pressure")
+
+#merge plots
+predicted_values_temp_fishing_merge <- plot_grid(predicted_values_temp_fishing,
+                                                 predicted_values_temp_fishing_meantempfishinginsurvey,
+                                                 predicted_values_temp_fishing_meantempfishing,
+                                                 ncol = 1)
+
+ggsave(predicted_values_temp_fishing_merge, path = here::here("figures"), filename = "predicted_values_temp_fishing_merge.jpg", height = 20, width = 14)
+```
 
