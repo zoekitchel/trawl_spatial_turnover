@@ -97,6 +97,15 @@ haul_ids_to_remove_Nor_BTS <- unique(FishGlob_1.5[(survey == "Nor-BTS" & latitud
 FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_Nor_BTS),] #remove hauls before consistent gear/vessel was used
 ```
 
+*SGEORG*
+- From Martin Collins, "Most surveys were focussed on demersal fish on the South Georgia shelf (< 350 m), but surveys in 2003, 2010 and 2019 had some deeper trawls.  The deeper trawls caught very different fish, so are unlikely to be of use to a long-term analysis, but I have left them in."
+
+-Delete all trawls below 350 M
+```{r}
+
+```
+
+
 ###Because time is an essential component of these analyses, we will get rid of any survey x season combinations that are not sampled for at least 10 years
 
 ```{r summary by survey region}

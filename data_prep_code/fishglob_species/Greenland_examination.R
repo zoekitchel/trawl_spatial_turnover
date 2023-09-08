@@ -72,7 +72,7 @@ for (i in 1:length(GRL_spp)) {
     geom_point() +
     labs(x = "Year",y="CPUE in kg/km^2") +
     ggtitle(paste(GRL_spp[i])) +
-    ylim() +
+    ylim(0,NA) +
     xlim(1993,2015) +
       theme_classic()
   
