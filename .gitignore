@@ -31,3 +31,5 @@ intercept_varies.rds
 simple_mod.rds
 FishGlob.10year.spp_manualclean.rds
 data/Scotland_magurran_comparison
+distances_dissimilarities_allyears.rds
+distances_dissimilarities_allyears_15perc_excluded.rds
