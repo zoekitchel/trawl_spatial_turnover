@@ -147,7 +147,7 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "Falkland Islands",
                                   "Gulf of Mexico Fall",
                                   "Barents Sea Norway Q1",
-                                  "Sub-Arctic NZ",
+                                  "Sub-Antarctic NZ",
                                   "Scotian Shelf Spring"),
                           survey_unit = c(
                                   "AI",        

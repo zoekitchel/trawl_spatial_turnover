@@ -23,6 +23,7 @@ library(rmapshaper)
 library(nlme)
 library(MuMIn)
 library(cowplot)
+library(lme4)
 
 
 #raw data
@@ -96,7 +97,7 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "Falkland Islands",
                                   "Gulf of Mexico Fall",
                                   "Barents Sea Norway Q1",
-                                  "Sub-Arctic NZ",
+                                  "Sub-Antarctic NZ",
                                   "Scotian Shelf Spring"),
                           survey_unit = c(
                                   "AI",        
@@ -1256,15 +1257,15 @@ fwrite(best_model_table_formatted.r,here::here("output","best_model_table_format
 ```
 
 
-
+Take aways
 Dissimilarity increases with increasing avg # hauls
 Dissimilarity increases with increasing avg latitude
 Dissimilarity increases with increasing latitude range
 Dissimilarity increases with increasing fishing effort
 Dissimilarity increases with increasing depth range
-Dissimilarity decreases with increasing average depth
+Dissimilarity   decreases with increasing average depth
 Dissimilarity increases with increasing area
-Dissimilarity decreases with increasing minimum temperature
+Dissimilarity   decreases with increasing minimum temperature
 Dissimilarity increases with increasing # spp
 
 
@@ -1308,6 +1309,7 @@ predicted_values_temp_fishing <- ggplot(dissimilarity_covariates_dredge.dt_predi
   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
   scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
   labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+  ylim(0,1.5) +
   theme_classic() +
   ggtitle("Average model predictions")
 
@@ -1319,6 +1321,7 @@ predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_co
   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
   scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
   labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+  ylim(0,1.5) +
   theme_classic() +
   ggtitle("Average model predictions with mean\nsurvey temperature and fishing pressure")
 
@@ -1326,10 +1329,11 @@ predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_co
 predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing) +
   geom_point(aes(x = year, y = bray_curtis_dissimilarity_total_mean, color = survey_unit)) +
   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
-  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
+  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.1) +
   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
   scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
   labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+  ylim(0,1.5) +
   theme_classic() +
   ggtitle("Average model predictions with mean\novereall temperature and fishing pressure")
 
@@ -1339,6 +1343,204 @@ predicted_values_temp_fishing_merge <- plot_grid(predicted_values_temp_fishing,
                                                  predicted_values_temp_fishing_meantempfishing,
                                                  ncol = 1)
 
-ggsave(predicted_values_temp_fishing_merge, path = here::here("figures"), filename = "predicted_values_temp_fishing_merge.jpg", height = 20, width = 14)
+ggsave(predicted_values_temp_fishing_merge, path = here::here("figures"), filename = "predicted_values_temp_fishing_merge.jpg", height = 30, width = 14)
+```
+
+Next step, make lollipop plots (like 2b) for predicted values.
+
+Linear mixed effect models
+```{r}
+
+#observed values (to mirror Figure 2b lollipop plot minus Rockall and GSL-S)
+      #adjust years
+      dissimilarity_covariates_dredge.dt_predictions[,year_adj := year-min(year)+1]
+      
+      observed_dissimilarities_lmer <- lmer(bray_curtis_dissimilarity_total_mean ~ year_adj + (1 + year_adj|survey_unit),data = dissimilarity_covariates_dredge.dt_predictions)
+      
+      # see group coefficients
+      model_coefs_reduced <- data.table(transform(as.data.frame(ranef(observed_dissimilarities_lmer)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+      #https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+      
+      
+      #ONLY SLOPES
+      model_coefs_reduced <- model_coefs_reduced[term == "year_adj",]
+      
+      model_coefs_reduced[,survey_unit := grp][,year_adj := condval][,Directional_Change := ifelse(year_adj > 0, "Differentiation","Homogenization")]
+      
+      #does it cross zero?
+      model_coefs_reduced[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+      
+      #significant directional change
+      model_coefs_reduced[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
+      
+
+
+#####################################################################################################################################################
+
+#input to predicted values = original values
+      
+      predicted_dissimilarities_lmer <- lmer(pred_dissim ~ year_adj + (1 + year_adj|survey_unit),data = dissimilarity_covariates_dredge.dt_predictions)
+      
+      # see group coefficients
+      model_coefs_reduced_predictions <- data.table(transform(as.data.frame(ranef(predicted_dissimilarities_lmer)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+      #https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+      
+      
+      #ONLY SLOPES
+      model_coefs_reduced_predictions <- model_coefs_reduced_predictions[term == "year_adj",]
+      
+      model_coefs_reduced_predictions[,survey_unit := grp][,year_adj := condval][,Directional_Change := ifelse(year_adj > 0, "Differentiation","Homogenization")]
+      
+      #does it cross zero?
+      model_coefs_reduced_predictions[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+      
+      #significant directional change
+      model_coefs_reduced_predictions[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
+      
+
+
+#####################################################################################################################################################
+
+
+#input to predicted values = static temp and fishing within surveys (mean)
+      #adjust years
+      dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,year_adj := year-min(year)+1]
+      
+      predicted_tempfishingmaintainedinreg_dissimilarities_lmer <- lmer(pred_dissim ~ year_adj + (1 + year_adj|survey_unit),data = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)
+      
+      # see group coefficients
+      model_coefs_reduced_predictions_tempfishingmaintainedinreg <- data.table(transform(as.data.frame(ranef(predicted_tempfishingmaintainedinreg_dissimilarities_lmer)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+      #https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+      
+      
+      #ONLY SLOPES
+      model_coefs_reduced_predictions_tempfishingmaintainedinreg <- model_coefs_reduced_predictions_tempfishingmaintainedinreg[term == "year_adj",]
+      
+      model_coefs_reduced_predictions_tempfishingmaintainedinreg[,survey_unit := grp][,year_adj := condval][,Directional_Change := ifelse(year_adj > 0, "Differentiation","Homogenization")]
+      
+      #does it cross zero?
+      model_coefs_reduced_predictions_tempfishingmaintainedinreg[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+      
+      #significant directional change
+      model_coefs_reduced_predictions_tempfishingmaintainedinreg[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
+      
+#####################################################################################################################################################
+#input to predicted values = static temp and fishing across all surveys (mean)
+      #adjust years
+      dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,year_adj := year-min(year)+1]
+      
+      predicted_tempfishingmaintained_dissimilarities_lmer <- lmer(pred_dissim ~ year_adj + (1 + year_adj|survey_unit),data = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)
+      
+      # see group coefficients
+      model_coefs_reduced_predictions_tempfishingmaintained <- data.table(transform(as.data.frame(ranef(predicted_tempfishingmaintained_dissimilarities_lmer)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+      #https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+      
+      
+      #ONLY SLOPES
+      model_coefs_reduced_predictions_tempfishingmaintained <- model_coefs_reduced_predictions_tempfishingmaintained[term == "year_adj",]
+      
+      model_coefs_reduced_predictions_tempfishingmaintained[,survey_unit := grp][,year_adj := condval][,Directional_Change := ifelse(year_adj > 0, "Differentiation","Homogenization")]
+      
+      #does it cross zero?
+      model_coefs_reduced_predictions_tempfishingmaintained[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+      
+      #significant directional change
+      model_coefs_reduced_predictions_tempfishingmaintained[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
+```
+
+Observed values (minus GSL-S and Rockall)
+```{r}
+model_coefs_reduced <- color_link[model_coefs_reduced, on = "survey_unit"]
+
+(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_observed <- ggplot() +
+    geom_errorbar(data = model_coefs_reduced, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = model_coefs_reduced, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, color = Directional_Change_sig, fill = Directional_Change_sig), stat = 'identity', shape = 21, size = 3) +
+  scale_fill_manual(values = c("white","black","grey"), name = "Dissimilarity trend") +
+  scale_color_manual(values = c("black","black","grey"), name = "Dissimilarity trend") +
+  geom_hline(yintercept = 0) +
+ # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("Observed β-diversity trend") + #total BC dissimilarity trend
+  ylim(-0.0045,0.0038) + # to match all plots
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16)))
+
+```
+
+
+Predicted values
+```{r}
+#"#73BA4D","#E0962C","#cbbfde"
+
+model_coefs_reduced_predictions <- color_link[model_coefs_reduced_predictions, on = "survey_unit"]
+
+(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted <- ggplot() +
+    geom_errorbar(data = model_coefs_reduced_predictions, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = model_coefs_reduced_predictions, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, color = Directional_Change_sig, fill = Directional_Change_sig), stat = 'identity', shape = 21, size = 3) +
+  scale_fill_manual(values = c("white","black","grey"), name = "Dissimilarity trend") +
+  scale_color_manual(values = c("black","black","grey"), name = "Dissimilarity trend") +
+  geom_hline(yintercept = 0) +
+ # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("Predicted β-diversity trend") + #total BC dissimilarity trend
+  ylim(-0.0045,0.0038) + # to match all plots
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16)))
+
+```
+
+Predicted values (with temperature and fishing pressure stable within surveys-mean)
+```{r}
+
+model_coefs_reduced_predictions_tempfishingmaintainedinreg <- color_link[model_coefs_reduced_predictions_tempfishingmaintainedinreg, on = "survey_unit"]
+
+(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_tempfishingmaintainedinreg <- ggplot() +
+    geom_errorbar(data = model_coefs_reduced_predictions_tempfishingmaintainedinreg, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = model_coefs_reduced_predictions_tempfishingmaintainedinreg, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, color = Directional_Change_sig, fill = Directional_Change_sig), stat = 'identity', shape = 21, size = 3) +
+  scale_fill_manual(values = c("white","black","grey"), name = "Dissimilarity trend") +
+  scale_color_manual(values = c("black","black","grey"), name = "Dissimilarity trend") +
+  geom_hline(yintercept = 0) +
+ # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("Predicted β-diversity trend (mean temp and fishing w/in survey)") + #total BC dissimilarity trend
+  ylim(-0.0045,0.0038) + # to match all plots
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16)))
+
+```
+
+Predicted values (with temperature and fishing pressure stable across all surveys-mean)
+```{r}
+
+model_coefs_reduced_predictions_tempfishingmaintained <- color_link[model_coefs_reduced_predictions_tempfishingmaintained, on = "survey_unit"]
+
+(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_tempfishingmaintained <- ggplot() +
+    geom_errorbar(data = model_coefs_reduced_predictions_tempfishingmaintained, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = model_coefs_reduced_predictions_tempfishingmaintained, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, color = Directional_Change_sig, fill = Directional_Change_sig), stat = 'identity', shape = 21, size = 3) +
+  scale_fill_manual(values = c("white","black","grey"), name = "Dissimilarity trend") +
+  scale_color_manual(values = c("black","black","grey"), name = "Dissimilarity trend") +
+  geom_hline(yintercept = 0) +
+ # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("Predicted β-diversity trend (mean temp and fishing across surveys)") + #total BC dissimilarity trend
+  ylim(-0.0045,0.0038) + # to match all plots
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16)))
+
+```
+
+Merge
+```{r}
+BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_merge <-
+  plot_grid(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_observed,
+            BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted,
+            BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_tempfishingmaintainedinreg,
+            BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_tempfishingmaintained, ncol = 1)
+
+ggsave(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_merge, path = here::here("figures"),filename = "BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_merge.jpg", height = 20, width = 8)
 ```
 
