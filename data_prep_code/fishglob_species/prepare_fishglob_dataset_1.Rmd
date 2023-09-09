@@ -71,6 +71,31 @@ Region names
 ```{r}
 sort(unique(FishGlob_1.5[,survey_unit]))
 ```
+##Data Replacements
+####Greenland (version in FishGlob 1.5 is missing lengths and therefore biomass values)
+This version was obtained directly from Karl-Michael Werner (karl-michael.werner@thuenen.de) who now manages the Greenland survey September 2023. He is based in Germany.
+
+```{r}
+greenland <- 
+
+```
+
+####Norway
+Prepped by Laurene Pecuchet September 2023 to replace what's in FishGlob 1.5 because IMR "are quite concerned that FishGlob, and other studies, have been using a "flawed" multi-surveys dataset that is available in NMDC (data portal of IMR). Turns out that this dataset was put publicly by miscommunication on NMDC after one published paper in Scientific Reports, and I think they only realized the existence of this dataset just the last year as some papers are coming out using it (especially the one from Cesc Gordo-Vilaseca in PNAS https://www.pnas.org/doi/10.1073/pnas.2120869120). They are now trying to make some damage controls to make sure that this dataset is not used ever again in the future, but that cleanded and standardised datasets of the Barents Sea survey that are publicly available in NMDC are used instead of."
+```{r}
+norway <- 
+
+```
+Delete Greenland and Norway
+```{r}
+FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS", "GRL-DE"))]
+```
+
+Add in updated Greenland and Norway data
+```{r}
+FishGlob_1.5 <-rbind(FishGlob_1.5,norway)
+FishGlob_1.5 <-rbind(FishGlob_1.5,greenland)
+```
 
 
 ##Preliminary Data Cuts
