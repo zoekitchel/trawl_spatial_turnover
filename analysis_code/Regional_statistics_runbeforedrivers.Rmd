@@ -1558,3 +1558,40 @@ BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_merge <-
 ggsave(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_merge, path = here::here("figures"),filename = "BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_merge.jpg", height = 20, width = 8)
 ```
 
+Plotting observed vs predicted
+```{r}
+#single data table
+bray_curtis_fishing_temp_model_observed_predicted_dt <- data.table(obs_dissim = model_coefs_reduced$year_adj, pred_dissim = model_coefs_reduced_predictions$year_adj, pred_dissim_tempfishconstantinsurvey = model_coefs_reduced_predictions_tempfishingmaintainedinreg$year_adj)
+
+bray_curtis_fishing_temp_model_observed_predicted_lm <- lm(pred_dissim ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+
+(bray_curtis_fishing_temp_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
+  geom_point(aes(x = obs_dissim, y = pred_dissim)) +
+  geom_abline(aes(slope = 1, intercept = 0)) +
+  labs(x = "Observed β-diversity trend",y = "Predicted β-diversity trend\n") +
+  annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_lm)[[1]],2))) +
+  theme_classic()
+)
+
+bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(pred_dissim_tempfishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+
+(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
+  geom_point(aes(x = obs_dissim, y = pred_dissim_tempfishconstantinsurvey)) +
+  annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm)[[1]],2))) +
+  geom_abline(aes(slope = 1, intercept = 0)) +
+  labs(x = "Observed β-diversity trend",y = "Predicted β-diversity trend\n(temp & fishing constant in survey)") +
+  theme_classic()
+)
+
+bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(pred_dissim_tempfishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+
+summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm)
+
+#merge
+bray_curtis_fishing_temp_model_observed_predicted_merge <- plot_grid(bray_curtis_fishing_temp_model_observed_predicted, bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey, ncol = 2, labels = c("a.","b."))
+
+ggsave(bray_curtis_fishing_temp_model_observed_predicted_merge, path = here::here("figures"),filename = "bray_curtis_fishing_temp_model_observed_predicted_merge.jpg", height = 3, width = 8)
+
+
+```
+
