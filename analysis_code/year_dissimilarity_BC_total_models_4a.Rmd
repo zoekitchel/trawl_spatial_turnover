@@ -212,6 +212,13 @@ bray_curtis_total_gam <- gam(bray_curtis_dissimilarity_total_mean ~ year + s(sur
 
 ```
 
+Jaccard
+```{r jaccard gams}
+jaccard_total_gam <- gam(jaccard_dissimilarity_total_mean ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
+                            data = distances_dissimilarities_allyears.r)
+
+```
+
 
 ##Make LMERS
 
@@ -509,7 +516,7 @@ directional_change_legend_plot_colorbytrend <- BC_total_Dissimilarity_Coef_error
 
 Wavy Line Plot for GAMs
 
-Generate predicted values
+Generate predicted values (this datatable will hold both jaccard and bray curtis)
 ```{r generate predicted values GAM}
 
 #add colors and names to full dissimilarity data table
@@ -536,14 +543,25 @@ year_survey_unit_expand.dt <- year_survey_unit_expand.dt[color_link, on = "surve
 ```
 
 
-
 Get model as predictions
+Bray Curtis
 ```{r}
 #for plotting, get model as predictions
 bray_curtis_total_gam_predictions <- predict(bray_curtis_total_gam, se.fit = TRUE, newdata = year_survey_unit_expand.dt)
 
 #merge into table
 year_survey_unit_expand.dt[,bray_glm_mod_fit := bray_curtis_total_gam_predictions$fit][,bray_glm_mod_fit_SE := bray_curtis_total_gam_predictions$se.fit]
+
+```
+
+Jaccard
+Get model as predictions
+```{r}
+#for plotting, get model as predictions
+jaccard_total_gam_predictions <- predict(jaccard_total_gam, se.fit = TRUE, newdata = year_survey_unit_expand.dt)
+
+#merge into table
+year_survey_unit_expand.dt[,jaccard_glm_mod_fit := jaccard_total_gam_predictions$fit][,jaccard_glm_mod_fit_SE := jaccard_total_gam_predictions$se.fit]
 
 ```
 
@@ -679,6 +697,7 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly
 ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly.jpg", height = 6, width = 11, unit = "in")
 ```
 
+BC
 ```{r plot each independently}
 #plot each independently for supplement
 #all survey names = 
@@ -754,6 +773,85 @@ ggsave(points_wavylines_bray_total_year_reduced_gam_individual_facet_25_42, path
 
 
 ```
+
+Jaccard
+```{r plot each independently}
+#plot each independently for supplement
+#all survey names = 
+all_survey_names <- sort(unique(color_link$Survey_Name_Season))
+#list of plots
+points_wavylines_jaccard_total_year_reduced_gam_individual <- list()
+for (i in 1:length(all_survey_names)) {
+points_wavylines_jaccard_total_year_reduced_gam_individual[[i]] <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears.r[Survey_Name_Season == all_survey_names[i]],
+             aes(x = year,
+                 y = jaccard_dissimilarity_total_mean), alpha = 0.4, color = "black") +
+    geom_line(data = year_survey_unit_expand.dt[Survey_Name_Season == all_survey_names[i]],
+             aes(x = year,
+                 y = jaccard_glm_mod_fit), alpha = 0.6) +
+  geom_ribbon(data = year_survey_unit_expand.dt[Survey_Name_Season == all_survey_names[i]], aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE), alpha=0.1) + #add standard error
+  theme_classic() +
+#  lims(x = c(min(distances_dissimilarities_allyears.r[Survey_Name_Season == all_survey_names[i],year]),max(distances_dissimilarities_allyears.r[Survey_Name_Season == all_survey_names[i],year])),
+#       y = c(0.15,0.9)) +
+  xlab("Year") +
+ylab("beta-diversity") +
+  facet_wrap(~Survey_Name_Season, ncol = 5) +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+print(points_wavylines_jaccard_total_year_reduced_gam_individual[[i]])
+
+}
+saveRDS(points_wavylines_jaccard_total_year_reduced_gam_individual, here::here("figures","points_wavylines_jaccard_total_year_reduced_gam_individual.Rds"))
+
+#print to pdf
+library(gridExtra)
+
+ggsave(
+   filename = here::here("figures","points_wavylines_jaccard_total_year_reduced_gam_individual.pdf"), 
+   plot = marrangeGrob(points_wavylines_jaccard_total_year_reduced_gam_individual, nrow=1, ncol=1), 
+   width = 8.5, height = 11
+)
+
+#Alternatively, split into 2 and use facet
+#first 24
+points_wavylines_jaccard_total_year_reduced_gam_individual_facet_1_24 <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears.r[Survey_Name_Season  %in% all_survey_names[c(1:24)]],
+             aes(x = year,
+                 y = jaccard_dissimilarity_total_mean), alpha = 0.7) +
+    geom_line(data = year_survey_unit_expand.dt[Survey_Name_Season   %in% all_survey_names[c(1:24)]],
+             aes(x = year,
+                 y = jaccard_glm_mod_fit)) +
+  geom_ribbon(data = year_survey_unit_expand.dt[Survey_Name_Season  %in% all_survey_names[c(1:24)]],
+aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE), alpha=0.5) + #add standard error
+  theme_classic() +
+  xlab("Year") +
+ylab("β-diversity") +
+  facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 12))
+
+ggsave(points_wavylines_jaccard_total_year_reduced_gam_individual_facet_1_24, path =  here::here("figures"), filename = "points_wavylines_jaccard_total_year_reduced_gam_individual_facet_1_24.png", height = 11, width = 9)
+
+points_wavylines_jaccard_total_year_reduced_gam_individual_facet_25_42 <- ggplot() +
+  geom_point(data = distances_dissimilarities_allyears.r[Survey_Name_Season  %in% all_survey_names[c(25:42)]],
+             aes(x = year,
+                 y = jaccard_dissimilarity_total_mean), alpha = 0.7) +
+    geom_line(data = year_survey_unit_expand.dt[Survey_Name_Season   %in% all_survey_names[c(25:42)]],
+             aes(x = year,
+                 y = jaccard_glm_mod_fit)) +
+  geom_ribbon(data = year_survey_unit_expand.dt[Survey_Name_Season  %in% all_survey_names[c(25:42)]],
+aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE), alpha=0.5) + #add standard error
+  theme_classic() +
+  xlab("Year") +
+ylab("β-diversity") +
+  facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 12))
+
+ggsave(points_wavylines_jaccard_total_year_reduced_gam_individual_facet_25_42, path =  here::here("figures"), filename = "points_wavylines_jaccard_total_year_reduced_gam_individual_facet_25_42.png", height = 11, width = 9)
+
+
+```
+
+
 
 Region by region build up
 ```{r region build up}

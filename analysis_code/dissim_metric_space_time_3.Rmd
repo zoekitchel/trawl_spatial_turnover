@@ -132,6 +132,8 @@ for (i in 1:length(all_survey_units)) {
 
 
 Calculate Beta Dissimilarity between all sampling sites within every survey unit
+
+TO DO: get rid of duplicatese, will probably speed things up!!! key_ID!=key_ID2
 ```{r loop through all regions and years}
 
 distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), 
