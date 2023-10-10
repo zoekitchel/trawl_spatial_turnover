@@ -267,7 +267,7 @@ all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$surve
 
 all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit %in% c("NZ-SUBA")]=st_point(c(170.3432-360, -50.50603))
 
-#for all seasonal repeats, move duplicates a bit up and down (will label later)
+#for all seasonal repeats, move duplicates a bit up and down
 #BITS
 all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit == "BITS-4"]=st_point(c(15.98157, 57.6))
 
@@ -359,6 +359,16 @@ all_survey_units_polygons_stats <- left_join(all_survey_units_polygons.names, re
 #merge points with stats
 all_survey_units_centroid_points_stats <- left_join(all_survey_units_centroid_points, region_stats, on = "survey_unit")
 
+#focal regions
+centroids_focal <- all_survey_units_centroid_points_stats %>%
+  filter(survey_unit == "NZ-WCSI" |survey_unit == "SEUS-summer"|survey_unit == "SCS-SUMMER") %>%
+  mutate(labels = c("b.","d.","c.")) #add labels
+
+#edit lat lon a bit to help with visualization
+centroids_focal$geometry[centroids_focal$survey_unit == "NZ-WCSI"]=st_point(c(-192, -41))
+centroids_focal$geometry[centroids_focal$survey_unit == "SEUS-summer"]=st_point(c(-73, 33))
+centroids_focal$geometry[centroids_focal$survey_unit == "SCS-SUMMER"]=st_point(c(-60, 42))
+
 
 map_bray_coef_trend <- ggplot() +
     #world map
@@ -367,6 +377,7 @@ map_bray_coef_trend <- ggplot() +
   geom_sf(data = all_survey_units_polygons_stats, aes(fill = `Significant Trends`), alpha = 0.7) +
   #polygon outlines
   geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
+  #colored points with trend assocaited with each survey
   geom_sf(all_survey_units_centroid_points_stats, mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
  # geom_sf_text(data = all_survey_units_centroid_points_stats, aes(label = survey_unit), size = 0.5) +
   scale_fill_manual(values = c("#73BA4D","#E0962C","#cbbfde"),
@@ -377,6 +388,8 @@ map_bray_coef_trend <- ggplot() +
   scale_x_continuous(breaks=seq(-180, 50, 30)) +
   scale_y_continuous(breaks=seq(-90, 90, 30)) +
   labs(x = "Longitude",y = "Latitude") +
+  #Annotate b,c,d from lower panel (b = W coast south island NZ, c = Southeast US Summer, d = Scotian Shelf Canada)
+  geom_sf_text(centroids_focal, mapping = aes(label = labels, fontface = "bold"), size = 3) +
   # Crop
   coord_sf(y=c(-60,85), x=c(-200,40), expand = F) +
   lims(x = c(-200,60)) +
@@ -404,70 +417,10 @@ mds_contrast <- readRDS(here::here("figures","mds_contrast.rds"))
 merge_nmds_map <- plot_grid(
   map_bray_coef_trend,
   mds_contrast + theme(plot.margin = unit(c(0,1,0,0), "cm")), 
-  ncol = 1, nrow = 2, labels = c("a.","b."), label_size = 12, label_face = "bold",
+  ncol = 1, nrow = 2, labels = c("a.",""), label_size = 12, label_face = "bold",
   rel_heights = c(2,1)
 )
 
 ggsave(merge_nmds_map, path = here::here("figures"), filename = "merge_nmds_map.jpg", height = 7, width = 7, unit = "in")
 
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#############
-
-Other maps, probably scratch, hasn't been updated
-```{r other map possibilities}
-#with points and polygon outlines
-map_bray_coef_trend_withpoints <- ggplot() +
-  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
-  geom_point(data = unique_lat_lon_survey_units_stats, aes(x = longitude_s, y = latitude,color = `Significant Trends`),
-             alpha = 0.8, size = 0.01) +
-  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde")) +
-  geom_sf(data = all_survey_units_polygons_stats, fill = NA, color = "black", linewidth = 0.1) +
-  coord_sf() +
-  theme_classic() +
-  lims(x = c(-200,60)) +
-  guides(color = guide_legend(title = "Trend in Spatial\nDissimilarity",
-                              override.aes = list(size=10))) +
-  theme(axis.text = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.title = element_blank())
-
-map_bray_coef_trend_withpoints
-
-ggsave(map_bray_coef_trend_withpoints, path = here::here("figures"), filename = "map_bray_coef_trend_withpoints.pdf", height = 10, width = 20, unit = "in")
-
-library(ggnewscale)
-#with points and COLORED polygon outlines
-map_bray_coef_trend_withpoints_coloredpoly <- ggplot() +
-  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
-  geom_point(data = unique_lat_lon_survey_units_stats, aes(x = longitude_s, y = latitude,color = `Significant Trends`),
-             alpha = 0.8, size = 0.01) +
-  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde")) +
-  guides(color = guide_legend(title = "Trend in Spatial\nDissimilarity",
-                              override.aes = list(size=10))) +
-  new_scale_color() +
-  geom_sf(data = all_survey_units_polygons_stats.names, aes(color = reorder(Survey_Name_Season,survey_unit)), fill = NA, alpha = 0.5, linewidth = 0.1) +
-  scale_color_manual(values = palette_42) +
-  coord_sf() +
-  theme_classic() +
-  lims(x = c(-200,60)) +
-  guides(color = element_blank()) +
-  theme(axis.text = element_blank(), axis.line = element_blank(), axis.ticks = element_blank(), axis.title = element_blank())
-
-map_bray_coef_trend_withpoints_coloredpoly
-
-ggsave(map_bray_coef_trend_withpoints_coloredpoly, path = here::here("figures"), filename = "map_bray_coef_trend_withpoints_coloredpoly.pdf", height = 9, width = 18, unit = "in")
 ```
