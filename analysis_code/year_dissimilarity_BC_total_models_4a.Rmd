@@ -231,10 +231,13 @@ bray_curtis_total_lme <- lme(bray_curtis_dissimilarity_total_mean ~ year_adj, ra
 #but also run with lmer for confint
 #total
 bray_curtis_total_lmer <- lmer(bray_curtis_dissimilarity_total_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+
 #balanced (for comparison plot)
 bray_curtis_balanced_lmer <- lmer(bray_curtis_dissimilarity_balanced_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+
 #gradient (for comparison plot)
 bray_curtis_gradient_lmer <- lmer(bray_curtis_dissimilarity_gradient_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
+
 #Jaccard total (for comparison plot)
 jaccard_total_lmer <- lmer(jaccard_dissimilarity_total_mean ~ year_adj + (1 + year_adj|survey_unit),data = distances_dissimilarities_allyears.r)
 
@@ -253,6 +256,34 @@ bray_curtis_total_coefs.exp <- bray_curtis_total_coefs[,.(Survey_Name_Season, In
 #export this table
 fwrite(bray_curtis_total_coefs.exp, file = here::here("output","bray_curtis_total_coefs.exp.csv"))
 ```
+Also, build a simple linear model with an interaction (instead of random slope and intercept for survey)
+```{r}
+bray_curtis_total_lm <- lm(bray_curtis_dissimilarity_total_mean ~ year_adj*survey_unit,data = distances_dissimilarities_allyears.r)
+
+bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients)
+  bray_curtis_total_coefs[,var := rownames(summary(bray_curtis_total_lm)$coefficients)]
+  
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
+  bray_curtis_total_coefs.r <- bray_curtis_total_coefs[c(2,44:84),]
+  
+  #adjust survey unit name by deleting beginning of string
+  bray_curtis_total_coefs.r[,survey_unit := substr(var, 21, str_length(var))][var == "year_adj",survey_unit := "AI"]
+  
+  #calculate interaction coefficients
+  AI_estimate <- bray_curtis_total_coefs.r[1,Estimate]
+  bray_curtis_total_coefs.r[1,survey_unit_coefficient := AI_estimate]
+  bray_curtis_total_coefs.r[2:42,survey_unit_coefficient := (AI_estimate + Estimate)]
+  
+  #homogenizing vs differentiating
+  bray_curtis_total_coefs.r[,differentiating := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient > 0),1,0)][,homogenizing := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient < 0),1,0)]
+  
+  #lower and upper CI
+    bray_curtis_total_coefs.r[,lwr := survey_unit_coefficient-`Std. Error`][,upr:= survey_unit_coefficient+`Std. Error`]
+  
+  bray_curtis_total_coefs_sum <- data.table(differentiating = sum(  bray_curtis_total_coefs.r$differentiating), homogenizing = sum(  bray_curtis_total_coefs.r$homogenizing))
+
+```
+
 
 Get LMER model as predictions
 ```{r TOTAL BC}
@@ -325,6 +356,9 @@ Coefficients for LMER by survey_unit
 ```{r}
 #unique survey unit year combos
 survey_unit_sampling_years <- unique(distances_dissimilarities_allyears.r[,.(survey_unit, year_adj, year, years_sampled)])
+
+#just # years
+survey_unit_years <- unique(survey_unit_sampling_years[,.(survey_unit, years_sampled)])
 
 # see group coefficients
 model_coefs_reduced <- data.table(transform(as.data.frame(ranef(bray_curtis_total_lmer)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
@@ -507,6 +541,36 @@ BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend <- ggplot() +
   theme_classic() +
   theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16))
 
+directional_change_legend_plot_colorbytrend <- BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend + 
+  theme(legend.position = "right", legend.background = element_rect(fill= "transparent"), 
+         legend.text = element_text(size = 15), legend.title = element_text(size = 16)) +
+  guides(colour = guide_legend(override.aes = list(size=6)), size = "none")
+
+###############
+#FOR LINEAR MODEL INSTEAD OF LINEAR MIXED EFFECTS
+###############
+bray_curtis_total_coefs.r <- bray_curtis_total_coefs.r[color_link, on = "survey_unit"]
+bray_curtis_total_coefs.r <- survey_unit_years[bray_curtis_total_coefs.r, on="survey_unit"]
+
+bray_curtis_total_coefs.r[,Directional_Change_sig := ifelse(differentiating > 0, "Differentiation",ifelse(homogenizing > 0 , "Homogenization", "No trend in\ndissimilarity"))]
+
+(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL <- ggplot() +
+    geom_errorbar(data = bray_curtis_total_coefs.r, aes(x = reorder(Survey_Name_Season, survey_unit_coefficient) , y = survey_unit_coefficient, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(data = bray_curtis_total_coefs.r, aes(x = reorder(Survey_Name_Season, survey_unit_coefficient) , y = survey_unit_coefficient, label = Survey_Name_Season, size = years_sampled, color = Directional_Change_sig), stat = 'identity') +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"), name = "Dissimilarity trend", guide="none") +
+  scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
+  geom_hline(yintercept = 0) +
+  #scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend") + #total BC dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16)))
+
+ggsave(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL, 
+       path = here::here("figures"), filename = "BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL.jpg", height = 7, width = 7)
+
+#Still need to edit
 directional_change_legend_plot_colorbytrend <- BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend + 
   theme(legend.position = "right", legend.background = element_rect(fill= "transparent"), 
          legend.text = element_text(size = 15), legend.title = element_text(size = 16)) +

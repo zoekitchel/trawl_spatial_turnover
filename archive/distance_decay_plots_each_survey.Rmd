@@ -1,0 +1,222 @@
+---
+title: "Distance Decay Plots Each Survey"
+output: html_notebook
+---
+
+Distance Decay Plots for Each Survey
+
+```{r setup}
+library(data.table)
+library(ggplot2)
+
+#load data
+distances_dissimilarities_allyears <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
+
+all_season_surveys <- unique(distances_dissimilarities_allyears[,survey_season])
+```
+
+
+#Heat map
+
+Subsample for plotting
+
+#try rounding to 10s and 1s this time!
+```{r subsample}
+
+for (i in 1:length(all_season_surveys)) {
+  distances_dissimilarities_allyears.subset <- distances_dissimilarities_allyears[survey_season == all_season_surveys[i],]
+  #subsample
+        #jaccard only
+        distances_dissimilarities_allyears.subset_jaccard <- distances_dissimilarities_allyears.subset[,.(year,distance,jaccard_similarity_turnover, bray_curtis_similarity_balanced)][,distance_km := distance/1000]
+        
+        #new column with rounded distance
+        distances_dissimilarities_allyears.subset_jaccard[,distance_km_10s := round_any(distance_km,10)][,distance_km_1s := round(distance_km,0)] #round to nearest 10, 1
+        
+        #new column with median jaccard similarity & bray similarity meapt for 1 and 10 km
+        distances_dissimilarities_allyears.subset_jaccard[, jaccard_similarity_mean_10s := 
+                                                               mean(jaccard_similarity_turnover), .(year, distance_km_10s)][, bray_similarity_mean_10s :=
+                                                              mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)][, jaccard_similarity_mean_1s := 
+                                                               mean(jaccard_similarity_turnover), .(year, distance_km_1s)][, bray_similarity_mean_1s :=
+                                                              mean(bray_curtis_similarity_balanced), .(year, distance_km_1s)]
+        
+        #reduce to unique values
+        distances_dissimilarities_allyears.subset_jaccard_rounded <- unique(ebs_distances_dissimilarities_allyears_jaccard, by = c("year","distance_km_10s","distance_km_1s"))
+        
+        #all possible combos
+    #all possible 1s
+    seq_1 <- seq(0,max(distances_dissimilarities_allyears.subset_jaccard_rounded$distance_km_1s), by = 1)
+    
+    #all possible 10s
+    seq_10 <- seq(0,max(distances_dissimilarities_allyears.subset_jaccard_rounded$distance_km_10s), by = 10)
+    
+    #datatable with all possible combos
+    distances_dissimilarities_allyears.subset_jaccard_allcombos <- data.table(expand.grid(year = ebs_years, distance_km_1s = seq_1))
+    
+    #combine
+    distances_dissimilarities_allyears.subset_jaccard_rounded_allcombos <- distances_dissimilarities_allyears.subset_jaccard_allcombos[distances_dissimilarities_allyears.subset_jaccard_rounded, on = c("year","distance_km_1s")]
+    
+    #making heatmaps
+    
+#convert year to factor
+setkey(ebs_distances_dissimilarities_allyears,year)
+ebs_distances_dissimilarities_allyears[,year.f := as.factor(year)]
+
+#save this data table
+saveRDS(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos, here::here("output","distance_decay","ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+
+#jaccard similarity
+(ebs_jaccard_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = jaccard_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 1) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
+  labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
+  theme_classic())
+
+ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "ebs_jaccard_heatmap.jpg")
+ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "ebs_jaccard_heatmap.eps")
+
+
+#bray curtis similarity
+(ebs_bray_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = bray_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 1) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+  scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
+  labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
+  theme_classic())
+
+ggsave(plot = ebs_bray_heatmap, path = here::here("figures","ebs"),file = "ebs_bray_heatmap.jpg")
+ggsave(plot = ebs_bray_heatmap, path = here::here("figures","ebs"),file = "ebs_bray_heatmap.eps")
+
+}
+```
+
+All possible combos
+```{r all combos}
+
+#all possible combos
+    #all possible 1s
+    seq_1 <- seq(0,max(ebs_distances_dissimilarities_allyears_jaccard_rounded$distance_km_1s), by = 1)
+    
+    #all possible 10s
+    seq_10 <- seq(0,max(ebs_distances_dissimilarities_allyears_jaccard_rounded$distance_km_10s), by = 10)
+    
+    #datatable with all possible combos
+    ebs_distances_dissimilarities_allyears_jaccard_allcombos <- data.table(expand.grid(year = ebs_years, distance_km_1s = seq_1))
+    
+    #combine
+    ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos <- ebs_distances_dissimilarities_allyears_jaccard_allcombos[ebs_distances_dissimilarities_allyears_jaccard_rounded, on = c("year","distance_km_1s")]
+
+```
+
+From "Depth-Time visualization using R, the tidyverse, and ggplot2" tutorial
+
+```{r plot heat maps}
+
+#convert year to factor
+setkey(ebs_distances_dissimilarities_allyears,year)
+ebs_distances_dissimilarities_allyears[,year.f := as.factor(year)]
+
+#save this data table
+saveRDS(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos, here::here("output","distance_decay","ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos.rds"))
+
+
+#jaccard similarity
+(ebs_jaccard_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = jaccard_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 1) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
+  labs(y = "Distance (km)", x = "Year", color = "Jaccard Similarity") +
+  theme_classic())
+
+ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "ebs_jaccard_heatmap.jpg")
+ggsave(plot = ebs_jaccard_heatmap, path = here::here("figures","ebs"),file = "ebs_jaccard_heatmap.eps")
+
+
+#bray curtis similarity
+(ebs_bray_heatmap <- ggplot(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos,aes(as.factor(year),distance_km_1s, color = bray_similarity_mean_1s)) +
+  geom_point(shape = 95, size = 1) +
+  scale_color_gradientn(colors =
+c("purple" ,"cornflowerblue", "green" , "yellow" ,"orange", "red")
+  ) +
+  scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears_jaccard_rounded_allcombos$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
+  labs(y = "Distance (km)", x = "Year", color = "Bray Curtis Similarity") +
+  theme_classic())
+
+ggsave(plot = ebs_bray_heatmap, path = here::here("figures","ebs"),file = "ebs_bray_heatmap.jpg")
+ggsave(plot = ebs_bray_heatmap, path = here::here("figures","ebs"),file = "ebs_bray_heatmap.eps")
+```
+Box plots
+```{r spring box plots}
+
+#jaccard similarity
+(ebs_jaccard_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,jaccard_similarity_turnover)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Jaccard Similarity") +
+  scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+  ylim(c(0,0.68)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#bray curtis similarity
+(ebs_bray_boxplot <- ggplot(ebs_distances_dissimilarities_allyears,aes(year.f,bray_curtis_similarity_balanced)) +
+  geom_boxplot(outlier.shape = NA, lwd = 0.2) +
+  labs(x="Year", y = "Bray Curtis Similarity") +
+  scale_x_discrete(limits=levels(ebs_distances_dissimilarities_allyears$year.f), breaks = c("1984", "1990", "1995", "2000", "2005", "2010","2015")) +
+  geom_smooth(method = "lm", se=FALSE, color="red", aes(group=1), lwd = 0.3) +
+  stat_regline_equation(label.x = 3, label.y = 32) +
+    ylim(c(0,0.48)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)))
+
+#corresponding models
+ebs_avg_jaccard_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = jaccard_similarity_turnover ~ as.numeric(year))
+
+ebs_avg_bray_curtis_mod <- lm(data = ebs_distances_dissimilarities_allyears, formula = bray_curtis_similarity_balanced ~ as.numeric(year))
+
+summary(ebs_avg_jaccard_mod)
+summary(ebs_avg_bray_curtis_mod)
+```
+
+Now, merge the previous two plots
+```{r merge plots}
+#pull out legend
+ebs_legend_heatmaps <- get_legend(ebs_jaccard_heatmap + labs(color = "Similarity"))
+
+ebs_merge <- plot_grid(ebs_jaccard_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank()) ,
+                       ebs_bray_heatmap + theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_blank(), axis.title.y = element_blank()),
+                    #   ebs_legend_heatmaps,
+                       ebs_jaccard_boxplot, ebs_bray_boxplot,  nrow = 2, ncol = 2, align = "hv", axis = "lb")
+
+ebs_merge
+
+ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.jpg", width = 6, height = 5, unit = "in")
+ggsave(ebs_merge, path = here::here("figures","ebs"), file = "ebs_heat_boxplot_merge.eps", width = 6, height = 5, unit = "in")
+
+```
+
+Add extra columns with coefficients
+```{r data summary with coef}
+
+ebs_stats[,jac_coef := 
+           ebs_avg_jaccard_mod$coefficients[[2]]][, jac_p := 
+          summary(ebs_avg_jaccard_mod)$coefficients[2,4]][,bray_coef :=
+          ebs_avg_bray_curtis_mod$coefficients[[2]]][,bray.p := 
+          summary(ebs_avg_bray_curtis_mod)$coefficients[2,4]]
+
+
+saveRDS(ebs_stats, here::here("output","region_stats","ebs_stats.rds"))
+```
+
+
+
+
+

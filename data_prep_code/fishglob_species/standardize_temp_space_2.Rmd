@@ -1,16 +1,11 @@
 ---
-title: "Apply Temporal and Spatial Standardization"
+title: "Apply Temporal and Spatial Standardization (70/70)"
 output: html_notebook
+author: Zoë J. Kitchel
+date: October 11, 2023
 ---
 
-This code is Script 2 for Kitchel et al. TITLE manuscript.
-
-- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
-
-- Code by Zoë J. Kitchel
-
-SESSION INFO TO DO
-
+Script 2 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(tidyverse)
@@ -30,6 +25,9 @@ set.seed(1)
 ```
 
 Load manually reduced fishglob database from prepare_fishglob_dataset.Rmd
+
+*Users cannot access this data because it includes private bottom trawl data. However, you can create your own intermediate file with the publicly available FISHGLOB dataset.*
+
 ```{r}
 FishGlob.10year.spp_manualclean <- readRDS(here::here("data","cleaned","FishGlob.10year.spp_manualclean.rds"))
 
@@ -82,7 +80,7 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "Falkland Islands",
                                   "Gulf of Mexico Fall",
                                   "Barents Sea Norway Q1",
-                                  "Sub-Arctic NZ",
+                                  "Sub-Antarctic NZ",
                                   "Scotian Shelf Spring"),
                           survey_unit = c(
                                   "AI",        

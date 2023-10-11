@@ -1275,16 +1275,38 @@ dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_
 
   #allowing temp and fishing to vary
   dissimilarity_covariates_dredge.dt_predictions[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]]
+  
+  #constant temp in regions
+  dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg <- copy(dissimilarity_covariates_dredge.dt)
+  dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
+
+  #constant fishing in regions
+  dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
+  dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)]
 
 #and then with consistent temp and fishing in regions
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
+
+
   #allowing temp and fishing to vary only within regs
   dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[2]]]
+  
+#allowing only fishing to vary
+  
+   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[2]]]
+
+  
+  
+#allowing only temperature to vary
+     
+   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[2]]]
+
 
 #and then with consistent temp and fishing across regions
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing <- copy(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall)]
+
   #allowing temp and fishing to vary across all regs
   dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[2]]]
 
@@ -1397,8 +1419,52 @@ Linear mixed effect models
       #significant directional change
       model_coefs_reduced_predictions[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
       
-
-
+#####################################################################################################################################################
+#input to predicted values = static temp within surveys (mean)
+      #adjust years
+      dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,year_adj := year-min(year)+1]
+      
+      predicted_tempmaintainedinreg_dissimilarities_lmer <- lmer(pred_dissim ~ year_adj + (1 + year_adj|survey_unit),data = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)
+      
+      # see group coefficients
+      model_coefs_reduced_predictions_tempmaintainedinreg <- data.table(transform(as.data.frame(ranef(predicted_tempmaintainedinreg_dissimilarities_lmer)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+      #https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+      
+      
+      #ONLY SLOPES
+      model_coefs_reduced_predictions_tempmaintainedinreg <- model_coefs_reduced_predictions_tempmaintainedinreg[term == "year_adj",]
+      
+      model_coefs_reduced_predictions_tempmaintainedinreg[,survey_unit := grp][,year_adj := condval][,Directional_Change := ifelse(year_adj > 0, "Differentiation","Homogenization")]
+      
+      #does it cross zero?
+      model_coefs_reduced_predictions_tempmaintainedinreg[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+      
+      #significant directional change
+      model_coefs_reduced_predictions_tempmaintainedinreg[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
+  
+#####################################################################################################################################################
+#input to predicted values = static fishing within surveys (mean)
+      #adjust years
+      dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,year_adj := year-min(year)+1]
+      
+      predicted_fishingmaintainedinreg_dissimilarities_lmer <- lmer(pred_dissim ~ year_adj + (1 + year_adj|survey_unit),data = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)
+      
+      # see group coefficients
+      model_coefs_reduced_predictions_fishingmaintainedinreg <- data.table(transform(as.data.frame(ranef(predicted_fishingmaintainedinreg_dissimilarities_lmer)), lwr = condval - 1.96*condsd, upr = condval + 1.96*condsd))
+      #https://stackoverflow.com/questions/69805532/extract-the-confidence-intervals-of-lmer-random-effects-plotted-with-dotplotra
+      
+      
+      #ONLY SLOPES
+      model_coefs_reduced_predictions_fishingmaintainedinreg <- model_coefs_reduced_predictions_fishingmaintainedinreg[term == "year_adj",]
+      
+      model_coefs_reduced_predictions_fishingmaintainedinreg[,survey_unit := grp][,year_adj := condval][,Directional_Change := ifelse(year_adj > 0, "Differentiation","Homogenization")]
+      
+      #does it cross zero?
+      model_coefs_reduced_predictions_fishingmaintainedinreg[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
+      
+      #significant directional change
+      model_coefs_reduced_predictions_fishingmaintainedinreg[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
+  
 #####################################################################################################################################################
 
 
@@ -1561,25 +1627,47 @@ ggsave(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_predicted_merge
 Plotting observed vs predicted
 ```{r}
 #single data table
-bray_curtis_fishing_temp_model_observed_predicted_dt <- data.table(obs_dissim = model_coefs_reduced$year_adj, pred_dissim = model_coefs_reduced_predictions$year_adj, pred_dissim_tempfishconstantinsurvey = model_coefs_reduced_predictions_tempfishingmaintainedinreg$year_adj)
+bray_curtis_fishing_temp_model_observed_predicted_dt <- data.table(obs_dissim = model_coefs_reduced$year_adj, pred_dissim = model_coefs_reduced_predictions$year_adj, pred_dissim_tempfishconstantinsurvey = model_coefs_reduced_predictions_tempfishingmaintainedinreg$year_adj, pred_dissim_tempconstantinsurvey =model_coefs_reduced_predictions_tempmaintainedinreg$year_adj, pred_dissim_fishconstantinsurvey =model_coefs_reduced_predictions_fishingmaintainedinreg$year_adj)
 
 bray_curtis_fishing_temp_model_observed_predicted_lm <- lm(pred_dissim ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
 
 (bray_curtis_fishing_temp_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
-  geom_point(aes(x = obs_dissim, y = pred_dissim)) +
+  geom_point(aes(y = obs_dissim, x = pred_dissim)) +
   geom_abline(aes(slope = 1, intercept = 0)) +
-  labs(x = "Observed β-diversity trend",y = "Predicted β-diversity trend\n") +
-  annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_lm)[[1]],2))) +
+  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n") +
+ # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_lm)[[1]],2))) +
   theme_classic()
 )
 
+#fishing constant
+bray_curtis_fishing_maintained_model_observed_predicted_lm <- lm(pred_dissim_fishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+
+(bray_curtis_fishing_maintained_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
+  geom_point(aes(y = obs_dissim, x = pred_dissim_tempfishconstantinsurvey)) +
+  geom_abline(aes(slope = 1, intercept = 0)) +
+  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(temperature only)") +
+ # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_maintained_model_observed_predicted_lm)[[1]],2))) +
+  theme_classic()
+)
+#temp constant
+bray_curtis_temp_maintained_model_observed_predicted_lm <- lm(pred_dissim_tempconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+
+(bray_curtis_temp_maintained_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
+  geom_point(aes(y = obs_dissim, x = pred_dissim_tempconstantinsurvey)) +
+  geom_abline(aes(slope = 1, intercept = 0)) +
+  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(fishing only)") +
+ # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_temp_maintained_model_observed_predicted_lm)[[1]],2))) +
+  theme_classic()
+)
+
+#fishing and temp constant
 bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(pred_dissim_tempfishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
 
 (bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
-  geom_point(aes(x = obs_dissim, y = pred_dissim_tempfishconstantinsurvey)) +
-  annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm)[[1]],2))) +
+  geom_point(aes(y = obs_dissim, x = pred_dissim_tempfishconstantinsurvey)) +
+ # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm)[[1]],2))) +
   geom_abline(aes(slope = 1, intercept = 0)) +
-  labs(x = "Observed β-diversity trend",y = "Predicted β-diversity trend\n(temp & fishing constant in survey)") +
+  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(excludes temperature and fishing)") +
   theme_classic()
 )
 
@@ -1588,9 +1676,12 @@ bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <-
 summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm)
 
 #merge
-bray_curtis_fishing_temp_model_observed_predicted_merge <- plot_grid(bray_curtis_fishing_temp_model_observed_predicted, bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey, ncol = 2, labels = c("a.","b."))
+bray_curtis_fishing_temp_model_observed_predicted_merge <- plot_grid(bray_curtis_fishing_temp_model_observed_predicted,
+                                                                     bray_curtis_temp_maintained_model_observed_predicted,
+                                                                     bray_curtis_fishing_maintained_model_observed_predicted,
+                                                                     bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey, ncol = 2, labels = c("a.","b.","c.","d."))
 
-ggsave(bray_curtis_fishing_temp_model_observed_predicted_merge, path = here::here("figures"),filename = "bray_curtis_fishing_temp_model_observed_predicted_merge.jpg", height = 3, width = 8)
+ggsave(bray_curtis_fishing_temp_model_observed_predicted_merge, path = here::here("figures"),filename = "bray_curtis_fishing_temp_model_observed_predicted_merge.jpg", height = 8, width = 8)
 
 
 ```

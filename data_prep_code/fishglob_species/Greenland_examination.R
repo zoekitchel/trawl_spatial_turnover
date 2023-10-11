@@ -1,7 +1,9 @@
 #Greenland exploration
 
 
-#Working with Karl Michael Werner to try to figure out why the lowest 15% species doesn't align with his expectations
+#Working with Karl Michael Werner to try to figure out why the lowest 15% species doesn't align with his expectations for 
+#Greenland bottom trawl survey data. From this examination, we found out that Greenland data have errors, and therefore 
+#pull in separate Greenland data outside of Fishglob v1.5.
 
 
 library(data.table)

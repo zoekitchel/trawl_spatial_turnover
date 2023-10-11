@@ -1,0 +1,126 @@
+TO DO:
+
+How does spatial beta diversity change over time?
+
+Root data file to use for all of these analyses
+distances_dissimilarities_allyears <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.rds"))
+
+  Models:
+  1. Dissimilarity versus time: Allow intercepts to vary
+    - lmer(bray curtis ~ year + (1|survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1|survey_unit)) #occurence
+    - lmer(bray curtis ~ year + (1|survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1|survey_unit)) #occurence
+        
+  2. Dissimilarity versus time: Allow intercepts and slopes to vary (possibly a GAM instead to allow for wiggles?)
+    - lmer(bray curtis ~ year + (1 + year|survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1 + year|survey_unit)) #occurence
+    - lmer(bray curtis ~ year + (1 + year|survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1 + year|survey_unit)) #occurence
+        
+  3. Distance decay slope: Allow intercepts  to vary
+    - extract slope parameter for each year and survey (betapart::decay.model() --> b.slope)
+    - lmer(b.slope(bray) ~ year + (1 + survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1 + survey_unit)) #occurence
+    - lmer(b.slope(jaccard) ~ year + (1 + survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1 + survey_unit)) #occurence
+        
+  4. Distance decay slope: Allow intercepts and slopes to vary
+    - extract slope parameter for each year and survey (betapart::decay.model() --> b.slope)
+    - lmer(b.slope(bray) ~ year + (1 + year|survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1 + year|survey_unit)) #occurence
+    - lmer(b.slope(jaccard) ~ year + (1 + year|survey_unit)) #biomass
+        - lmer(jaccard ~ year + (1 + year|survey_unit)) #occurence
+
+  Figures:
+  
+  1. Bray Curtis ~ Year (Figure 2b Dornelas 2014)
+      - single black line for random intercept model
+      - multiple colored lines for each survey_unit for random slope and random intercept model
+      
+      1. Sup 0.1 Bray Curtis TOTAL ~ Year 
+      - single black line for random intercept model
+      - multiple colored lines for each survey_unit for random slope and random intercept model
+     
+      1. Sup1: Jaccard ~ Year
+              - single black line for random intercept model
+              - multiple colored lines for each survey_unit for random slope and random intercept model
+              
+      1. Sup1.1: Jaccard TOTAL ~ Year
+              - single black line for random intercept model
+              - multiple colored lines for each survey_unit for random slope and random intercept model        
+              
+      1. Sup2: Distance Decay Slope Bray ~ Year
+              - single black line for random intercept model
+              - multiple colored lines for each survey_unit for random slope and random intercept model
+              
+        1. Sup2.1: Distance Decay Slope Bray TOTAL ~ Year
+              - single black line for random intercept model
+              - multiple colored lines for each survey_unit for random slope and random intercept model
+              
+      1. Sup3: Distance Decay Slope Jaccard ~ Year
+              - single black line for random intercept model
+              - multiple colored lines for each survey_unit for random slope and random intercept model
+              
+         1. Sup3.1: Distance Decay Slope Jaccard TOTAL ~ Year
+              - single black line for random intercept model
+              - multiple colored lines for each survey_unit for random slope and random intercept model
+            
+      2. Random slopes (Bray Curtis ~ Year + (1+year|survey_unit) with confidence interval, vertically oriented by survet unit. How does cofficient vary by: number of years surveyed, etc. (Figure 3B in Dornelas 2014)
+             
+EBS |    |---|    |  |--|       |
+AI  | |---|       | |--|          |
+GOA |          |--|-|      |--| |
+              
+              2. Sup0.1: Random slopes (Bray TOTAL ~ Year + (1+year|survey_unit))
+            2. Sup1: Random slopes (Jaccard ~ Year + (1+year|survey_unit))
+              2. Sup1.1: Random slopes (Jaccard TOTAL ~ Year + (1+year|survey_unit))
+            2. Sup2: Random slopes (Distance Decay Bray Slope ~ Year + (1+year|survey_unit))
+              2. Sup2.1: Random slopes (Distance Decay Bray TOTAL Slope ~ Year + (1+year|survey_unit))
+            2. Sup3: Random slopes (Distance Decay Jaccard Slope ~ Year + (1+year|survey_unit))
+              2. Sup3.1: Random slopes (Distance Decay Jaccard TOTAL Slope ~ Year + (1+year|survey_unit))
+            
+            
+      3. Patterns vary over time (Zoom in on 2 longer time series, maybe EBS and ZA)
+        - sensitivity of Bray Curtis ~ Year coefficent to duration of time series and which series you pick
+        - compare distribution of coefficients for all possible sequences of 2, 5, 10 & 20 years
+        - emphasize value of annual observations
+        - similar to Fredston-Hermann 2020 Figure 4
+              
+      4. Bray Curtis ~ MinTemperature + MaxTemperature + MeanTemperature + SDTemperature (within region, not accross all regions) + Fishing + (1|year) + (1|survey_unit)
+      
+      5. Map? not sure what would make sense here, may be a waste of space
+          Maybe alongside figure 2
+      
+      
+      
+      
+      
+Still to consider:
+  - leave out pelagics?
+  - Maybe, Zoom in  closer on one region to see what's actually causing changes? track species coming and/or going  (probs EBS makes semse here too)
+  
+      
+     1 Zoe
+     2 Charlene
+     3 Ned
+     4 Helen
+     5 Brad
+     6 Nemia
+     7 Lucy
+     8 Marlena
+     9 Colby
+     10 Maggie G. 
+      
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  

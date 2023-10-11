@@ -20,6 +20,7 @@ FishGlob_cleaned.10year.rds
 data/FishGlob_1.1.clean.rds
 output/region_season_cleaned_data/FishGlob_cleaned.10year.rds
 output/region_season_cleaned_data/FishGlob_cleaned.10year.r.rds
+data/cleaned/FishGlob.10year.spp_manualclean.rds
 OISST_data_AI.rds
 OISST_data*
 box_plots_bray.rds

@@ -1,0 +1,60 @@
+---
+title: "Data cleaning visualization"
+author: Zoë J. Kitchel
+date: "5/1/2023"
+output: 
+  bookdown::pdf_document2: default
+header-includes: 
+  - \renewcommand{\figurename}{Supplementary Figure }
+  - \renewcommand{\tablename}{Supplementary Table}
+  - \makeatletter
+  - \def\fnum@figure{\figurename\thefigure}
+  - \makeatother
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+This code is a supplemental script for Kitchel et al. 2023 submitted manuscript. 
+
+Run after standardize_temp_space_2 for visual of years and cells that are excluded using 70% year 70% cell code.
+
+
+```{r setup, include=F}
+library(data.table)
+knitr::opts_chunk$set(echo = T)
+
+```
+
+Load plots
+```{r}
+#years
+fishglob_exclude_years_plots <- readRDS(here::here("figures","standardization","fishglob_exclude_years_plots.Rds"))
+
+#cells
+fishglob_exclude_cells_plots <- readRDS(here::here("figures","standardization","fishglob_exclude_cells_plots.Rds"))
+```
+
+
+Plot years excluded
+```{r fig-plot-years, fig.keep="all", fig.height=4, fig.cap=paste0("Number of tows per year used to standardize spatial footprint through time. Years highlighted in turquoise exluded because they sampled less than 70% of cells."), message = F, echo = F, warning = F}
+for (i in c(1:45)) {
+  cat('\n\n') 
+print(fishglob_exclude_years_plots[[i]])
+  cat('\n\n') 
+}
+
+```
+
+Plot cells excluded
+
+-Check EBS, GOA later which aren't printing for some reason
+```{r fig-plot-cells, fig.keep="all", fig.height=4, fig.cap=paste0("Tow locations and hexagonal grid cells used to standardize spatial footprint through time. Cells highlighted in turquoise exluded because they were sampled in less than 70% of years after accounting for undersampled years (See previous bar plots)."), message = F, echo = F, warning = F}
+for (i in c(1:16,18:20,22:45)){
+  cat('\n\n')
+  print(fishglob_exclude_cells_plots[[i]])
+  cat('\n\n')
+}
+
+```
+

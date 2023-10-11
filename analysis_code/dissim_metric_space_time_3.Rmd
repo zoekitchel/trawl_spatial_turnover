@@ -82,6 +82,30 @@ FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][,
 FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
 ```
 
+Dataset statistics
+
+Total observations?
+```{r}
+nrow(FishGlob_clean.noNA)
+```
+
+Total hauls?
+```{r}
+length(unique(FishGlob_clean.noNA[,haul_id]))
+```
+
+Total survey units?
+```{r}
+length(unique(FishGlob_clean.noNA[,survey_unit]))
+```
+
+Total species?
+```{r}
+length(unique(FishGlob_clean.noNA[,accepted_name]))
+```
+
+
+
 Survey Statistics for all regions
 ```{r}
 #Calculate survey details only

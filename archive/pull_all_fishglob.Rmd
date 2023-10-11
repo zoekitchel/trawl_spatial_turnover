@@ -1,0 +1,647 @@
+---
+title: "Prepping all Fish Glob Data"
+output: html_notebook
+---
+
+
+```{r setup}
+library(dggridR)
+library(data.table)
+library(rgdal)
+library(raster)
+library(sp)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(taxize) #standardizing names
+library(geosphere)  #to calculate distance between lat lon of grid cells
+library(googledrive)
+library(here)
+library(sf)
+library(cowplot)
+```
+
+
+Pull in compiled and cleaned data from fishglob May 9, 2022. Aurore and Laura have added a new column to help with season issues: survey_unit
+
+```{r pull in data from fishglob for all regions Sea from Google Drive}
+drive_download(file = "FISHGLOB_v1.2_clean.csv",
+               path = here::here("data","FISHGLOB_v1.2_clean.csv"),
+               overwrite = T)
+
+FishGlob <- fread(here::here("data","FISHGLOB_v1.2_clean.csv"))
+
+file.remove(here::here("data","FISHGLOB_v1.2_clean.csv"))
+
+#save
+#saveRDS(FishGlob, file = here::here("data", "FishGlob_1.2.clean.rds"))
+
+#load if already saved
+#FishGlob <- readRDS(file = here::here("data", "FishGlob_1.2.clean.rds"))
+
+```
+
+Get rid of any survey x season combos not sampled for at least 10 years
+
+*NS_IBTS is best examined only for 1st and 3rd quarter
+```{r summary by survey region}
+#new row for total number of years sampled
+FishGlob[,years_sampled := length(unique(year)),.(survey_unit)]
+
+hist(FishGlob$years_sampled)
+
+length(unique(FishGlob[,survey]))
+
+#remove observations for any regions x season combinations sampled less than 10 times and observations not resolved to species
+FishGlob.10year <- FishGlob[years_sampled >= 10,][rank == "Species",]
+
+
+length(unique(FishGlob.10year[,survey_unit]))
+
+rm(FishGlob)
+
+all_survey_seasons <- sort(unique(FishGlob.10year[,survey_unit]))
+
+```
+
+Survey specific changes (These have not actually been implemented as of February 6 2022)
+
+
+From Batt et al. 2017
+"In the Eastern Bering Sea, sampling years prior to 1984 (data begin in 1982) were excluded from analysis due to large apparent increases in the number of species recorded in the first two years."
+
+"In the Gulf of Mexico, we restricted our analysis to data from 1984 - 2000 (full range
+1982-2014); if all years had been used, the number of sites sampled in at least 85% of years would drop from 39 to 13."
+
+"In the Southeast U.S., data from 1989 (data begin in 1989) were excluded because several sites were not sampled in this year, and if this year had been used, the number of sites sampled in at least 85% of years would drop from 24 to 23 (with only 21 sites sampled in 1989)."
+
+"In the Northeast U.S., we excluded data from years prior to 1982 (data begin in 1968). Years prior to 1979 were excluded because strata in the southern tip of the region (between approximately 34.5o N and 35o N) were not regularly sampled during this time. A site in the Gulf of Maine (-69.25o E 43.25o N) was not sampled consistently between 1979 and 1981, and including these years in the analysis would have prevented this site from being included in the analysis (which would have reduced total sites from 100 to 99)." #Alexa says start in 1968/1972
+
+"In Newfoundland, years prior to 1996 (first year was 1992) were excluded because many sites were not sampled. If all years had been used (1992 onward), total number of sites sampled in at least 85% of years would have been decreased from 191 to 53; if data from 1995 onward had been included, number of sites would have been 179." 
+
+Maybe throw out last year of triannual survey for West Coast US (overlaps with first)
+
+(Skipping for now, hopefully our cleaning procedure will cover our bases here)
+```{r}
+
+#FishGlob.10year.r <- FishGlob.10year[!(survey == "EBS" & year < 1984),][!(survey == "SEUS" & year < 1990),][!(survey == "NEUS" & year < 1982),][!(survey == "DFO-NF" & year < 1996),]
+
+#rm(FishGlob.10year)
+```
+
+
+Loop to standardize observations for all regions
+
+(This is preliminary code where we use threshold of 70% observation coverage for getting rid of years and n = 1/year for keeping cells)
+
+At some point in the near future, I will just use Laura's code here, or perhaps her final data product where we eliminate observations that don't match consistent spatial footprint but limit whether this happens in years  or locations by # of observations lost. 
+
+```{r standardize observations all regions}
+
+
+#world map
+world <- data.table(map_data('world'))
+world[,long_s := ifelse(long > 150, (long-360),(long))]
+
+
+#if positive, subtract 360
+FishGlob.10year[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+
+#delete if NA for longitude or latitude
+FishGlob.10year <- FishGlob.10year[complete.cases(FishGlob.10year[,.(longitude, latitude)])]
+
+#set up grid
+dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least 1 observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
+
+map_points_plots <- list()
+
+FishGlob_cleaned <- data.table()
+
+
+for (i in 1:length(all_survey_seasons)) {
+      
+      #reduce to specific survey/season combination
+      reduced_FishGlob.10year <- FishGlob.10year[survey_unit == all_survey_seasons[i],]
+      
+      #pull out unique lat lons
+      unique_latlon <- unique(reduced_FishGlob.10year[,.(latitude, longitude_s)])
+      
+      unique_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude_s, latitude)] #get corresponding grid cells for this region/survey combo
+    
+      #find cell centers
+      cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell])
+    
+      #linking cell centers to unique_latlon
+      unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
+    
+        #link centers back to main data table
+      reduced_FishGlob.10year.gridded <- merge(reduced_FishGlob.10year, unique_latlon, by = c("latitude", "longitude_s"))
+    
+      #number of tows in each cell
+      towcount <- unique_latlon[, .N, by = cell]
+    
+      #get the grid cell boundary for cells which had trawls
+      grid <- dgcellstogrid(dggs, unique_latlon[,cell], frame = T, wrapcells = F)
+    
+      #update grid properties to include # of trawls in each cell
+      grid <- merge(grid, unique_latlon, by = "cell")
+      
+      #Any years where clearly fewer haulids were sampled?
+      year_haulids <- reduced_FishGlob.10year.gridded[,.(haulid_count = length(unique(haul_id))),year]
+      
+      #we'll make benchmark 85% just for now
+      benchmark_value <- 0.7*max(year_haulids[,haulid_count])
+      #only keep years where over 85% of cells are sampled
+      year_haulids[,benchmark := haulid_count >= benchmark_value]
+      
+      years_deleted <- year_haulids[benchmark == F]$year #which years are left out?
+      
+      years_kept <- year_haulids[benchmark ==T]$year #which years  to keep
+      
+      years_deleted_percent <- round(length(years_deleted)/nrow(year_haulids)*100,1)
+      
+
+       #print the years that are left out
+      print(ifelse(length(years_deleted) == 0, paste0(all_survey_seasons[i], " Years left out = 0"), paste0(all_survey_seasons[i], " Years left out = ", years_deleted, collapse = ",")))
+     
+     print(paste0(years_deleted_percent, "% of Years Excluded"))
+      
+      #reduce to years that are well sampled
+      reduced_FishGlob.10year.gridded.r <- reduced_FishGlob.10year.gridded[year %in% years_kept,]
+      
+      #identify any cells that in any years are sampled less than 1 times
+      reduced_FishGlob.10year.gridded.r[,year_cell_count := length(unique(haul_id)),.(year,cell)]
+      
+      #cell ids to remove and keep
+      #in any year, which cells are sampled less than 1 times, these need to go
+      cell_id_remove <- unique(reduced_FishGlob.10year.gridded.r[year_cell_count < 1]$cell)
+      cells_deleted_percent <- round(length(cell_id_remove)/length(unique(reduced_FishGlob.10year.gridded.r[,cell]))*100,1)
+      #this removes 40% of cells from Aleutian islands, seems like too much, I will return to this
+      
+      #reduce to cells that are well sampled
+      reduced_FishGlob.10year.gridded.r.cell <- reduced_FishGlob.10year.gridded.r[!cell %in% cell_id_remove,]
+      
+      #add to cleaned data table of all regions
+      FishGlob_cleaned  <- rbind(FishGlob_cleaned, reduced_FishGlob.10year.gridded.r.cell)
+      
+      #What percent of observations does this remove?
+      obs_removed <- round((nrow(reduced_FishGlob.10year.gridded.r)-nrow(reduced_FishGlob.10year.gridded.r.cell))/nrow(reduced_FishGlob.10year.gridded.r)*100,1) #we lose 13.4% of observations
+      
+      cell_id_remove.string <- paste(cell_id_remove, collapse = ", ")
+      obs_removed.string <- paste(obs_removed, collapse = ", ")
+      
+        #print portion of cells that are left out
+      print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_seasons[i], " Cells left out = 0"), paste0(all_survey_seasons[i], " Cells left out = ", cell_id_remove.string, ", ",cells_deleted_percent, "% Cells Excluded, ",obs_removed, "% Observations Removed")))
+      
+      #make a map of these points
+      
+      #unique lat lon
+      unique_latlon_reduced <- unique(reduced_FishGlob.10year.gridded.r.cell[,.(longitude,  latitude)])
+      #if greater than 150, subtract 360
+      unique_latlon_reduced[,longitude_s := ifelse(longitude > 150,(longitude-360),(longitude))]
+    
+        #set bounds of basemap using coordinates
+      reg <- world[long_s >= min(unique_latlon_reduced[,longitude_s]-2) & long_s <= max(unique_latlon_reduced[,longitude_s]+2) & lat >= min(unique_latlon_reduced[,latitude]-2) & lat <= max(unique_latlon_reduced[,latitude]+2)]
+      
+      if(max(unique_latlon_reduced[,longitude] > 150)) {
+      #make map
+      map_points_plots[[i]] <- ggplot() +
+    geom_polygon(data = world, aes(x=long_s, y = lat, group = group), 
+                                     fill = "black", 
+                                     color="black") +
+      geom_point(data = unique_latlon_reduced,
+        aes(
+          x = longitude_s,
+          y = latitude),
+        color = "red", size = 0.05
+      ) +
+        labs(x = "Longitude", y = "Latitude") +
+        coord_equal(xlim = c(min(unique_latlon_reduced[,longitude_s]-2), max(unique_latlon_reduced[,longitude_s]+2)), 
+                    ylim = c(min(unique_latlon_reduced[,latitude]-2), max(unique_latlon_reduced[,latitude]+2))) +
+      theme_classic()
+      
+      mapfilename <- paste0(all_survey_seasons[i], "_map_point_plot.jpg")
+    
+     ggsave(map_points_plots[[i]], filename = mapfilename, path = here::here("figures","map_points_plots"))
+      } else {
+          #make map
+      map_points_plots[[i]] <- ggplot() +
+    geom_polygon(data = world, aes(x=long, y = lat, group = group), 
+                                     fill = "black", 
+                                     color="black") +
+      geom_point(data = unique_latlon_reduced,
+        aes(
+          x = longitude,
+          y = latitude),
+        color = "red", size = 0.05
+      ) +
+        labs(x = "Longitude", y = "Latitude") +
+        coord_equal(xlim = c(min(unique_latlon_reduced[,longitude]-2), max(unique_latlon_reduced[,longitude]+2)), 
+                    ylim = c(min(unique_latlon_reduced[,latitude]-2), max(unique_latlon_reduced[,latitude]+2))) +
+      theme_classic()
+      
+      mapfilename <- paste0(all_survey_seasons[i], "_map_point_plot.jpg")
+    
+     ggsave(map_points_plots[[i]], filename = mapfilename, path = here::here("figures","map_points_plots"))
+      }
+     
+    }
+
+#now, check again to see if any are less than 10 years
+FishGlob_cleaned[,years_sampled_update := length(unique(year)),.(survey,season)]
+FishGlob_cleaned.10year <- FishGlob_cleaned[years_sampled_update >= 10,]
+
+#saveRDS(FishGlob_cleaned.10year, here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+
+#FishGlob_cleaned.10year <- readRDS(here::here("output","region_season_cleaned_data","FishGlob_cleaned.10year.rds"))
+
+length(unique(FishGlob_cleaned.10year[,survey]))
+
+```
+
+Plot unique trawl areas
+```{r plot glob with points}
+#pull points
+FishGlob_cleaned.10year.lat.lon <- unique(FishGlob_cleaned.10year[,.(longitude,latitude,survey)])
+
+FishGlob_cleaned.10year.lat.lon.spdf <- SpatialPointsDataFrame(coords = FishGlob_cleaned.10year.lat.lon[,1:2], data = FishGlob_cleaned.10year.lat.lon,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+#ddgrdr grid for all points of tows that are used
+FishGlob_cleaned.10year.lat.lon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells
+
+#centersof cells
+FishGlob_cleaned.10year.lat.lon_cellcenters <- dgSEQNUM_to_GEO(dggs, FishGlob_cleaned.10year.lat.lon[,cell])
+
+#linking cell centers to unique_EBS_latlon
+FishGlob_cleaned.10year.lat.lon[,LON_CENTER := FishGlob_cleaned.10year.lat.lon_cellcenters$lon_deg][,LAT_CENTER := FishGlob_cleaned.10year.lat.lon_cellcenters$lat_deg]
+
+#get the grid cell boundary for cells which had trawls
+grid_FishGlob_cleaned.10year.lat.lon <- dgcellstogrid(dggs, FishGlob_cleaned.10year.lat.lon[,cell], frame = T, wrapcells = F)
+
+#update grid properties to include # of trawls in each cell
+grid_FishGlob_cleaned.10year.lat.lon <- merge(grid_FishGlob_cleaned.10year.lat.lon, FishGlob_cleaned.10year.lat.lon, by = "cell")
+
+world <- ne_countries(scale = "medium", returnclass = "sf") #set up for world map
+class(world)
+
+global_grids <- ggplot(data = world) +
+    geom_sf(fill = "black", color = NA) +
+  geom_point(data = FishGlob_cleaned.10year.lat.lon, aes(x = longitude, y = latitude, color = survey), shape = 20, size = 0.000000001) + 
+#  geom_polygon(grid_FishGlob_cleaned.10year.lat.lon, mapping = aes(x = long,y = lat, group = cell), inherit.aes = FALSE, fill = NA, color = "darkgrey", size = 0.1) +
+  theme_classic() +  theme(legend.position = "none")
+
+
+
+
+#save global map
+ggsave(global_grids, path = here::here("figures","map_points_plots"), filename = "global_grids.jpg", height = 8, width = 12)
+```
+
+##Sensitivity Analyses (March 2022 @ FishGlob Montpellier)
+
+Just year threshold sensitivity
+```{r year threshold sensitivity}
+#
+#set up grid
+dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least n observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
+
+percent_thresholds <- seq(0.5, 1, by = 0.01)
+
+#empty table with sensitivity statistics
+
+year_threshold_sensitivity_full <- data.table(matrix(ncol = 6))
+
+colnames(year_threshold_sensitivity_full) <-  c("survey_season","percent_threshold","years_deleted_percent","years_deleted_count", "obs_deleted_percent", "obs_deleted_count")
+
+#leave out ZAF_1 and MEDITS_2 because they fail at GEO_to_SEQNUM (fix latere)
+leave_out_error <- c("ZAF_1", "MEDITS_2")
+
+all_survey_seasons <- all_survey_seasons[!(all_survey_seasons %in% leave_out_error)]
+
+for (i in 1:length(all_survey_seasons)) {
+      
+      #reduce to specific survey/season combination
+      reduced_FishGlob.10year <- FishGlob.10year[survey_season == all_survey_seasons[i],]
+      
+      #pull out unique lat lons
+      unique_latlon <- unique(reduced_FishGlob.10year[,.(latitude, longitude)])
+      
+      unique_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for this region/survey combo
+    
+      #find cell centers
+      cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell]) #check, fails for MEDITS_2 and ZAF_1
+    
+      #linking cell centers to unique_latlon
+      unique_latlon[,cell_center_longitude := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
+    
+        #link centers back to main data table
+      reduced_FishGlob.10year.gridded <- merge(reduced_FishGlob.10year, unique_latlon, by = c("latitude", "longitude"))
+    
+      #number of tows in each cell
+      towcount <- unique_latlon[, .N, by = cell]
+    
+      #get the grid cell boundary for cells which had trawls
+      grid <- dgcellstogrid(dggs, unique_latlon[,cell], frame = T, wrapcells = F)
+    
+      #update grid properties to include # of trawls in each cell
+      grid <- merge(grid, unique_latlon, by = "cell")
+      
+      #Any years where clearly fewer cells were sampled?
+      year_cells <- reduced_FishGlob.10year.gridded[,.(cell_count = length(unique(cell))),year]
+      
+      for(j in 1:length(percent_thresholds)) {
+      
+      benchmark <- percent_thresholds[j] * max(year_cells[,cell_count]) # of cells/ year to cut off below
+      
+     # assign(paste0("benchmark_",percent_thresholds[j]*100,"%"), benchmark) #unhash if you want to save object
+      
+      #only keep years where over x% of cells are sampled
+      year_cells[,benchmark_met := cell_count > benchmark]
+      
+      years_deleted <- year_cells[benchmark_met == F]$year #which years are left out?
+      
+      years_kept <- year_cells[benchmark_met ==T]$year #which years  to keep
+      
+      years_deleted_percent <- length(years_deleted)/nrow(year_cells)*100
+      
+      years_deleted_count <- length(years_deleted)
+    
+      
+      #reduce to years that are well sampled
+      reduced_FishGlob.10year.gridded.r <- reduced_FishGlob.10year.gridded[year %in% years_kept,]
+      
+      #identify any cells that in any years are sampled less than 3 times
+      reduced_FishGlob.10year.gridded.r[,year_cell_count := length(unique(haul_id)),.(year,cell)]
+      
+           #continue to limit by the number of observations for grid cell per year (start with n = 1)
+      
+            #cell ids to remove and keep
+      #in any year, which cells are sampled less than 1 times, these need to go (sensitivity below)
+      cell_id_remove <- unique(reduced_FishGlob.10year.gridded.r[year_cell_count < 1,cell]) 
+      
+      cells_deleted_percent <- length(cell_id_remove)/length(unique(reduced_FishGlob.10year.gridded.r[,cell]))
+      #what percent of cells are deleted
+      
+      cells_deleted_count <- length(cell_id_remove)
+      
+      #reduce to cells that are well sampled
+      reduced_FishGlob.10year.gridded.r.cell <- reduced_FishGlob.10year.gridded.r[!(cell %in% cell_id_remove),]
+      
+      #add to cleaned data table of all regions don't need to do this
+#      FishGlob_cleaned_year_sensitivity  <- rbind(FishGlob_cleaned_year_sensitivity, reduced_FishGlob.10year.gridded.r.cell)
+      
+      #What percent of observations does this remove?
+      obs_deleted_percent <- (length(unique(reduced_FishGlob.10year[,haul_id]))-length(unique(reduced_FishGlob.10year.gridded.r.cell[,haul_id])))/length(unique(reduced_FishGlob.10year[,haul_id])) #what % obs do we lose
+      
+            obs_deleted_count <- length(unique(reduced_FishGlob.10year[,haul_id]))-length(unique(reduced_FishGlob.10year.gridded.r.cell[,haul_id])) #what # obs do we lose
+      
+      #add to row in small data.table
+            
+                  year_threshold_sensitivity <- data.table(matrix(c(all_survey_seasons[i], percent_thresholds[j],years_deleted_percent, years_deleted_count, obs_deleted_percent,obs_deleted_count), nrow = 1))
+      
+      
+      year_threshold_sensitivity_full <- rbind(year_threshold_sensitivity_full, year_threshold_sensitivity, use.names = F)
+  
+      }
+      
+  print(paste0(all_survey_seasons[i]))
+}
+
+#delete first empty row
+year_threshold_sensitivity_full <- year_threshold_sensitivity_full[-1,]
+year_threshold_sensitivity_full[,percent_threshold := as.numeric(percent_threshold)][,years_deleted_percent := as.numeric(years_deleted_percent)][,years_deleted_count := as.numeric(years_deleted_count)][,obs_deleted_percent := as.numeric(obs_deleted_percent)][,obs_deleted_count := as.numeric(obs_deleted_count)]
+
+#Make plot
+year_threshold_sensitivity_plot <- ggplot(year_threshold_sensitivity_full, aes(x = percent_threshold, y = years_deleted_percent)) +
+  geom_line(aes(color = survey_season)) +
+#  facet_wrap(~survey_season) +
+  theme_classic()
+
+ggsave(year_threshold_sensitivity_plot, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_plot.jpg", width = 10, height = 5, unit = "in")
+
+#Make faceted plot
+year_threshold_sensitivity_plot_facet <- ggplot(year_threshold_sensitivity_full, aes(x = percent_threshold, y = years_deleted_percent)) +
+  geom_line() +
+  facet_wrap(~survey_season, ncol = 3) +
+  theme_classic()
+
+ggsave(year_threshold_sensitivity_plot_facet, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_plot_facet.jpg", unit = "in", width = 3, height = 15)
+
+#Make box plot
+year_threshold_sensitivity_plot_box <- ggplot(year_threshold_sensitivity_full, aes(y = years_deleted_percent, x = percent_threshold, group = as.factor(percent_threshold))) +
+  geom_boxplot() +
+  theme_classic()
+
+ggsave(year_threshold_sensitivity_plot_box, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_plot_box.jpg", width = 10, height = 5, unit = "in")
+
+year_threshold_sensitivity_merge <- plot_grid(year_threshold_sensitivity_plot + theme(legend.position = "none"), year_threshold_sensitivity_plot_box + theme(axis.title.y = element_blank(), axis.text.y = element_blank()), ncol = 2, align = "hv")
+
+ggsave(year_threshold_sensitivity_merge, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_merge.jpg", width = 6, height = 3, unit = "in")
+
+#for individual hauls
+#Make plot
+year_threshold_sensitivity_plot_by_tow <- ggplot(year_threshold_sensitivity_full, aes(x = percent_threshold, y = 1-obs_deleted_percent)) +
+  geom_line(aes(color = survey_season)) +
+    labs(x = "Percent Threshold", y = "Percent Hauls Maintained") +
+#  facet_wrap(~survey_season) +
+  theme_classic()
+
+ggsave(year_threshold_sensitivity_plot_by_tow, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_plot_by_tow.jpg", width = 10, height = 5, unit = "in")
+
+#Make faceted plot
+year_threshold_sensitivity_plot_facet_by_tow <- ggplot(year_threshold_sensitivity_full, aes(x = percent_threshold, y = 1-obs_deleted_percent)) +
+  labs(x = "Percent Threshold", y = "Percent Hauls Maintained") +
+  geom_line() +
+  facet_wrap(~survey_season, ncol = 3) +
+  theme_classic()
+
+ggsave(year_threshold_sensitivity_plot_facet_by_tow, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_plot_facet_by_tow.jpg", unit = "in", width = 3, height = 15)
+
+#Make box plot
+year_threshold_sensitivity_plot_box_by_tow <- ggplot(year_threshold_sensitivity_full, aes(y = 1-obs_deleted_percent, x = percent_threshold, group = as.factor(percent_threshold))) +
+  labs(x = "Percent Threshold", y = "Percent Hauls Maintained") +
+  geom_boxplot() +
+  theme_classic()
+
+ggsave(year_threshold_sensitivity_plot_box_by_tow, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_plot_box_by_tow.jpg", width = 10, height = 5, unit = "in")
+
+year_threshold_sensitivity_merge_by_tow <- plot_grid(year_threshold_sensitivity_plot_by_tow + theme(legend.position = "none"), year_threshold_sensitivity_plot_box_by_tow + theme(axis.title.y = element_blank(), axis.text.y = element_blank()), ncol = 2, align = "hv")
+
+ggsave(year_threshold_sensitivity_merge_by_tow, path = here::here("figures","sensitivity"),filename = "year_threshold_sensitivity_merge_by_tow.jpg", width = 10, height = 5, unit = "in")
+```
+
+Just cell count threshold sensitivity (But, should be tows, not observations)
+
+```{r sensitivity analysis}
+
+FishGlob_cleaned_cell_sensitivity <- data.table()
+
+#set up grid
+dggs <- dgconstruct(res = 8, metric = T) #with res = 8, we will need at least 3 observations per year within 7,774.2 km^2 (roughly size of some NEUS strata)
+
+#Keep % cut off at 70%
+#Vary cell counts
+cell_count_thresholds <- seq(0,10, by = 1)
+
+#sensitivity (what portion years left out, what portion cells left out)
+cell_threshold_sensitivity_full <- data.table(matrix(ncol = 6))
+
+colnames(cell_threshold_sensitivity_full) <-  c("survey_season","cell_count_threshold","cells_deleted_percent","cells_deleted_count", "obs_removed_percent","obs_removed_count")
+
+#GSL-S_3 acting weird, leave out #23
+
+for (i in 1:length(all_survey_seasons)) {
+      
+      #reduce to specific survey/season combination
+      reduced_FishGlob.10year <- FishGlob.10year[survey_season == all_survey_seasons[i],]
+      
+      #pull out unique lat lons
+      unique_latlon <- unique(reduced_FishGlob.10year[,.(latitude, longitude)])
+      
+      unique_latlon[,cell := dgGEO_to_SEQNUM(dggs, longitude, latitude)] #get corresponding grid cells for this region/survey combo
+    
+      #find cell centers
+      cellcenters <- dgSEQNUM_to_GEO(dggs, unique_latlon[,cell])
+    
+      #linking cell centers to unique_latlon
+      unique_latlon[,cell_center_longitude_s := cellcenters$lon_deg][,cell_center_latitude:= cellcenters$lat_deg]
+    
+        #link centers back to main data table
+      reduced_FishGlob.10year.gridded <- merge(reduced_FishGlob.10year, unique_latlon, by = c("latitude", "longitude"))
+    
+      #number of tows in each cell
+      towcount <- unique_latlon[, .N, by = cell]
+    
+      #get the grid cell boundary for cells which had trawls
+      grid <- dgcellstogrid(dggs, unique_latlon[,cell], frame = T, wrapcells = F)
+    
+      #update grid properties to include # of trawls in each cell
+      grid <- merge(grid, unique_latlon, by = "cell")
+      
+      #Any years where clearly fewer cells were sampled?
+      year_cells <- reduced_FishGlob.10year.gridded[,.(cell_count = length(unique(cell))),year]
+      
+      #set year benchmark to 70%
+      benchmark <- percent_thresholds[21] * max(year_cells[,cell_count]) # of cells/ year to cut off below
+      
+     # assign(paste0("benchmark_",percent_thresholds[j]*100,"%"), benchmark) #unhash if you want to save object
+      
+      #only keep years where over x% of cells are sampled
+      year_cells[,benchmark_met := cell_count > benchmark]
+      
+  #    years_deleted <- year_cells[benchmark_met == F]$year #which years are left out?
+      
+      years_kept <- year_cells[benchmark_met ==T]$year #which years  to keep
+      
+  #    years_deleted_percent <- length(years_deleted)/nrow(year_cells)*100
+      
+  #    years_deleted_count <- length(years_deleted)
+      
+  #    year_threshold_sensitivity <- data.table(matrix(c(all_survey_seasons[i], percent_thresholds[j],years_deleted_percent, years_deleted_count), nrow = 1))
+      
+      
+   #   year_threshold_sensitivity_full <- rbind(year_threshold_sensitivity_full, year_threshold_sensitivity, use.names = F)
+      
+      #reduce to years that are well sampled
+      reduced_FishGlob.10year.gridded.r <- reduced_FishGlob.10year.gridded[year %in% years_kept,]
+      
+      #identify any cells that in any years are sampled less than 3 times
+      reduced_FishGlob.10year.gridded.r[,year_cell_count := length(unique(haul_id)),.(year,cell)]
+      
+      for (k in 1:length(cell_count_thresholds)) {
+      #cell ids to remove and keep
+      #in any year, which cells are sampled less than x times, these need to go
+      cell_id_remove <- unique(reduced_FishGlob.10year.gridded.r[year_cell_count < cell_count_thresholds[k],cell]) 
+      
+      cells_deleted_percent <- length(cell_id_remove)/length(unique(reduced_FishGlob.10year.gridded.r[,cell]))
+      #what percent of cells are deleted
+      
+      cells_deleted_count <- length(cell_id_remove)
+      
+      #reduce to cells that are well sampled
+      reduced_FishGlob.10year.gridded.r.cell <- reduced_FishGlob.10year.gridded.r[!cell %in% cell_id_remove,]
+      
+      #add to cleaned data table of all regions
+      FishGlob_cleaned_cell_sensitivity  <- rbind(FishGlob_cleaned_cell_sensitivity, reduced_FishGlob.10year.gridded.r.cell)
+      
+      #What percent of observations does this remove?
+      obs_removed_percent <- (nrow(reduced_FishGlob.10year.gridded.r)-nrow(reduced_FishGlob.10year.gridded.r.cell))/nrow(reduced_FishGlob.10year.gridded.r) #what % obs do we lose
+      
+            obs_removed_count <- nrow(reduced_FishGlob.10year.gridded.r)-nrow(reduced_FishGlob.10year.gridded.r.cell) #what # obs do we lose
+      
+      #add to row in small data.table
+           cell_threshold_sensitivity <- data.table(matrix(c(all_survey_seasons[i], cell_count_thresholds[k],cells_deleted_percent, cells_deleted_count, obs_removed_percent, obs_removed_count), nrow = 1))
+      
+      #combine with full data.table
+      cell_threshold_sensitivity_full <- rbind(cell_threshold_sensitivity_full, cell_threshold_sensitivity, use.names = F)
+      
+  
+      }
+     print(paste0(all_survey_seasons[i]))
+    }
+
+#delete first empty row
+cell_threshold_sensitivity_full <- cell_threshold_sensitivity_full[-1,]
+cell_threshold_sensitivity_full[,cell_count_threshold := as.numeric(cell_count_threshold)][,cells_deleted_percent := as.numeric(cells_deleted_percent)][,cells_deleted_count := as.numeric(cells_deleted_count)][,obs_removed_percent := as.numeric(obs_removed_percent)][,obs_removed_count := as.numeric(obs_removed_count)]
+
+#Make plot
+cell_threshold_sensitivity_plot <- ggplot(cell_threshold_sensitivity_full, aes(x = cell_count_threshold, y = cells_deleted_percent)) +
+  geom_point()
+  geom_line(aes(color = survey_season)) +
+#  facet_wrap(~survey_season) +
+  theme_classic()
+
+ggsave(cell_threshold_sensitivity_plot, path = here::here("figures","sensitivity"),filename = "cell_threshold_sensitivity_plot.jpg", width = 10, height = 5, unit = "in")
+
+#Make faceted plot
+cell_threshold_sensitivity_plot_facet <- ggplot(cell_threshold_sensitivity_full, aes(x = percent_threshold, y = cells_deleted_percent)) +
+  geom_line() +
+  facet_wrap(~survey_season, ncol = 3) +
+  theme_classic()
+
+ggsave(cell_threshold_sensitivity_plot_facet, path = here::here("figures","sensitivity"),filename = "cell_threshold_sensitivity_plot_facet.jpg", unit = "in", width = 3, height = 15)
+
+#Make box plot
+cell_threshold_sensitivity_plot_box <- ggplot(year_threshold_sensitivity_full, aes(y = cells_deleted_percent, x = percent_threshold, group = as.factor(percent_threshold))) +
+  geom_boxplot() +
+  theme_classic()
+
+ggsave(cell_threshold_sensitivity_plot_box, path = here::here("figures","sensitivity"),filename = "cell_threshold_sensitivity_plot_box.jpg", width = 10, height = 5, unit = "in")
+
+cell_threshold_sensitivity_merge <- plot_grid(cell_threshold_sensitivity_plot + theme(legend.position = "none"), cell_threshold_sensitivity_plot_box + theme(axis.title.y = element_blank(), axis.text.y = element_blank()), ncol = 2, align = "hv")
+
+ggsave(cell_threshold_sensitivity_merge, path = here::here("figures","sensitivity"),filename = "cell_threshold_sensitivity_merge.jpg", width = 6, height = 3, unit = "in")
+
+
+#What about observations instead of cells?
+#Make plot
+cell_threshold_obs_sensitivity_plot <- ggplot(cell_threshold_sensitivity_full, aes(x = cell_count_threshold, y = 1-obs_removed_percent)) +
+  geom_line(aes(color = survey_season)) +
+      labs(x = "Tows per Cell Threshold", y = "Percent Hauls Maintained") +
+#  facet_wrap(~survey_season) +
+  theme_classic()
+
+ggsave(cell_threshold_obs_sensitivity_plot, path = here::here("figures","sensitivity"),filename = "cell_threshold_obs_sensitivity_plot.jpg", width = 10, height = 5, unit = "in")
+
+#Make faceted plot
+cell_threshold_obs_sensitivity_plot_facet <- ggplot(cell_threshold_sensitivity_full, aes(x = cell_count_threshold, y = 1-obs_removed_percent)) +
+  geom_line() +
+        labs(x = "Tows per Cell Threshold", y = "Percent Hauls Maintained") +
+  facet_wrap(~survey_season, ncol = 3) +
+  theme_classic()
+
+ggsave(cell_threshold_obs_sensitivity_plot_facet, path = here::here("figures","sensitivity"),filename = "cell_threshold_obs_sensitivity_plot_facet.jpg", unit = "in", width = 3, height = 15)
+
+#Make box plot
+cell_threshold_obs_sensitivity_plot_box <- ggplot(cell_threshold_sensitivity_full, aes(y = 1-obs_removed_percent, x = cell_count_threshold, group = cell_count_threshold)) +
+        labs(x = "Tows per Cell Threshold", y = "Percent Hauls Maintained") +
+  geom_boxplot() +
+  theme_classic()
+
+ggsave(cell_threshold_obs_sensitivity_plot_box, path = here::here("figures","sensitivity"),filename = "cell_threshold_obs_sensitivity_plot_box.jpg", width = 10, height = 5, unit = "in")
+
+cell_threshold_obs_sensitivity_merge <- plot_grid(cell_threshold_obs_sensitivity_plot + theme(legend.position = "none"), cell_threshold_obs_sensitivity_plot_box  + theme(axis.title.y = element_blank(), axis.text.y = element_blank()), ncol = 2, align = "hv")
+
+ggsave(cell_threshold_obs_sensitivity_merge, path = here::here("figures","sensitivity"),filename = "cell_threshold_obs_sensitivity_merge.jpg", width = 6, height = 3, unit = "in")
+```
