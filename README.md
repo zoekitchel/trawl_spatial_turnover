@@ -44,13 +44,10 @@ We respect that trawl survey data for some regions are not currently publically 
 
 To reproduce the analysis, run these scripts in order:
 
-1. `prep_survey_extent_nc.R` generates a netcdf file with the spatial footprints of trawl surveys used in the analysis, for merging with marine heatwave data. It also generates a .csv file with a "key" to translate the integer survey ID codes in the netcdf to their real names. This does not need to be re-run, but all the scripts below this should be re-run in order if the spatial footprints are updated.
-1. `prep_trawl_data.R` takes the public trawl data records from version 1.5 of [FISHGLOB](https://github.com/AquaAuma/FishGlob_data) (see above note about downloading the data file from [OSF](https://osf.io/)), processes them into a standardized format with columns for survey, year, species, and CPUE in kg, and writes them out as .csv files in the `processed-data` folder. This was run on a computing server (see Notes below). If you skip this step, the rest of the code will still run, using processed data files hosted on GitHub. 
-1. `prep_MHWs.R` merges those trawl records with the appropriate MHW and CTI data.
-1. `temporal_beta_diversity.R` calculates interannual changes in richness and beta diversity (both total dissimilarity and individual components of nestedness and turnover for occurrence metrics and biomass gradient and balanced variation for biomass metrics).
-1. `power_analysis.R` conducts a power analysis. This was run on a computing server (see Notes below) and if you download the output files from [OSF](https://osf.io/) (see above) you can skip this step.
-1. `MHW_stats_and_figures_main_text.R` analyzes the data and makes figures and statistics for the main text. 
-1. `MHW_stats_and_figures_supplement.Rmd` generates the SI tables as a PDF and writes out all the extended data figures. 
+1. `data_prep_code` > `fishglob_species` > `prepare_fishglob_dataset_1.Rmd`: This script prepares bottom trawl survey data observations for analysis using survey by survey specific edits. It also integrates data that needed to be updated from FISHGLOB v1.5 -- Norway and Greenland specifically.
+1. `data_prep_code` > `fishglob_species` > `standardize_temp_space_2.Rmd`: This script standardizes bottom trawl survey data across space and time. Specifically, it assigns all trawl locations to hexagonal cells, removes any years for a survey that sample less than 70% of cells ever sampled for that survey and then removes any cells that are sampled in less than 70% of years.
+1. 
+
 
 ## Notes
 UNDER CONSTRUCTION
