@@ -34,7 +34,7 @@ The repository is organized as follows:
 The following files are too big to host on GitHub and are available on [OSF](https://osf.io/) only:
 
 - The raw publically available FISHGLOB data (a slightly earlier version of the dataset described in [Maureaud et al. 2023](https://doi.org/10.31219/osf.io/2bcjw)), `FISHGLOB_public_v1.5_clean.csv`. This should be downloaded from [OSF](https://osf.io/) and moved to `raw-data` to reproduce analyses for public surveys only.
-- Norway (Barents Sea) required a data update in September 2023. Therefore, Norway is excluded from FISHGLOB_public_v1.5_clean.csv, and Norway data can be found in data > Norway_Sep2023 > NOR-BTS_clean.RData. This file can be merged (with care) with FISHGLOB_public_v1.5_clean.csv.
+- Norway (Barents Sea) required a data update in September 2023. Therefore, Norway is excluded from `FISHGLOB_public_v1.5_clean.csv`, and Norway data can be found in `data > Norway_Sep2023 > NOR-BTS_clean.RData`. This file can be merged (with care) with `FISHGLOB_public_v1.5_clean.csv`.
 - The outputs of power analyses: `pwrout_yrs_glorys.rds`, `pwrout_yrs_oisst.rds`, `pwrout_gamma_glorys.rds`, and `pwrout_gamma_oisst.rds`. These should be downloaded from [OSF](https://osf.io/) and moved to `processed-data` to reproduce analyses.
 
 We did not host the raw SODA and OISST data on OSF because the source files are very large. The SODA sea bottom temperature data were downloaded from [http://www.soda.umd.edu/](http://www.soda.umd.edu/) (accessed May 28, 2023). The NOAA OISST data were downloaded from https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/ (accessed May 19, 2023). 
