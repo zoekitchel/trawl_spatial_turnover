@@ -44,10 +44,35 @@ We respect that trawl survey data for some regions are not currently publically 
 
 To reproduce the analysis, run these scripts in order:
 
+**Trawl data preparation:**
 1. `data_prep_code` > `fishglob_species` > `prepare_fishglob_dataset_1.Rmd`: This script prepares bottom trawl survey data observations for analysis using survey by survey specific edits. It also integrates data that needed to be updated from FISHGLOB v1.5 -- Norway and Greenland specifically.
 1. `data_prep_code` > `fishglob_species` > `standardize_temp_space_2.Rmd`: This script standardizes bottom trawl survey data across space and time. Specifically, it assigns all trawl locations to hexagonal cells, removes any years for a survey that sample less than 70% of cells ever sampled for that survey and then removes any cells that are sampled in less than 70% of years.
-1. 
 
+**Dissimilarity timeseries**
+1. `dissim_metric_space_time_3.Rmd`: This script 
+1. `dissim_metric_space_time_3b_15perc_exclude.Rmd`: Same as above but excluding 15% of species from each survey with lowest overall biomass through time series.
+1. `dissim_metric_space_time_3c_onethird_exclude.Rmd`: Same as above but excluding species that are present in less than 1/3 of years for each survey.
+1. `year_dissimilarity_BC_total_models_4a.Rmd`
+1. `year_dissimilarity_BC_total_models_4a_nullmodelreshuffle.Rmd`
+1. `year_
+
+**Temperature data preparation**
+1. `Import_SODA_web_convert_raster_bottomtemp_5a_1.Rmd`
+1. `pulling_averaging_SODA_temp_data_5a_2.Rmd`
+1. `pulling_averaging_OISST_surface_temp_data_5b_2.Rmd`
+
+**Fishing data preparation**
+1. `Pull_SeaAroundUs_6.Rmd`
+
+**Temperature and Fishing as predictors of annual dissimilarity**
+1. `Regional_statistics.Rmd`
+1. `Fishing and temperature as predictors of dissimilarity.Rmd`
+
+**Misc scripts**
+Scripts without an associated number are accessory scripts. They are not needed for the main or supplemental analyses, but are informative. See text within specific scripts for info on what they do.
+
+TO FIGURE OUT
+Regional_statistics_runbefore drivers
 
 ## Notes
 UNDER CONSTRUCTION
