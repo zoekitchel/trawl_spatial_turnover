@@ -65,7 +65,7 @@ To reproduce the analysis, run these scripts in order:
 1. `Pull_SeaAroundUs_6.Rmd`
 
 **Temperature and Fishing as predictors of annual dissimilarity**
-1. `Regional_statistics.Rmd`
+1. `Merge_regional_statistic_7.Rmd`: merge fishing, and dissimilarity data sets, and then calculate regional statistics, and look at patterns of survey characteristics versus trends in dissimilarity.
 1. `Fishing and temperature as predictors of dissimilarity.Rmd`
 
 **Misc scripts**
