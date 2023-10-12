@@ -2,13 +2,7 @@
 title: "Calculating Dissimilarity Metrics Across Space and Time for top 85% of species"
 output: html_notebook
 ---
-This code is Script 3b for Kitchel et al. TITLE manuscript.
-
-- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
-
-- Code by Zoë J. Kitchel
-
-SESSION INFO TO DO
+Script 3b for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(data.table)
@@ -21,56 +15,15 @@ library(ggpubr) #stat_regline_equation
 library(nlme)
 
 
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 
 
 ```
-
-Are any survey_units missing CPUE?
-```{r missing cpue}
-
-View(FishGlob_clean[, .(sum(is.na(wgt_cpue)),.N,(round(sum(is.na(wgt_cpue))/.N*100,1))), survey_unit])
-```
-
-Survey Season: NAs for wgt_cpue
-MEDITS: 350911 (no weights,  only abundances,  use abundances (num_cpue) instead?)
-
-Otherwise, very small proportions, so will just exclude these observations.
-
-
-Delete these observations above except for MEDITS (we will do trends in abundance metrics for this region)
-```{r}
-#delete all rows where wgt_cpue is NA,  unless it is MEDITS region
-FishGlob_clean.noNA <- FishGlob_clean[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS"]
-
-#check
-summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these
-FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
-
-```
-
 
 Loop through all regions (takes  a few hours to run)
 
 ```{r list of all survey season combinations}
 all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
-```
-
-For NZ-CHAT, we want to lump December observations with next year of observations (January,  February)
-```{r}
-FishGlob_clean.noNA[survey_unit == "NZ-CHAT" & month == 12,  year := year+1, ]
-```
-
-Some spp are duplicated within a haul. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
-```{r}
-FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num := sum(num,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num_h := sum(num_h,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num_cpue := sum(num_cpue,  na.rm = T), .(accepted_name,  haul_id)]
-
-FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
 ```
 
 Delete 15% of least abundant species by biomass (across whole time series)
@@ -104,138 +57,15 @@ FishGlob_clean.noNA_15perc_excluded <- FishGlob_clean.noNA_15perc[exclude_spp ==
 nrow(FishGlob_clean.noNA)-nrow(FishGlob_clean.noNA_15perc_excluded)
 #4530/2759954 rows (0.2% of observations)
 ```
-Name helper
-```{r}
-name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
-                                    "Baltic Sea Q1",
-                                    "Baltic Sea Q4",
-                                    "Chile",
-                                    "Newfoundland",
-                                    "Queen Charlotte Sound",
-                                    "Eastern Bering Sea",
-                                    "Bay of Biscay",
-                                    "English Channel",
-                                    "Gulf of Mexico Summer",
-                                    "Gulf of Alaska",
-                                    "Greenland",
-                                    "N Gulf of St. Lawrence",
-                                    "S Gulf of St. Lawrence",
-                                    "Iceland",
-                                    "Irish Sea",
-                                    "Mediterranean",
-                                    "Namibia",
-                                    "NE US Fall",
-                                    "NE US Spring",
-                                    "N Ireland Q1",
-                                    "N Ireland Q4",
-                                    "Barents Sea Norway Q3",
-                                    "N Sea Q1",
-                                    "N Sea Q3",
-                                    "Chatham Rise",
-                                    "E Coast S Island NZ",
-                                    "W Coast S Island NZ",
-                                    "Portugal",
-                                    "S Georgia",
-                                  "Scotian Shelf Summer",
-                                  "SE US Fall",
-                                  "SE US Spring",
-                                  "SE US Summer",
-                                  "W Coast US",
-                                  "Atlantic Ocean ZA",
-                                  "Indian Ocean ZA",
-                                   "Rockall Plateau",
-                                  "Scotland Shelf Sea Q1",
-                                  "Scotland Shelf Sea Q4",
-                                  "Falkland Islands",
-                                  "Gulf of Mexico Fall",
-                                  "Barents Sea Norway Q1",
-                                  "Sub-Arctic NZ",
-                                  "Scotian Shelf Spring"),
-                          survey_unit = c(
-                                  "AI",        
-                                  "BITS-1",    
-                                  "BITS-4",    
-                                  "CHL",       
-                                  "DFO-NF",    
-                                  "DFO-QCS",   
-                                  "EBS",       
-                                  "EVHOE",     
-                                  "FR-CGFS",   
-                                  "GMEX-Summer",
-                                  "GOA",       
-                                  "GRL-DE",    
-                                  "GSL-N",     
-                                  "GSL-S",     
-                                  "ICE-GFS",   
-                                  "IE-IGFS",   
-                                  "MEDITS",    
-                                  "NAM",       
-                                  "NEUS-Fall", 
-                                  "NEUS-Spring",
-                                  "NIGFS-1",   
-                                  "NIGFS-4",   
-                                  "Nor-BTS-3", 
-                                  "NS-IBTS-1", 
-                                  "NS-IBTS-3", 
-                                  "NZ-CHAT",   
-                                  "NZ-ECSI",   
-                                  "NZ-WCSI",   
-                                  "PT-IBTS",   
-                                  "S-GEORG",   
-                                  "SCS-SUMMER",
-                                  "SEUS-fall", 
-                                  "SEUS-spring",
-                                  "SEUS-summer",
-                                  "WCANN",     
-                                  "ZAF-ATL",   
-                                  "ZAF-IND",
-                                  "ROCKALL",
-                                  "SWC-IBTS-1",
-                                  "SWC-IBTS-4",
-                                  "FALK",
-                                  "GMEX-Fall",
-                                  "Nor-BTS-1",
-                                  "NZ-SUBA",
-                                  "SCS-SPRING"
-                          ))
 
-FishGlob_clean.noNA <- name_helper[FishGlob_clean.noNA, on = "survey_unit"]
-FishGlob_clean.noNA_15perc_excluded <- name_helper[FishGlob_clean.noNA_15perc_excluded, on = "survey_unit"]
+Pull in color, name, helper
+```{r}
+color_link (fread, here::here("output","color_link.csv"))
+FishGlob_clean_15perc_excluded <- name_helper[FishGlob_clean.noNA_15perc_excluded, on = "survey_unit"]
+saveRDS(FishGlob_clean.noNA_15perc_excluded, here::here("output","FishGlob_clean.noNA_15perc_excluded.Rds"))
 ```
 
-
-Table listing species included in each region and then those excluded for 15% least common species analyses.
-```{r}
-all_survey_names <- sort(unique(FishGlob_clean.noNA[,Survey_Name_Season]))
-
-survey_unit_spp_list <- list()
-for (i in 1:length(all_survey_names)) {
-  survey_unit_spp_list[i] <- list(sort(unique(FishGlob_clean.noNA[Survey_Name_Season == all_survey_names[i], accepted_name])))
-}
-
-names(survey_unit_spp_list) <- all_survey_names
-
-#spp excluded
-survey_unit_spp_list_excluded <- list()
-for (i in 1:length(all_survey_names)) {
-  survey_unit_spp_list_excluded[i] <- list(sort(unique(FishGlob_clean.noNA_15perc[Survey_Name_Season == all_survey_names[i] & exclude_spp == T, accepted_name])))
-}
-
-names(survey_unit_spp_list_excluded) <- paste0(all_survey_names,"_15exclude")
-
-survey_unit_spp_list_all <- c(survey_unit_spp_list,survey_unit_spp_list_excluded)
-
-survey_unit_spp_list_all <- survey_unit_spp_list_all[order(names(survey_unit_spp_list_all))]
-
-names(survey_unit_spp_list_all)
-
-#save as text file
-sink(here::here("output","spp_list.txt"))
-print(survey_unit_spp_list_all)
-sink()
-```
-
-Survey Statistics for all regions
+Survey Statistics for all regions (maybe delete? or pull from original 3?)
 ```{r}
 #Calculate survey details only
 
@@ -588,167 +418,3 @@ rm(distances_dissimilarities_allyears_15perc_excluded)
 
 saveRDS(distances_dissimilarities_allyears_15perc_excluded.r,  here::here("output", "distance_decay", "distances_dissimilarities_allyears_15perc_excluded.r.rds"))
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Box plot for each region
-```{r box plot each region}
-box_plots_jaccard <- list()
-box_plots_bray <- list()
-
-bray_model_outputs <- data.table()
-
-bray_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-bray_model_outputs[,  survey:=as.character(V1)][,  season:=as.character(V1)][,  season_survey:=as.character(V1)][,  bray_coef:=as.numeric(V1)][,  bray_intercept := as.numeric(V1)][, bray_coef_pvalue := as.numeric(V1)][, bray_r_squared := as.numeric(V1)]
-bray_model_outputs[,  V1 := NULL]
-
-jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-
-jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-jaccard_model_outputs[,  survey:=as.character(V1)][,  season:=as.character(V1)][,  season_survey:=as.character(V1)][,  jaccard_coef:=as.numeric(V1)][,  jaccard_intercept := as.numeric(V1)][, jaccard_coef_pvalue := as.numeric(V1)][, jaccard_r_squared := as.numeric(V1)]
-jaccard_model_outputs[,  V1 := NULL]
-
-
-distances_dissimilarities_allyears_15perc_excluded[, year_f := as.factor(year)]
-
-#in case you didn't make it earlier
-all_survey_units <- unique(distances_dissimilarities_allyears_15perc_excluded[, survey_unit])
-
-for (i in 1:length(all_survey_units)) {
-      distances_dissimilarities_allyears_15perc_excluded_subset <- distances_dissimilarities_allyears_15perc_excluded[season_survey == all_survey_units[i]]
-      
-    #jaccard similarity
-#    box_plots_jaccard[[i]] <- ggplot(distances_dissimilarities_allyears_15perc_excluded_subset, aes(year_f,  #jaccard_dissimilarity_turnover)) +
-#      geom_boxplot(outlier.shape = NA,  lwd = 0.2) +
-#      labs(x="Year",  y = "Jaccard Dissimilarity") +
-#      geom_smooth(method = "lm",  se=FALSE,  color="red",  aes(group=1),  lwd = 0.3) +
-#      stat_regline_equation() +
-#      theme_classic() +
-#      theme(axis.text.x = element_text(angle = 90))
-#    
-#    #bray curtis similarity
-#    box_plots_bray[[i]] <- ggplot(distances_dissimilarities_allyears_15perc_excluded_subset, aes(year_f, bray_curtis_dissimilari#ty_balanced)) +
-#      geom_boxplot(outlier.shape = NA,  lwd = 0.2) +
-#      labs(x="Year",  y = "Bray Curtis Dissimilarity") +
-#      geom_smooth(method = "lm",  se=FALSE,  color="red",  aes(group=1),  lwd = 0.3) +
-#      stat_regline_equation() +
-#      theme_classic() +
-#      theme(axis.text.x = element_text(angle = 90))
-    #START HERE GET THESE TO ACTUALLY SAVE
-    #corresponding models
-    avg_jaccard_mod <- lm(data = distances_dissimilarities_allyears_15perc_excluded_subset,  formula = jaccard_dissimilarity_turnover ~ as.numeric(year))
-    
-    jaccard_model_outputs[i,  "survey"] <- distances_dissimilarities_allyears_15perc_excluded_subset[1,  survey]
-    jaccard_model_outputs[i,  "season"] <- distances_dissimilarities_allyears_15perc_excluded_subset[1,  season]
-    jaccard_model_outputs[i,  "season_survey"] <- distances_dissimilarities_allyears_15perc_excluded_subset[1,  season_survey]
-    
-    #coef
-    
-    jaccard_model_outputs[i, "jaccard_coef"] <- avg_jaccard_mod$coefficients[[2]]
-    
-    #intercept
-    jaccard_model_outputs[i, "jaccard_intercept"] <- avg_jaccard_mod$coefficients[[1]]
-    
-    #p-value
-     jaccard_model_outputs[i, "jaccard_coef_pvalue"] <- summary(avg_jaccard_mod)$coefficients[2, 4]  
-    
-    #R^2
-    jaccard_model_outputs[i, "jaccard_r_squared"] <- summary(avg_jaccard_mod)$r.squared
-    
-    #bray
-    
-    avg_bray_mod <- lm(data = distances_dissimilarities_allyears_15perc_excluded_subset,  formula = bray_curtis_dissimilarity_balanced ~ as.numeric(year))
-    
-    bray_model_outputs[i,  "survey"] <- distances_dissimilarities_allyears_15perc_excluded_subset[1,  survey]
-    bray_model_outputs[i,  "season"] <- distances_dissimilarities_allyears_15perc_excluded_subset[1,  season]
-    bray_model_outputs[i,  "season_survey"] <- distances_dissimilarities_allyears_15perc_excluded_subset[1,  season_survey]
-    
-    #coef
-    
-    bray_model_outputs[i, "bray_coef"] <- avg_bray_mod$coefficients[[2]]
-    #intercept
-    bray_model_outputs[i, "bray_intercept"] <- avg_bray_mod$coefficients[[1]]
-    
-    #p-value
-    bray_model_outputs[i, "bray_coef_pvalue"] <- summary(avg_bray_mod)$coefficients[2, 4]  
-    
-    #R^2
-    bray_model_outputs[i, "bray_r_squared"] <- summary(avg_bray_mod)$r.squared
-    
-
-
-}
-
-
-
-#save plots and models as objects
-saveRDS(jaccard_model_outputs,  here::here("output", "distance_decay", "jaccard_model_outputs.rds"))
-saveRDS(bray_model_outputs,  here::here("output", "distance_decay", "bray_model_outputs.rds"))
-
-saveRDS(box_plots_jaccard,  here::here("output", "distance_decay", "box_plots_jaccard.rds"))
-saveRDS(box_plots_bray,  here::here("output", "distance_decay", "box_plots_bray.rds"))
-
-#save plots as images
-
-for (i in 1:length(all_survey_units)) {
-  filename_jaccard <- paste0(all_survey_units[i],  "_jaccard_box_plot.jpg")
-  ggsave(box_plots_jaccard[[i]],  path = here::here("figures",  "distance_decay"),  filename = filename_jaccard)
-  
-  filename_bray <- paste0(all_survey_units[i],  "_bray_box_plot.jpg")
-  ggsave(box_plots_bray[[i]],  path = here::here("figures",  "distance_decay"),  filename = filename_bray)
-}
-```
-
-Overall slope
-
-Dornelas 2014: "To estimate the global long-term trends in diversity,  to each of the 14 metrics (10 community structure and 4 composition turnover metrics),  
-
-- we first fit a linear model with a single slope but a different intercept and a residual variance for each time series,  by using generalized least squares (GLS). Additionally,  
-
-- we fit a linear model to each time series allowing a different slope and an intercept,  by using ordinary least squares (OLS). 
-
-The R squared value and the p-value of each slope coefficient (the OLS estimate) are also calculated. However,  the provided p-value may be overly confident due to the unknown correlated structure so a careful interpretation is required. These statistics are included to provide intuitive information of the fitted linear trend of each time series,  rather than in a classical hypothesis-testing context."
-
-GLS: John Fox & Sanford Weisberg 2019
-https://socialsciences.mcmaster.ca/jfox/Books/Companion/appendices/Appendix-Timeseries-Regression.pdf
-- The gls() function in the nlme package (Pinheiro et al.,  2018), 
-
-Linear model with single slope but different interceept and residual variance for each time series
-
-First,  just linear model 
-```{r}
-overall_mod <- gls(bray_curtis_dissimilarity_balanced ~ year + season_survey,  data = distances_dissimilarities_allyears_15perc_excluded)
-```
-
-
-
-Averages for each survey_unit
-```{r}
-colnames(distances_dissimilarities_allyears_15perc_excluded)
-
-
-distances_dissimilarities_allyears_15perc_excluded[, mean_jaccard := mean(jaccard_dissimilarity_turnover),  .(survey,  season,  year)]
-distances_dissimilarities_allyears_15perc_excluded[, mean_bray := mean(bray_curtis_dissimilarity_balanced),  .(survey,  season,  year)]
-```
-

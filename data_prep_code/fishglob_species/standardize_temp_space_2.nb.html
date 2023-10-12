@@ -1761,17 +1761,88 @@ display: none;
 manuscript.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5dmVyc2UpXG5saWJyYXJ5KGRhdGEudGFibGUpXG5saWJyYXJ5KGhlcmUpXG5saWJyYXJ5KHNwKVxubGlicmFyeShyYXN0ZXIpXG5saWJyYXJ5KHJnZW9zKVxubGlicmFyeShyZ2JpZilcbmxpYnJhcnkodmlyaWRpcylcbmxpYnJhcnkoZ3JpZEV4dHJhKVxubGlicmFyeShyYXN0ZXJWaXMpXG5saWJyYXJ5KGNvbmNhdmVtYW4pXG5saWJyYXJ5KHNmKVxubGlicmFyeSh2aXJpZGlzKVxuc2V0LnNlZWQoMSlcbmBgYCJ9 -->
-<pre class="r"><code>library(tidyverse)
-library(data.table)
-library(here)
-library(sp)
-library(raster)
-library(rgeos)
-library(rgbif)
-library(viridis)
-library(gridExtra)
-library(rasterVis)
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5dmVyc2UpXG5gYGAifQ== -->
+<pre class="r"><code>library(tidyverse)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiUmVnaXN0ZXJlZCBTMyBtZXRob2RzIG92ZXJ3cml0dGVuIGJ5ICdkYnBseXInOlxuICBtZXRob2QgICAgICAgICBmcm9tXG4gIHByaW50LnRibF9sYXp5ICAgICBcbiAgcHJpbnQudGJsX3NxbCAgICAgIFxu4pSA4pSAIEF0dGFjaGluZyBwYWNrYWdlcyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAgdGlkeXZlcnNlIDEuMy4yIOKUgOKUgOKclCB0aWJibGUgIDMuMS44ICAgICAg4pyUIGRwbHlyICAgMS4wLjEwXG7inJQgdGlkeXIgICAxLjIuMSAgICAgIOKclCBzdHJpbmdyIDEuNC4xIFxu4pyUIHJlYWRyICAgMi4xLjMgICAgICDinJQgZm9yY2F0cyAwLjUuMiBcbuKclCBwdXJyciAgIDAuMy41ICAgICAg4pSA4pSAIENvbmZsaWN0cyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIAgdGlkeXZlcnNlX2NvbmZsaWN0cygpIOKUgOKUgFxu4pyWIGRwbHlyOjpiZXR3ZWVuKCkgICBtYXNrcyBkYXRhLnRhYmxlOjpiZXR3ZWVuKClcbuKcliBkcGx5cjo6Y29sbGFwc2UoKSAgbWFza3MgbmxtZTo6Y29sbGFwc2UoKVxu4pyWIHRpZHlyOjpleHBhbmQoKSAgICBtYXNrcyBNYXRyaXg6OmV4cGFuZCgpXG7inJYgZHBseXI6OmZpbHRlcigpICAgIG1hc2tzIHN0YXRzOjpmaWx0ZXIoKVxu4pyWIGRwbHlyOjpmaXJzdCgpICAgICBtYXNrcyBkYXRhLnRhYmxlOjpmaXJzdCgpXG7inJYgZHBseXI6OmxhZygpICAgICAgIG1hc2tzIHN0YXRzOjpsYWcoKVxu4pyWIGRwbHlyOjpsYXN0KCkgICAgICBtYXNrcyBkYXRhLnRhYmxlOjpsYXN0KClcbuKcliB0aWR5cjo6cGFjaygpICAgICAgbWFza3MgTWF0cml4OjpwYWNrKClcbuKcliBwdXJycjo6dHJhbnNwb3NlKCkgbWFza3MgZGF0YS50YWJsZTo6dHJhbnNwb3NlKClcbuKcliB0aWR5cjo6dW5wYWNrKCkgICAgbWFza3MgTWF0cml4Ojp1bnBhY2soKVxuIn0= -->
+<pre><code>Registered S3 methods overwritten by &#39;dbplyr&#39;:
+  method         from
+  print.tbl_lazy     
+  print.tbl_sql      
+── Attaching packages ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.3.2 ──✔ tibble  3.1.8      ✔ dplyr   1.0.10
+✔ tidyr   1.2.1      ✔ stringr 1.4.1 
+✔ readr   2.1.3      ✔ forcats 0.5.2 
+✔ purrr   0.3.5      ── Conflicts ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::between()   masks data.table::between()
+✖ dplyr::collapse()  masks nlme::collapse()
+✖ tidyr::expand()    masks Matrix::expand()
+✖ dplyr::filter()    masks stats::filter()
+✖ dplyr::first()     masks data.table::first()
+✖ dplyr::lag()       masks stats::lag()
+✖ dplyr::last()      masks data.table::last()
+✖ tidyr::pack()      masks Matrix::pack()
+✖ purrr::transpose() masks data.table::transpose()
+✖ tidyr::unpack()    masks Matrix::unpack()</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkYXRhLnRhYmxlKVxubGlicmFyeShoZXJlKVxuYGBgIn0= -->
+<pre class="r"><code>library(data.table)
+library(here)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiaGVyZSgpIHN0YXJ0cyBhdCAvVXNlcnMvem9la2l0Y2hlbC9Ecm9wYm94L1JlcG9zaXRvcmllcy90cmF3bF9zcGF0aWFsX3R1cm5vdmVyX2dpdFxuIn0= -->
+<pre><code>here() starts at /Users/zoekitchel/Dropbox/Repositories/trawl_spatial_turnover_git</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShzcClcbmxpYnJhcnkocmFzdGVyKVxuYGBgIn0= -->
+<pre class="r"><code>library(sp)
+library(raster)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYcmFzdGVy4oCZXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0IGlzIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6ZHBseXLigJk6XG5cbiAgICBzZWxlY3RcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpsbWU04oCZOlxuXG4gICAgZ2V0RGF0YVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOm5sbWXigJk6XG5cbiAgICBnZXREYXRhXG4ifQ== -->
+<pre><code>
+Attaching package: ‘raster’
+
+The following object is masked from ‘package:dplyr’:
+
+    select
+
+The following object is masked from ‘package:lme4’:
+
+    getData
+
+The following object is masked from ‘package:nlme’:
+
+    getData</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyZ2VvcylcbmBgYCJ9 -->
+<pre class="r"><code>library(rgeos)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoicmdlb3MgdmVyc2lvbjogMC41LTksIChTVk4gcmV2aXNpb24gNjg0KVxuIEdFT1MgcnVudGltZSB2ZXJzaW9uOiAzLjEwLjItQ0FQSS0xLjE2LjAgXG4gUGxlYXNlIG5vdGUgdGhhdCByZ2VvcyB3aWxsIGJlIHJldGlyZWQgYnkgdGhlIGVuZCBvZiAyMDIzLFxucGxhbiB0cmFuc2l0aW9uIHRvIHNmIGZ1bmN0aW9ucyB1c2luZyBHRU9TIGF0IHlvdXIgZWFybGllc3QgY29udmVuaWVuY2UuXG4gR0VPUyB1c2luZyBPdmVybGF5TkdcbiBMaW5raW5nIHRvIHNwIHZlcnNpb246IDEuNC03IFxuIFBvbHlnb24gY2hlY2tpbmc6IFRSVUUgXG4ifQ== -->
+<pre><code>rgeos version: 0.5-9, (SVN revision 684)
+ GEOS runtime version: 3.10.2-CAPI-1.16.0 
+ Please note that rgeos will be retired by the end of 2023,
+plan transition to sf functions using GEOS at your earliest convenience.
+ GEOS using OverlayNG
+ Linking to sp version: 1.4-7 
+ Polygon checking: TRUE </code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyZ2JpZilcbmxpYnJhcnkodmlyaWRpcylcbmBgYCJ9 -->
+<pre class="r"><code>library(rgbif)
+library(viridis)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiB2aXJpZGlzTGl0ZVxuIn0= -->
+<pre><code>Loading required package: viridisLite</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShncmlkRXh0cmEpXG5gYGAifQ== -->
+<pre class="r"><code>library(gridExtra)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYZ3JpZEV4dHJh4oCZXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0IGlzIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6ZHBseXLigJk6XG5cbiAgICBjb21iaW5lXG4ifQ== -->
+<pre><code>
+Attaching package: ‘gridExtra’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyYXN0ZXJWaXMpXG5saWJyYXJ5KGNvbmNhdmVtYW4pXG5saWJyYXJ5KHNmKVxubGlicmFyeSh2aXJpZGlzKVxuc2V0LnNlZWQoMSlcbmBgYCJ9 -->
+<pre class="r"><code>library(rasterVis)
 library(concaveman)
 library(sf)
 library(viridis)
@@ -2257,7 +2328,7 @@ observations.</p>
 in abundance metrics for this region)</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2RlbGV0ZSBhbGwgcm93cyB3aGVyZSB3Z3RfY3B1ZSBpcyBOQSwgIHVubGVzcyBpdCBpcyBNRURJVFMgcmVnaW9uXG5GaXNoR2xvYl9jbGVhbi5ub05BIDwtIEZpc2hHbG9iLndlbGxzYW1wbGVkeWVhcnNjZWxsc19jb21wbGV0ZS5maW5hbFsoc3VydmV5ICE9IFwiTUVESVRTXCIgJiAhaXMubmEod2d0X2NwdWUpKSB8IHN1cnZleSA9PSBcIk1FRElUU1wiXVxuXG4jRm9yIE5aLUNIQVQsIHdlIHdhbnQgdG8gbHVtcCBEZWNlbWJlciBvYnNlcnZhdGlvbnMgd2l0aCBuZXh0IHllYXIgb2Ygb2JzZXJ2YXRpb25zIChKYW51YXJ5LCAgRmVicnVhcnkpXG5cbkZpc2hHbG9iX2NsZWFuLm5vTkFbc3VydmV5X3VuaXQgPT0gXCJOWi1DSEFUXCIgJiBtb250aCA9PSAxMiwgIHllYXIgOj0geWVhcisxLCBdXG5cbiNTb21lIHNwcCBhcmUgZHVwbGljYXRlZCB3aXRoaW4gYSBoYXVsLiBJbiBhbGwgY2FzZXMsICB0aGlzIGlzIGR1ZSB0byB2ZXJiYXRpbSBuYW1lcyBtYXRjaGluZyB0byBhIHNpbmdsZSBhY2NlcHRlZCBuYW1lLiBUaGVyZWZvcmUsICB3ZSB3aWxsIHN1bSB0aGVzZSB3Z3RzIGFuZCBhYnVuZGFuY2VzXG5GaXNoR2xvYl9jbGVhbi5ub05BWywgd2d0IDo9IHN1bSh3Z3QsICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV1bLCBcbiAgICAgICAgICAgICAgICAgICAgIHdndF9oIDo9IHN1bSh3Z3RfaCwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIFxuICAgICAgICAgICAgICAgICAgICAgd2d0X2NwdWUgOj0gc3VtKHdndF9jcHVlLCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldWywgXG4gICAgICAgICAgICAgICAgICAgICBudW0gOj0gc3VtKG51bSwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIFxuICAgICAgICAgICAgICAgICAgICAgbnVtX2ggOj0gc3VtKG51bV9oLCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldWywgXG4gICAgICAgICAgICAgICAgICAgICBudW1fY3B1ZSA6PSBzdW0obnVtX2NwdWUsICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV1cblxuRmlzaEdsb2JfY2xlYW4ubm9OQSA8LSB1bmlxdWUoRmlzaEdsb2JfY2xlYW4ubm9OQVssLihzdXJ2ZXksIGhhdWxfaWQsIGNvdW50cnksIHN1Yl9hcmVhLCBjb250aW5lbnQsIHN0YXRfcmVjLCBzdGF0aW9uLCBzdHJhdHVtLCB5ZWFyLCBtb250aCwgZGF5LCBxdWFydGVyLCBzZWFzb24sIGxhdGl0dWRlLCBsb25naXR1ZGUsIGhhdWxfZHVyLCBhcmVhX3N3ZXB0LCBnZWFyLCBkZXB0aCwgc2J0LCBzc3QsIG51bSwgbnVtX2gsIG51bV9jcHVlLCB3Z3QsIHdndF9oLCB3Z3RfY3B1ZSwgdmVyYmF0aW1fYXBoaWFfaWQsIGFjY2VwdGVkX25hbWUsIGFwaGlhX2lkLCBTcGVjQ29kZSwga2luZ2RvbSwgcGh5bHVtLCBjbGFzcywgb3JkZXIsIGZhbWlseSwgZ2VudXMsIHJhbmssIHN1cnZleV91bml0LCB5ZWFyc19zYW1wbGVkLCBjZWxsX0lELCBjZWxsX3llYXJfY291bnQsIHllYXJfY2VsbF9jb3VudCwgeWVhcnNfc2FtcGxlZF91cGRhdGUpXSlcblxuI2NoZWNrXG5zdW1tYXJ5KEZpc2hHbG9iX2NsZWFuLm5vTkFbLCB3Z3RfY3B1ZV0pICN3aHkgaW5mPyAxMyBvYnNlcnZhdGlvbnMgZnJvbSBHU0wtTiwgIEkgd2lsbCBkZWxldGUgdGhlc2VcbkZpc2hHbG9iX2NsZWFuIDwtIGNvcHkoRmlzaEdsb2JfY2xlYW4ubm9OQSlbIWlzLmluZmluaXRlKHdndF9jcHVlKSwgXVxuXG5zYXZlUkRTKEZpc2hHbG9iX2NsZWFuLCBoZXJlOjpoZXJlKFwiZGF0YVwiLFwiY2xlYW5lZFwiLFwiRmlzaEdsb2JfY2xlYW4ucmRzXCIpKVxuXG5cbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2RlbGV0ZSBhbGwgcm93cyB3aGVyZSB3Z3RfY3B1ZSBpcyBOQSwgIHVubGVzcyBpdCBpcyBNRURJVFMgcmVnaW9uXG5GaXNoR2xvYl9jbGVhbi5ub05BIDwtIEZpc2hHbG9iLndlbGxzYW1wbGVkeWVhcnNjZWxsc19jb21wbGV0ZS5maW5hbFsoc3VydmV5ICE9IFwiTUVESVRTXCIgJiAhaXMubmEod2d0X2NwdWUpKSB8IHN1cnZleSA9PSBcIk1FRElUU1wiXVxuXG4jRm9yIE5aLUNIQVQsIHdlIHdhbnQgdG8gbHVtcCBEZWNlbWJlciBvYnNlcnZhdGlvbnMgd2l0aCBuZXh0IHllYXIgb2Ygb2JzZXJ2YXRpb25zIChKYW51YXJ5LCAgRmVicnVhcnkpXG5cbkZpc2hHbG9iX2NsZWFuLm5vTkFbc3VydmV5X3VuaXQgPT0gXCJOWi1DSEFUXCIgJiBtb250aCA9PSAxMiwgIHllYXIgOj0geWVhcisxLCBdXG5cbiNTb21lIHNwcCBhcmUgZHVwbGljYXRlZCB3aXRoaW4gYSBoYXVsLiBJbiBhbGwgY2FzZXMsICB0aGlzIGlzIGR1ZSB0byB2ZXJiYXRpbSBuYW1lcyBtYXRjaGluZyB0byBhIHNpbmdsZSBhY2NlcHRlZCBuYW1lLiBUaGVyZWZvcmUsICB3ZSB3aWxsIHN1bSB0aGVzZSB3Z3RzIGFuZCBhYnVuZGFuY2VzXG5GaXNoR2xvYl9jbGVhbi5ub05BWywgd2d0IDo9IHN1bSh3Z3QsICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV1bLCBcbiAgICAgICAgICAgICAgICAgICAgIHdndF9oIDo9IHN1bSh3Z3RfaCwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIFxuICAgICAgICAgICAgICAgICAgICAgd2d0X2NwdWUgOj0gc3VtKHdndF9jcHVlLCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldWywgXG4gICAgICAgICAgICAgICAgICAgICBudW0gOj0gc3VtKG51bSwgIG5hLnJtID0gVCksIC4oYWNjZXB0ZWRfbmFtZSwgIGhhdWxfaWQpXVssIFxuICAgICAgICAgICAgICAgICAgICAgbnVtX2ggOj0gc3VtKG51bV9oLCAgbmEucm0gPSBUKSwgLihhY2NlcHRlZF9uYW1lLCAgaGF1bF9pZCldWywgXG4gICAgICAgICAgICAgICAgICAgICBudW1fY3B1ZSA6PSBzdW0obnVtX2NwdWUsICBuYS5ybSA9IFQpLCAuKGFjY2VwdGVkX25hbWUsICBoYXVsX2lkKV1cblxuRmlzaEdsb2JfY2xlYW4ubm9OQSA8LSB1bmlxdWUoRmlzaEdsb2JfY2xlYW4ubm9OQVssLihzdXJ2ZXksIGhhdWxfaWQsIGNvdW50cnksIHN1Yl9hcmVhLCBjb250aW5lbnQsIHN0YXRfcmVjLCBzdGF0aW9uLCBzdHJhdHVtLCB5ZWFyLCBtb250aCwgZGF5LCBxdWFydGVyLCBzZWFzb24sIGxhdGl0dWRlLCBsb25naXR1ZGUsIGhhdWxfZHVyLCBhcmVhX3N3ZXB0LCBnZWFyLCBkZXB0aCwgc2J0LCBzc3QsIG51bSwgbnVtX2gsIG51bV9jcHVlLCB3Z3QsIHdndF9oLCB3Z3RfY3B1ZSwgdmVyYmF0aW1fYXBoaWFfaWQsIGFjY2VwdGVkX25hbWUsIGFwaGlhX2lkLCBTcGVjQ29kZSwga2luZ2RvbSwgcGh5bHVtLCBjbGFzcywgb3JkZXIsIGZhbWlseSwgZ2VudXMsIHJhbmssIHN1cnZleV91bml0LCB5ZWFyc19zYW1wbGVkLCBjZWxsX0lELCBjZWxsX3llYXJfY291bnQsIHllYXJfY2VsbF9jb3VudCwgeWVhcnNfc2FtcGxlZF91cGRhdGUpXSlcblxuI2NoZWNrXG5zdW1tYXJ5KEZpc2hHbG9iX2NsZWFuLm5vTkFbLCB3Z3RfY3B1ZV0pICN3aHkgaW5mPyAxMyBvYnNlcnZhdGlvbnMgZnJvbSBHU0wtTiwgIEkgd2lsbCBkZWxldGUgdGhlc2VcbmBgYCJ9 -->
 <pre class="r"><code>#delete all rows where wgt_cpue is NA,  unless it is MEDITS region
 FishGlob_clean.noNA &lt;- FishGlob.wellsampledyearscells_complete.final[(survey != &quot;MEDITS&quot; &amp; !is.na(wgt_cpue)) | survey == &quot;MEDITS&quot;]
 
@@ -2276,8 +2347,14 @@ FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][,
 FishGlob_clean.noNA &lt;- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
 
 #check
-summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these
-FishGlob_clean &lt;- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
+summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiICAgTWluLiAxc3QgUXUuICBNZWRpYW4gICAgTWVhbiAzcmQgUXUuICAgIE1heC4gXG4gIDAuMDAwICAgMS4yMjYgIDE1LjY1MSAgICAgSW5mIDEyMy45NjkgICAgIEluZiBcbiJ9 -->
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  0.000   1.226  15.651     Inf 123.969     Inf </code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuRmlzaEdsb2JfY2xlYW4gPC0gY29weShGaXNoR2xvYl9jbGVhbi5ub05BKVshaXMuaW5maW5pdGUod2d0X2NwdWUpLCBdXG5cbnNhdmVSRFMoRmlzaEdsb2JfY2xlYW4sIGhlcmU6OmhlcmUoXCJkYXRhXCIsXCJjbGVhbmVkXCIsXCJGaXNoR2xvYl9jbGVhbi5yZHNcIikpXG5cblxuYGBgIn0= -->
+<pre class="r"><code>FishGlob_clean &lt;- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
 
 saveRDS(FishGlob_clean, here::here(&quot;data&quot;,&quot;cleaned&quot;,&quot;FishGlob_clean.rds&quot;))
 </code></pre>

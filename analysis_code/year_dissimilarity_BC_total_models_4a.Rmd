@@ -258,6 +258,7 @@ bray_curtis_total_coefs.exp <- bray_curtis_total_coefs[,.(Survey_Name_Season, In
 #export this table
 fwrite(bray_curtis_total_coefs.exp, file = here::here("output","bray_curtis_total_coefs.exp.csv"))
 ```
+
 Also, build a simple linear model with an interaction (instead of random slope and intercept for survey)
 ```{r}
 bray_curtis_total_lm <- lm(bray_curtis_dissimilarity_total_mean ~ year_adj*survey_unit,data = distances_dissimilarities_allyears.r)

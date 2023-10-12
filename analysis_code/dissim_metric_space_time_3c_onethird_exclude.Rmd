@@ -1,8 +1,11 @@
 ---
-title: "Calculating Dissimilarity Metrics Across Space and Time"
+title: "Calculating Dissimilarity Metrics Across Space and Time for species present atleast 1/3 of timeseries for each survey"
 output: html_notebook
+author: Zoë J. Kitchel
+date: October 11, 2023
 ---
-Script 3 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
+
+Script 3c for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(data.table)
@@ -20,50 +23,94 @@ FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 
 ```
 
-Loop through all regions (takes 6+ hours to run)
+Loop through all regions (takes  a few hours to run)
 
 ```{r list of all survey season combinations}
-all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
+all_survey_units <- unique(FishGlob_clean[, survey_unit])
 ```
 
-###Dataset statistics
-
-Total observations?
+Delete any species that are not present in at least 1/3 of years in time series.
 ```{r}
-nrow(FishGlob_clean.noNA)
+
+#unique year, survey, species combinations to identify total # of years for each survey, and total # of years a given species appears
+unique_year_survey_spp <- unique(FishGlob_clean[,.(accepted_name, year, survey_unit)])
+
+unique_year_survey_spp[,years_sampled_survey := uniqueN(year),survey_unit][,years_spp_occurs := .N,.(accepted_name, survey_unit)][,perc_occurence := round(years_spp_occurs/years_sampled_survey,2)][,keep_drop := ifelse(perc_occurence>=0.33,T,F)]
+
+keep_drop_key <- unique(unique_year_survey_spp[,.(accepted_name, survey_unit,keep_drop)])
+
+FishGlob_clean_onethird <- keep_drop_key[FishGlob_clean, on = .(survey_unit, accepted_name)]
+
+FishGlob_clean_onethird_excluded <- FishGlob_clean_onethird[keep_drop == T,]
+
+#drops 
+nrow(FishGlob_clean)-nrow(FishGlob_clean_onethird_excluded)
+#13634/2759954 rows (0.4% of observations)
 ```
 
-Total hauls?
+Pull in color, name, helper
 ```{r}
-length(unique(FishGlob_clean.noNA[,haul_id]))
+color_link (fread, here::here("output","color_link.csv"))
+FishGlob_clean_onethird_excluded <- name_helper[FishGlob_clean_onethird_excluded, on = "survey_unit"]
 ```
 
-Total survey units?
+
+Table listing species included in each region and then those excluded for 15% least common species analyses.
 ```{r}
-length(unique(FishGlob_clean.noNA[,survey_unit]))
+FishGlob_clean.noNA_15perc_excluded <- readRDS(here::here("output","FishGlob_clean.noNA_15perc_excluded.Rds"))
+
+all_survey_names <- sort(unique(FishGlob_clean[,Survey_Name_Season]))
+
+survey_unit_spp_list <- list()
+for (i in 1:length(all_survey_names)) {
+  survey_unit_spp_list[i] <- list(sort(unique(FishGlob_clean[Survey_Name_Season == all_survey_names[i], accepted_name])))
+}
+
+names(survey_unit_spp_list) <- all_survey_names
+
+#spp excluded for 15%
+survey_unit_spp_list_excluded_15perc <- list()
+for (i in 1:length(all_survey_names)) {
+  survey_unit_spp_list_excluded_15perc[i] <- list(sort(unique(FishGlob_clean_15perc[Survey_Name_Season == all_survey_names[i] & exclude_spp == T, accepted_name])))
+}
+
+names(survey_unit_spp_list_excluded_15perc) <- paste0(all_survey_names,"_15exclude")
+
+#spp excluded for 1/3 occurence
+
+survey_unit_spp_list_excluded_onethird <- list()
+for (i in 1:length(all_survey_names)) {
+  survey_unit_spp_list_excluded_onethird[i] <- list(sort(unique(FishGlob_clean_onethird_excluded[Survey_Name_Season == all_survey_names[i] & exclude_spp == T, accepted_name])))
+}
+
+names(survey_unit_spp_list_excluded_onethird) <- paste0(all_survey_names,"_lessthanonethirdyears")
+
+survey_unit_spp_list_all <- c(survey_unit_spp_list,survey_unit_spp_list_excluded_15perc, survey_unit_spp_list_excluded_onethird)
+
+survey_unit_spp_list_all <- survey_unit_spp_list_all[order(names(survey_unit_spp_list_all))]
+
+names(survey_unit_spp_list_all)
+
+#save as text file
+sink(here::here("output","spp_list.txt"))
+print(survey_unit_spp_list_all)
+sink()
 ```
 
-Total species?
-```{r}
-length(unique(FishGlob_clean.noNA[,accepted_name]))
-```
-
-
-
+#delete?
 Survey Statistics for all regions
 ```{r}
 #Calculate survey details only
 
-survey_stats <- data.table(survey = character() ,  
+survey_stats_15percexclude <- data.table(survey = character() ,  
                            survey_unit = character(),  spp_num = numeric(),  
                            study_period = numeric(),  study_duration = numeric(),  
                            lat_range = numeric(),  mid_lat = numeric(),  lon_range = numeric(),  
                            area = numeric(),  depth_range = numeric(),   mid_depth = numeric())
 
-
 for (i in 1:length(all_survey_units)) {
   
-  FishGlob_clean_subset <- FishGlob_clean.noNA[survey_unit == all_survey_units[i], ]
+  FishGlob_clean_subset <- FishGlob_clean_onethird_excluded[survey_unit == all_survey_units[i], ]
   
   #map
   ####unique lat lon
@@ -91,20 +138,17 @@ for (i in 1:length(all_survey_units)) {
                     as.numeric(max(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)-min(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)), 
                     as.numeric(mean(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)))
   
-  survey_stats <- rbind(survey_stats,  row,  use.names = F)
+  survey_stats_15percexclude <- rbind(survey_stats_15percexclude,  row,  use.names = F)
   
   
 }
 ```
 
-
-
 Calculate Beta Dissimilarity between all sampling sites within every survey unit
-
-TO DO: get rid of duplicates, will probably speed things up!!! key_ID!=key_ID2
 ```{r loop through all regions and years}
+survey_stats <- data.table(survey = character() ,  survey_unit = character(),  spp_num = numeric(),  study_period = numeric(),  study_duration = numeric(),  lat_range = numeric(),  mid_lat = numeric(),  lon_range = numeric(),  area = numeric(),  depth_range = numeric(),   mid_depth = numeric())
 
-distances_dissimilarities_allyears <- data.table("haul_id1" = integer(), 
+distances_dissimilarities_allyears_onethird_threshold <- data.table("haul_id1" = integer(), 
                                                  "haul_id2" = integer(), 
                                                  "distance" = numeric(), 
                                                  "bray_curtis_dissimilarity_balanced" = numeric(), 
@@ -120,7 +164,7 @@ distances_dissimilarities_allyears <- data.table("haul_id1" = integer(),
 
 for (i in 1:length(all_survey_units)) {
   
-  FishGlob_clean_subset <- FishGlob_clean.noNA[survey_unit == all_survey_units[i], ]
+  FishGlob_clean_subset <- FishGlob_clean_onethird_excluded[survey_unit == all_survey_units[i], ]
   
   #map
   ####unique lat lon
@@ -129,6 +173,27 @@ for (i in 1:length(all_survey_units)) {
 
     lat_lon <- unique(FishGlob_clean_subset[, .(latitude,  longitude_adj)])
 
+  pts <- st_as_sf(lat_lon,  coords=c('longitude_adj', 'latitude'),  crs=4326 )
+
+  conc <- concaveman(pts,  concavity = 5)
+  sf::sf_use_s2(FALSE) #turn off the s2 processing; GEOS treats projected coordinates as planar (i.e. two points lie on a line of infinite max lenght) while s2 is more "correct" (two points lie on a great circle of circumference of 40 075 kilometers)
+  area <- st_area(conc) #m2,  check this later
+
+  #fill row
+ row <- data.table(FishGlob_clean_subset[1, survey], 
+                        FishGlob_clean_subset[1, as.character(survey_unit)], 
+                        as.numeric(length(unique(FishGlob_clean_subset[, accepted_name]))), 
+                        as.numeric(max(FishGlob_clean_subset[, year])-min(FishGlob_clean_subset[, year])), 
+                        as.numeric(length(unique(FishGlob_clean_subset[, year]))), 
+                        as.numeric(max(FishGlob_clean_subset[, latitude])-min(FishGlob_clean_subset[, latitude])), 
+                        as.numeric(mean(FishGlob_clean_subset[, latitude])), 
+                        as.numeric(max(FishGlob_clean_subset[, longitude_adj])-min(FishGlob_clean_subset[, longitude_adj])), 
+                        as.numeric(area), 
+                        as.numeric(max(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)-min(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)), 
+                   as.numeric(mean(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)))
+ 
+   survey_stats <- rbind(survey_stats,  row,  use.names = F)
+   
    #list years
   FishGlob_clean_subset[, year:= as.numeric(year)] #make numeric
   setorder(FishGlob_clean_subset,  year)
@@ -250,7 +315,7 @@ for (i in 1:length(all_survey_units)) {
               dissimilarities_full[, "survey_unit" := all_survey_units[i]]
             
               #add to data table
-              distances_dissimilarities_allyears <- rbind(distances_dissimilarities_allyears,  dissimilarities_full)
+              distances_dissimilarities_allyears_onethird_threshold <- rbind(distances_dissimilarities_allyears_onethird_threshold,  dissimilarities_full)
               
               print(paste0(j, "/", length(years)))
             
@@ -344,7 +409,7 @@ for (i in 1:length(all_survey_units)) {
               dissimilarities_full[, "survey_unit" := all_survey_units[i]]
             
               #add to data table
-              distances_dissimilarities_allyears <- rbind(distances_dissimilarities_allyears,  dissimilarities_full)
+              distances_dissimilarities_allyears_onethird_threshold <- rbind(distances_dissimilarities_allyears_onethird_threshold,  dissimilarities_full)
               
               print(paste0(j, "/", length(years)))
           
@@ -358,9 +423,9 @@ for (i in 1:length(all_survey_units)) {
   } #closes survey/region
 
 
-saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
+#saveRDS(distances_dissimilarities_allyears_onethird_threshold,  here::here("output", "distance_decay", "distances_dissimilarities_allyears_onethird_threshold.rds"))
 
-distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
+distances_dissimilarities_allyears_onethird_threshold <- readRDS(here::here("output", "distance_decay", "distances_dissimilarities_allyears_onethird_threshold.rds"))
 ```
 
 
@@ -372,180 +437,22 @@ DFO-QCS 2013
 NEUS-Spring
 NEUS-Fall
 
-For now, do NA.RM = T, but at some point I need to figure out why we have NAs to begin with in distances_dissimilarities_allyears
+For now, do NA.RM = T, but at some point I need to figure out why we have NAs to begin with in distances_dissimilarities_allyears_onethird_threshold
 
 
 ```{r yearly means}
 
-distances_dissimilarities_allyears[, bray_curtis_dissimilarity_balanced_mean := mean(bray_curtis_dissimilarity_balanced, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_gradient_mean := mean(bray_curtis_dissimilarity_gradient, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_total_mean := mean(bray_curtis_dissimilarity_total, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_turnover_mean := mean(jaccard_dissimilarity_turnover, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_nestedness_mean := mean(jaccard_dissimilarity_nestedness, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_total_mean := mean(jaccard_dissimilarity_total, na.rm = T),.(survey_unit,year)]
+distances_dissimilarities_allyears_onethird_threshold[, bray_curtis_dissimilarity_balanced_mean := mean(bray_curtis_dissimilarity_balanced, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_gradient_mean := mean(bray_curtis_dissimilarity_gradient, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_total_mean := mean(bray_curtis_dissimilarity_total, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_turnover_mean := mean(jaccard_dissimilarity_turnover, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_nestedness_mean := mean(jaccard_dissimilarity_nestedness, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_total_mean := mean(jaccard_dissimilarity_total, na.rm = T),.(survey_unit,year)]
 
-distances_dissimilarities_allyears.r <- unique(distances_dissimilarities_allyears[,.(survey, survey_unit, year,abund_biomass, bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
+distances_dissimilarities_allyears_onethird_threshold.r <- unique(distances_dissimilarities_allyears_onethird_threshold[,.(survey, survey_unit, year,abund_biomass, bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
 
-rm(distances_dissimilarities_allyears)
+rm(distances_dissimilarities_allyears_onethird_threshold)
 
 
-saveRDS(distances_dissimilarities_allyears.r,  here::here("output", "dissimilarities", "distances_dissimilarities_allyears.r.rds"))
+saveRDS(distances_dissimilarities_allyears_onethird_threshold.r,  here::here("output", "distance_decay", "distances_dissimilarities_allyears_onethird_threshold.r.rds"))
 ```
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-###SCRATCH BELOW
-
-
-
-
-
-Box plot for each region
-```{r box plot each region}
-box_plots_jaccard <- list()
-box_plots_bray <- list()
-
-bray_model_outputs <- data.table()
-
-bray_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-bray_model_outputs[,  survey:=as.character(V1)][,  season:=as.character(V1)][,  season_survey:=as.character(V1)][,  bray_coef:=as.numeric(V1)][,  bray_intercept := as.numeric(V1)][, bray_coef_pvalue := as.numeric(V1)][, bray_r_squared := as.numeric(V1)]
-bray_model_outputs[,  V1 := NULL]
-
-jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-
-jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-jaccard_model_outputs[,  survey:=as.character(V1)][,  season:=as.character(V1)][,  season_survey:=as.character(V1)][,  jaccard_coef:=as.numeric(V1)][,  jaccard_intercept := as.numeric(V1)][, jaccard_coef_pvalue := as.numeric(V1)][, jaccard_r_squared := as.numeric(V1)]
-jaccard_model_outputs[,  V1 := NULL]
-
-
-distances_dissimilarities_allyears[, year_f := as.factor(year)]
-
-#in case you didn't make it earlier
-all_survey_units <- unique(distances_dissimilarities_allyears[, survey_unit])
-
-for (i in 1:length(all_survey_units)) {
-      distances_dissimilarities_allyears_subset <- distances_dissimilarities_allyears[season_survey == all_survey_units[i]]
-      
-    #jaccard similarity
-#    box_plots_jaccard[[i]] <- ggplot(distances_dissimilarities_allyears_subset, aes(year_f,  #jaccard_dissimilarity_turnover)) +
-#      geom_boxplot(outlier.shape = NA,  lwd = 0.2) +
-#      labs(x="Year",  y = "Jaccard Dissimilarity") +
-#      geom_smooth(method = "lm",  se=FALSE,  color="red",  aes(group=1),  lwd = 0.3) +
-#      stat_regline_equation() +
-#      theme_classic() +
-#      theme(axis.text.x = element_text(angle = 90))
-#    
-#    #bray curtis similarity
-#    box_plots_bray[[i]] <- ggplot(distances_dissimilarities_allyears_subset, aes(year_f, bray_curtis_dissimilari#ty_balanced)) +
-#      geom_boxplot(outlier.shape = NA,  lwd = 0.2) +
-#      labs(x="Year",  y = "Bray Curtis Dissimilarity") +
-#      geom_smooth(method = "lm",  se=FALSE,  color="red",  aes(group=1),  lwd = 0.3) +
-#      stat_regline_equation() +
-#      theme_classic() +
-#      theme(axis.text.x = element_text(angle = 90))
-    #START HERE GET THESE TO ACTUALLY SAVE
-    #corresponding models
-    avg_jaccard_mod <- lm(data = distances_dissimilarities_allyears_subset,  formula = jaccard_dissimilarity_turnover ~ as.numeric(year))
-    
-    jaccard_model_outputs[i,  "survey"] <- distances_dissimilarities_allyears_subset[1,  survey]
-    jaccard_model_outputs[i,  "season"] <- distances_dissimilarities_allyears_subset[1,  season]
-    jaccard_model_outputs[i,  "season_survey"] <- distances_dissimilarities_allyears_subset[1,  season_survey]
-    
-    #coef
-    
-    jaccard_model_outputs[i, "jaccard_coef"] <- avg_jaccard_mod$coefficients[[2]]
-    
-    #intercept
-    jaccard_model_outputs[i, "jaccard_intercept"] <- avg_jaccard_mod$coefficients[[1]]
-    
-    #p-value
-     jaccard_model_outputs[i, "jaccard_coef_pvalue"] <- summary(avg_jaccard_mod)$coefficients[2, 4]  
-    
-    #R^2
-    jaccard_model_outputs[i, "jaccard_r_squared"] <- summary(avg_jaccard_mod)$r.squared
-    
-    #bray
-    
-    avg_bray_mod <- lm(data = distances_dissimilarities_allyears_subset,  formula = bray_curtis_dissimilarity_balanced ~ as.numeric(year))
-    
-    bray_model_outputs[i,  "survey"] <- distances_dissimilarities_allyears_subset[1,  survey]
-    bray_model_outputs[i,  "season"] <- distances_dissimilarities_allyears_subset[1,  season]
-    bray_model_outputs[i,  "season_survey"] <- distances_dissimilarities_allyears_subset[1,  season_survey]
-    
-    #coef
-    
-    bray_model_outputs[i, "bray_coef"] <- avg_bray_mod$coefficients[[2]]
-    #intercept
-    bray_model_outputs[i, "bray_intercept"] <- avg_bray_mod$coefficients[[1]]
-    
-    #p-value
-    bray_model_outputs[i, "bray_coef_pvalue"] <- summary(avg_bray_mod)$coefficients[2, 4]  
-    
-    #R^2
-    bray_model_outputs[i, "bray_r_squared"] <- summary(avg_bray_mod)$r.squared
-    
-
-
-}
-
-
-
-#save plots and models as objects
-saveRDS(jaccard_model_outputs,  here::here("output", "distance_decay", "jaccard_model_outputs.rds"))
-saveRDS(bray_model_outputs,  here::here("output", "distance_decay", "bray_model_outputs.rds"))
-
-saveRDS(box_plots_jaccard,  here::here("output", "distance_decay", "box_plots_jaccard.rds"))
-saveRDS(box_plots_bray,  here::here("output", "distance_decay", "box_plots_bray.rds"))
-
-#save plots as images
-
-for (i in 1:length(all_survey_units)) {
-  filename_jaccard <- paste0(all_survey_units[i],  "_jaccard_box_plot.jpg")
-  ggsave(box_plots_jaccard[[i]],  path = here::here("figures",  "distance_decay"),  filename = filename_jaccard)
-  
-  filename_bray <- paste0(all_survey_units[i],  "_bray_box_plot.jpg")
-  ggsave(box_plots_bray[[i]],  path = here::here("figures",  "distance_decay"),  filename = filename_bray)
-}
-```
-
-Overall slope
-
-Dornelas 2014: "To estimate the global long-term trends in diversity,  to each of the 14 metrics (10 community structure and 4 composition turnover metrics),  
-
-- we first fit a linear model with a single slope but a different intercept and a residual variance for each time series,  by using generalized least squares (GLS). Additionally,  
-
-- we fit a linear model to each time series allowing a different slope and an intercept,  by using ordinary least squares (OLS). 
-
-The R squared value and the p-value of each slope coefficient (the OLS estimate) are also calculated. However,  the provided p-value may be overly confident due to the unknown correlated structure so a careful interpretation is required. These statistics are included to provide intuitive information of the fitted linear trend of each time series,  rather than in a classical hypothesis-testing context."
-
-GLS: John Fox & Sanford Weisberg 2019
-https://socialsciences.mcmaster.ca/jfox/Books/Companion/appendices/Appendix-Timeseries-Regression.pdf
-- The gls() function in the nlme package (Pinheiro et al.,  2018), 
-
-Linear model with single slope but different interceept and residual variance for each time series
-
-First,  just linear model 
-```{r}
-overall_mod <- gls(bray_curtis_dissimilarity_balanced ~ year + season_survey,  data = distances_dissimilarities_allyears)
-```
-
-
-
-Averages for each survey_unit
-```{r}
-colnames(distances_dissimilarities_allyears)
-
-
-distances_dissimilarities_allyears[, mean_jaccard := mean(jaccard_dissimilarity_turnover),  .(survey,  season,  year)]
-distances_dissimilarities_allyears[, mean_bray := mean(bray_curtis_dissimilarity_balanced),  .(survey,  season,  year)]
-```
