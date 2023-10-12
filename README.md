@@ -66,7 +66,7 @@ To reproduce the analysis, run these scripts in order:
 
 **Temperature and Fishing as predictors of annual dissimilarity**
 1. `Merge_regional_statistic_7.Rmd`: merge fishing, and dissimilarity data sets, and then calculate regional statistics, and look at patterns of survey characteristics versus trends in dissimilarity.
-1. `Fishing and temperature as predictors of dissimilarity.Rmd`
+1. `annual_dissim_fishing_temp_model_8.Rmd`
 
 **Misc scripts**
 Scripts without an associated number are accessory scripts. They are not needed for the main or supplemental analyses, but are informative. See text within specific scripts for info on what they do.
