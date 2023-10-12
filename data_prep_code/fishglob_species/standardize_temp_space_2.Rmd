@@ -467,3 +467,44 @@ length(unique(FishGlob.wellsampledyearscells_complete.final$haul_id))
 length(unique(FishGlob.wellsampledyearscells_complete.final$accepted_name))
 
 ```
+
+Are any survey_units missing CPUE?
+```{r missing cpue}
+
+View(FishGlob_clean[, .(sum(is.na(wgt_cpue)),.N,(round(sum(is.na(wgt_cpue))/.N*100,1))), survey_unit])
+```
+
+Survey Season: NAs for wgt_cpue
+MEDITS: 350911 (no weights,  only abundances,  use abundances (num_cpue) instead?)
+
+Otherwise, very small proportions, so will just exclude these observations.
+
+
+Delete these observations above except for MEDITS (we will do trends in abundance metrics for this region)
+```{r}
+#delete all rows where wgt_cpue is NA,  unless it is MEDITS region
+FishGlob_clean.noNA <- FishGlob.wellsampledyearscells_complete.final[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS"]
+
+#For NZ-CHAT, we want to lump December observations with next year of observations (January,  February)
+
+FishGlob_clean.noNA[survey_unit == "NZ-CHAT" & month == 12,  year := year+1, ]
+
+#Some spp are duplicated within a haul. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
+FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num := sum(num,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_h := sum(num_h,  na.rm = T), .(accepted_name,  haul_id)][, 
+                     num_cpue := sum(num_cpue,  na.rm = T), .(accepted_name,  haul_id)]
+
+FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
+
+#check
+summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these
+FishGlob_clean <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
+
+saveRDS(FishGlob_clean, here::here("data","cleaned","FishGlob_clean.rds"))
+
+
+```
+

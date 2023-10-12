@@ -200,6 +200,8 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
 
 color_link <- name_helper[color_link, on = "survey_unit"]
 
+#save to pull into other scripts
+fwrite(color_link, here::here("output","color_link.csv"))
 ```
 
 
