@@ -59,7 +59,7 @@ FishGlob_clean[,survey:=factor(survey)][,survey_unit:=factor(survey_unit)]
 FishGlob_clean[,year_adj := year-min(year)+1]
 
 #add column for yearly summed biomass (note that MEDITS doesn't have biomass, so it will be excluded from these plots)
-FishGlob_clean[,wgt_cpue_annual := sum(wgt_cpue,na.rm = T),.(year, survey_unit)]
+#FishGlob_clean[,wgt_cpue_annual := sum(wgt_cpue,na.rm = T),.(year, survey_unit)] #honestly, this doesn't make sense, so exclude
 
 #add column for yearly summed # of hauls
 FishGlob_clean[,haul_id_count_annual := uniqueN(haul_id),.(year, survey_unit)]
@@ -231,7 +231,7 @@ Calculate stats of all regions
 #survey_unit
 region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_annual_biomass := as.numeric()][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
 
   region_stats[,V1:=NULL]
 
@@ -260,7 +260,6 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"survey_unit"] <- paste0(all_survey_units[i])
                   region_stats[i,"survey"] <- word(all_survey_units[i],1, sep = "_")
                   region_stats[i,"spp_num"] <- length(unique(reduced_FishGlob_cleaned.10year[,accepted_name]))
-                  region_stats[i,"mean_annual_biomass"] <- mean(reduced_FishGlob_cleaned.10year[,wgt_cpue_annual])
                   region_stats[i,"mean_haul_id_count_annual"] <- mean(reduced_FishGlob_cleaned.10year[,haul_id_count_annual])
                   region_stats[i,"first_year"] <- min(reduced_FishGlob_cleaned.10year$year)
                   region_stats[i,"last_year"] <- max(reduced_FishGlob_cleaned.10year$year)
@@ -725,9 +724,9 @@ region_stats.format <- copy(region_stats)
 
 region_stats.format <- region_stats[name_helper, on = "survey_unit", nomatch = F]
 
-region_stats.format[,`Mean annual biomass (1000s of kg)` := round(mean_annual_biomass/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
+region_stats.format[,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
 
-region_stats.format <- region_stats.format[,.(Survey_Name_Season, `Mean annual biomass (1000s of kg)`, `Number of species across all years`,`First year`,`Last year`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`, `Mean annual fisheries landings (1000s of tonnes)`, `Mean annual tow count`)]
+region_stats.format <- region_stats.format[,.(Survey_Name_Season, `Number of species across all years`,`First year`,`Last year`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`, `Mean annual fisheries landings (1000s of tonnes)`, `Mean annual tow count`)]
 
 View(region_stats.format)
 
