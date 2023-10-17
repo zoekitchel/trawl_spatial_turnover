@@ -23,34 +23,34 @@ FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 Loop through all regions (takes 6+ hours to run)
 
 ```{r list of all survey season combinations}
-all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
+all_survey_units <- unique(FishGlob_clean[, survey_unit])
 ```
 
 ###Dataset statistics
 
-Total observations?
+Total observations? (spp x tows)
 ```{r}
-nrow(FishGlob_clean.noNA)
+nrow(FishGlob_clean)
 ```
 
-Total hauls?
+Total tows?
 ```{r}
-length(unique(FishGlob_clean.noNA[,haul_id]))
+length(unique(FishGlob_clean[,haul_id]))
 ```
 
 Total survey units?
 ```{r}
-length(unique(FishGlob_clean.noNA[,survey_unit]))
+length(unique(FishGlob_clean[,survey_unit]))
 ```
 
 Total species?
 ```{r}
-length(unique(FishGlob_clean.noNA[,accepted_name]))
+length(unique(FishGlob_clean[,accepted_name]))
 ```
 
 
 
-Survey Statistics for all regions
+Survey Statistics for all regions in a table
 ```{r}
 #Calculate survey details only
 
@@ -63,7 +63,7 @@ survey_stats <- data.table(survey = character() ,
 
 for (i in 1:length(all_survey_units)) {
   
-  FishGlob_clean_subset <- FishGlob_clean.noNA[survey_unit == all_survey_units[i], ]
+  FishGlob_clean_subset <- FishGlob_clean[survey_unit == all_survey_units[i], ]
   
   #map
   ####unique lat lon
@@ -99,7 +99,7 @@ for (i in 1:length(all_survey_units)) {
 
 
 
-Calculate Beta Dissimilarity between all sampling sites within every survey unit
+##Calculate Beta Dissimilarity between all sampling sites within every survey unit
 
 TO DO: get rid of duplicates, will probably speed things up!!! key_ID!=key_ID2
 ```{r loop through all regions and years}
@@ -120,7 +120,7 @@ distances_dissimilarities_allyears <- data.table("haul_id1" = integer(),
 
 for (i in 1:length(all_survey_units)) {
   
-  FishGlob_clean_subset <- FishGlob_clean.noNA[survey_unit == all_survey_units[i], ]
+  FishGlob_clean_subset <- FishGlob_clean[survey_unit == all_survey_units[i], ]
   
   #map
   ####unique lat lon
@@ -162,7 +162,7 @@ for (i in 1:length(all_survey_units)) {
           
           if(!(reduced_year[1, survey] == "MEDITS")) {
             
-            #if some rows have wgt_cpue missing,  get rid of these rows
+            #if some rows have wgt_cpue missing,  get rid of these rows (shouldn't from previous processing)
             reduced_year <- reduced_year[complete.cases(reduced_year[, wgt_cpue]), ]
             
               reduced_year_wide <- dcast(reduced_year,  key_ID + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
@@ -248,6 +248,9 @@ for (i in 1:length(all_survey_units)) {
               #add survey survey unit
               dissimilarities_full[, "survey" := FishGlob_clean_subset[1, survey]]
               dissimilarities_full[, "survey_unit" := all_survey_units[i]]
+              
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2<haul_id1]
             
               #add to data table
               distances_dissimilarities_allyears <- rbind(distances_dissimilarities_allyears,  dissimilarities_full)
@@ -342,6 +345,9 @@ for (i in 1:length(all_survey_units)) {
               #add survey survey unit
               dissimilarities_full[, "survey" := FishGlob_clean_subset[1, survey]]
               dissimilarities_full[, "survey_unit" := all_survey_units[i]]
+              
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2<haul_id1]
             
               #add to data table
               distances_dissimilarities_allyears <- rbind(distances_dissimilarities_allyears,  dissimilarities_full)

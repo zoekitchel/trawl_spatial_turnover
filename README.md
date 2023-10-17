@@ -10,7 +10,7 @@ Please contact [Z.J. Kitchel](https://www.zoekithcel.com/) with questions about 
 
 We used of a number of datasets that are already publicly available and/or published with this project, in addition to some regional datasets that may be available upon request from data providers. These are fully described and cited in the manuscript, but we also list them here for ease of download, access, and attribution. 
 
-* Publically available trawl data from [FISHGLOB](https://github.com/AquaAuma/FishGlob_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. The raw data files from FISHGLOB are too big to host on GitHub but they are available on [OSF](https://osf.io/).
+* Publically available trawl data from [FISHGLOB](https://github.com/AquaAuma/FishGlob_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. The raw data files from FISHGLOB are too big to host on GitHub but they are available on [OSF](https://osf.io/). FISHGLOB has observations for 58 surveys, and 42 of these were appropriate for use in our biodiversity x time analyses.
 * Some regions are unable to share trawl data publically. Data may be available on request from data provider. See Table S1 for contact information.
 * Sea bottom temperature data from [SODA 3.3.2](http://www.soda.umd.edu/), an ocean reanalysis data product by the University of Maryland available beginning in 1980. 
 * Sea surface temperature data from [OISST](https://www.ncei.noaa.gov/products/optimum-interpolation-sst), a historical satellite temperature record from the U.S. National Oceanic and Atmospheric Administration beginning in 1982.
@@ -48,8 +48,8 @@ To reproduce the analysis, run these scripts in order:
 1. `data_prep_code` > `fishglob_species` > `prepare_fishglob_dataset_1.Rmd`: This script prepares bottom trawl survey data observations for analysis using survey by survey specific edits. It also integrates data that needed to be updated from FISHGLOB v1.5 -- Norway and Greenland specifically.
 1. `data_prep_code` > `fishglob_species` > `standardize_temp_space_2.Rmd`: This script standardizes bottom trawl survey data across space and time. Specifically, it assigns all trawl locations to hexagonal cells, removes any years for a survey that sample less than 70% of cells ever sampled for that survey and then removes any cells that are sampled in less than 70% of years.
 
-**Dissimilarity timeseries**
-1. `dissim_metric_space_time_3.Rmd`: This script 
+**Dissimilarity time series**
+1. `dissim_metric_space_time_3.Rmd`: This script calculates Bray Curtis and Jaccard total and partitioned dissimilarities for every pairwise tow combination in each survey x year combination. Then, it averages across pairs for annual average for each survey x year.
 1. `dissim_metric_space_time_3b_15perc_exclude.Rmd`: Same as above but excluding 15% of species from each survey with lowest overall biomass through time series.
 1. `dissim_metric_space_time_3c_onethird_exclude.Rmd`: Same as above but excluding species that are present in less than 1/3 of years for each survey.
 1. `year_dissimilarity_BC_total_models_4a.Rmd`
@@ -70,6 +70,7 @@ To reproduce the analysis, run these scripts in order:
 
 **Misc scripts**
 Scripts without an associated number are accessory scripts. They are not needed for the main or supplemental analyses, but are informative. See text within specific scripts for info on what they do.
+1. `data_prep_code` > `fishglob_species` >`data_clean_visualization_cell_year.Rmd`: This script visually shows the years and cells excluded from the analyses for each survey (these plots created in `data_prep_code` > `fishglob_species` > `standardize_temp_space_2.Rmd`)
 
 TO FIGURE OUT
 Regional_statistics_runbefore drivers

@@ -1,5 +1,5 @@
 ---
-title: "Calculating Dissimilarity Metrics Across Space and Time for species present atleast 1/3 of timeseries for each survey"
+title: "Calculating Dissimilarity Metrics Across Space and Time for species present at least 1/3 of timeseries for each survey"
 output: html_notebook
 author: Zoë J. Kitchel
 date: October 11, 2023
@@ -48,13 +48,6 @@ nrow(FishGlob_clean)-nrow(FishGlob_clean_onethird_excluded)
 #13634/2759954 rows (0.4% of observations)
 ```
 
-Pull in color, name, helper
-```{r}
-color_link (fread, here::here("output","color_link.csv"))
-FishGlob_clean_onethird_excluded <- name_helper[FishGlob_clean_onethird_excluded, on = "survey_unit"]
-```
-
-
 Table listing species included in each region and then those excluded for 15% least common species analyses.
 ```{r}
 FishGlob_clean.noNA_15perc_excluded <- readRDS(here::here("output","FishGlob_clean.noNA_15perc_excluded.Rds"))
@@ -97,52 +90,6 @@ print(survey_unit_spp_list_all)
 sink()
 ```
 
-#delete?
-Survey Statistics for all regions
-```{r}
-#Calculate survey details only
-
-survey_stats_15percexclude <- data.table(survey = character() ,  
-                           survey_unit = character(),  spp_num = numeric(),  
-                           study_period = numeric(),  study_duration = numeric(),  
-                           lat_range = numeric(),  mid_lat = numeric(),  lon_range = numeric(),  
-                           area = numeric(),  depth_range = numeric(),   mid_depth = numeric())
-
-for (i in 1:length(all_survey_units)) {
-  
-  FishGlob_clean_subset <- FishGlob_clean_onethird_excluded[survey_unit == all_survey_units[i], ]
-  
-  #map
-  ####unique lat lon
-  #add column with adjusted longitude for few surveys that cross dateline (NZ-CHAT and AI)
-  FishGlob_clean_subset[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
-  
-  lat_lon <- unique(FishGlob_clean_subset[, .(latitude,  longitude_adj)])
-  
-  pts <- st_as_sf(lat_lon,  coords=c('longitude_adj', 'latitude'),  crs=4326 )
-  
-  conc <- concaveman(pts,  concavity = 5)
-  sf::sf_use_s2(FALSE) #turn off the s2 processing; GEOS treats projected coordinates as planar (i.e. two points lie on a line of infinite max lenght) while s2 is more "correct" (two points lie on a great circle of circumference of 40 075 kilometers)
-  area <- st_area(conc) #m2,  check this later
-  
-  #fill row
-  row <- data.table(FishGlob_clean_subset[1, survey], 
-                    FishGlob_clean_subset[1, as.character(survey_unit)], 
-                    as.numeric(length(unique(FishGlob_clean_subset[, accepted_name]))), 
-                    as.numeric(max(FishGlob_clean_subset[, year])-min(FishGlob_clean_subset[, year])), 
-                    as.numeric(length(unique(FishGlob_clean_subset[, year]))), 
-                    as.numeric(max(FishGlob_clean_subset[, latitude])-min(FishGlob_clean_subset[, latitude])), 
-                    as.numeric(mean(FishGlob_clean_subset[, latitude])), 
-                    as.numeric(max(FishGlob_clean_subset[, longitude_adj])-min(FishGlob_clean_subset[, longitude_adj])), 
-                    as.numeric(area), 
-                    as.numeric(max(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)-min(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)), 
-                    as.numeric(mean(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)))
-  
-  survey_stats_15percexclude <- rbind(survey_stats_15percexclude,  row,  use.names = F)
-  
-  
-}
-```
 
 Calculate Beta Dissimilarity between all sampling sites within every survey unit
 ```{r loop through all regions and years}
@@ -313,6 +260,9 @@ for (i in 1:length(all_survey_units)) {
               #add survey survey unit
               dissimilarities_full[, "survey" := FishGlob_clean_subset[1, survey]]
               dissimilarities_full[, "survey_unit" := all_survey_units[i]]
+              
+                            #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2<haul_id1]
             
               #add to data table
               distances_dissimilarities_allyears_onethird_threshold <- rbind(distances_dissimilarities_allyears_onethird_threshold,  dissimilarities_full)
@@ -407,6 +357,9 @@ for (i in 1:length(all_survey_units)) {
               #add survey survey unit
               dissimilarities_full[, "survey" := FishGlob_clean_subset[1, survey]]
               dissimilarities_full[, "survey_unit" := all_survey_units[i]]
+              
+                            #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2<haul_id1]
             
               #add to data table
               distances_dissimilarities_allyears_onethird_threshold <- rbind(distances_dissimilarities_allyears_onethird_threshold,  dissimilarities_full)
