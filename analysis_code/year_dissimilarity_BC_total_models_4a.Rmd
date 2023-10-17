@@ -104,7 +104,9 @@ color_link <- data.table(survey_unit = survey_unit.list,hex = palette_42)
 Add names for plotting
 ```{r add names for plotting}
 
-name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
+name_helper <- data.table(Survey_Name_Season = 
+                            c(
+                              "Aleutian Islands",
                                     "Baltic Sea Q1",
                                     "Baltic Sea Q4",
                                     "Chile",

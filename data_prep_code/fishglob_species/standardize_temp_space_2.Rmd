@@ -13,7 +13,7 @@ library(data.table)
 library(here)
 library(sp)
 library(raster)
-library(rgeos)
+#library(rgeos)
 library(rgbif)
 library(viridis)
 library(gridExtra)
@@ -79,7 +79,6 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "Scotland Shelf Sea Q4",
                                   "Falkland Islands",
                                   "Gulf of Mexico Fall",
-                                  "Barents Sea Norway Q1",
                                   "Sub-Antarctic NZ",
                                   "Scotian Shelf Spring"),
                           survey_unit = c(
@@ -125,7 +124,6 @@ name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
                                   "SWC-IBTS-4",
                                   "FALK",
                                   "GMEX-Fall",
-                                  "Nor-BTS-1",
                                   "NZ-SUBA",
                                   "SCS-SPRING"
                           ))
@@ -146,7 +144,7 @@ FishGlob.10year.spp_manualclean <- FishGlob.10year.spp_manualclean[complete.case
 
 ```
 
-Match lat/lon sampling points to hexagonal cells, so that we can see how many cells to keep to maintain a high portiion of observation points
+Match lat/lon sampling points to hexagonal cells, so that we can see how many cells to keep to maintain a high portion of observation points
 
 ```{r match lat lon to hex cells}
 FishGlob.cells <- data.table()
@@ -275,12 +273,11 @@ polygon_spapol.forbind <- spTransform(polygon_spapol.p,
   
 }
   
-#writeOGR(all_survey_units_polygon, dsn = here::here("output/shapefiles"))
 ```
 
 ________
 
-###Standardize observations by # of hauls per cell and # cells sampled per year
+###Standardize observations by # of tows per cell and # cells sampled per year
 
 Remove any years for a survey that sample less than 70% of cells ever sampled for that survey
 THEN remove any cells that are sampled in less than 70% of years
@@ -292,10 +289,10 @@ data_loss <- data.table(survey_unit=all_survey_units,
                         year_threshold=as.numeric(NA),
                         cell_threshold=as.numeric(NA),
                         percent_years_excluded=as.numeric(NA),
-                        percent_hauls_excluded_by_year=as.numeric(NA),
+                        percent_tows_excluded_by_year=as.numeric(NA),
                         percent_obs_excluded_by_year=as.numeric(NA),
                         percent_cells_excluded=as.numeric(NA),
-                        percent_hauls_excluded_total=as.numeric(NA),
+                        percent_tows_excluded_total=as.numeric(NA),
                         percent_obs_excluded_total=as.numeric(NA))
 
 FishGlob.wellsampledyearscells_complete <- data.table()
@@ -310,8 +307,8 @@ for (i in 1:length(all_survey_units)) {
       #subset to region
       FishGlob.cells.subset <- FishGlob.cells[survey_unit == all_survey_units[i],]
       
-      #new column calculate hauls per year
-      FishGlob.cells.subset[,hauls_per_year := uniqueN(haul_id),.(year,survey_unit)]
+      #new column calculate tows per year
+      FishGlob.cells.subset[,tows_per_year := uniqueN(haul_id),.(year,survey_unit)]
       
       #unique year, #cells  sampled
       year_cells_sampled <- unique(FishGlob.cells.subset[,.(year,cell_ID)])
@@ -349,16 +346,16 @@ for (i in 1:length(all_survey_units)) {
       #how many observations does this remove?
       percent_obs_removed_year <- round((nrow(FishGlob.cells.subset)-nrow(FishGlob.cells.subset.wellsampledyears))/nrow(FishGlob.cells.subset)*100,2)
       
-      percent_hauls_removed_year <- round((length(unique(FishGlob.cells.subset[,haul_id]))-length(unique(FishGlob.cells.subset.wellsampledyears[,haul_id])))/length(unique(FishGlob.cells.subset[,haul_id]))*100,2)
+      percent_tows_removed_year <- round((length(unique(FishGlob.cells.subset[,haul_id]))-length(unique(FishGlob.cells.subset.wellsampledyears[,haul_id])))/length(unique(FishGlob.cells.subset[,haul_id]))*100,2)
       
     #plot years that are removed
      fishglob_exclude_years_plots[[i]] <- 
        ggplot() +
-  geom_col(data = unique(FishGlob.cells.subset[,.(year, survey_unit, `Excluded year`,hauls_per_year)]), aes(x = year, y = hauls_per_year, fill = `Excluded year`)) +
+  geom_col(data = unique(FishGlob.cells.subset[,.(year, survey_unit, `Excluded year`,tows_per_year)]), aes(x = year, y = tows_per_year, fill = `Excluded year`)) +
        labs(x = "Year",y = "Unique tows per year") +
        scale_fill_manual(values = c("grey","turquoise")) +
   theme_classic() +
-       ggtitle(paste0(all_survey_units[i], ", ",percent_hauls_removed_year, "% tows excluded" ))
+       ggtitle(paste0(all_survey_units[i], ", ",percent_tows_removed_year, "% tows excluded" ))
       
       #identify any cells that are not sampled in 70% of years
       FishGlob.cells.subset.wellsampledyears[,year_cell_count := length(unique(haul_id)),.(year,cell_ID)] # unique haul ids per cell per year
@@ -383,8 +380,8 @@ for (i in 1:length(all_survey_units)) {
       #reduce to cells that are well sampled
       FishGlob.cells.subset.wellsampledyearscells <- FishGlob.cells.subset.wellsampledyears[!(cell_ID %in% cell_id_remove),]
       
-      #What percent of hauls does this remove?
-      hauls_removed_yearcell <- round((length(unique(FishGlob.cells.subset[,haul_id]))-length(unique(FishGlob.cells.subset.wellsampledyearscells[,haul_id])))/length(unique(FishGlob.cells.subset[,haul_id]))*100,1) 
+      #What percent of tows does this remove?
+      tows_removed_yearcell <- round((length(unique(FishGlob.cells.subset[,haul_id]))-length(unique(FishGlob.cells.subset.wellsampledyearscells[,haul_id])))/length(unique(FishGlob.cells.subset[,haul_id]))*100,1) 
       
           #plot cells that are removed
       
@@ -398,7 +395,7 @@ for (i in 1:length(all_survey_units)) {
       fishglob_exclude_cells_plots[[i]] <- 
         fishglob_cell_plots[[i]] +
         geom_sf(data= cell_remove_polygon_sf, fill = "turquoise",color = "turquoise", alpha = 0.2)  +
-       ggtitle(paste0(all_survey_units[i], ", ",hauls_removed_yearcell, "% tows excluded" ))
+       ggtitle(paste0(all_survey_units[i], ", ",tows_removed_yearcell, "% tows excluded" ))
       
       #What percent of observations does this remove?
       obs_removed_yearcell <- round((nrow(FishGlob.cells.subset)-nrow(FishGlob.cells.subset.wellsampledyearscells))/nrow(FishGlob.cells.subset)*100,1)
@@ -413,14 +410,14 @@ for (i in 1:length(all_survey_units)) {
       data_loss[i, "year_threshold"] = year_benchmark
       data_loss[i, "cell_threshold"] = cell_benchmark
       data_loss[i, "percent_years_excluded"] = years_deleted_percent
-      data_loss[i, "percent_hauls_excluded_by_year"] = percent_hauls_removed_year
+      data_loss[i, "percent_tows_excluded_by_year"] = percent_tows_removed_year
       data_loss[i, "percent_obs_excluded_by_year"] = percent_obs_removed_year
       data_loss[i, "percent_cells_excluded"] = cells_deleted_percent
-      data_loss[i, "percent_hauls_excluded_total"] = hauls_removed_yearcell
+      data_loss[i, "percent_tows_excluded_total"] = tows_removed_yearcell
       data_loss[i, "percent_obs_excluded_total"] = obs_removed_yearcell
       
         #print portion of cells that are left out
-      print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_units[i], " Cells left out = 0"), paste0(all_survey_units[i], " Cells left out = ", cell_id_remove.string, ", ",cells_deleted_percent, "% Cells Excluded, ",hauls_removed_yearcell,"% Hauls Removed, ", obs_removed_yearcell, "% Observations Removed")))
+      print(ifelse(length(cell_id_remove) == 0, paste0(all_survey_units[i], " Cells left out = 0"), paste0(all_survey_units[i], " Cells left out = ", cell_id_remove.string, ", ",cells_deleted_percent, "% Cells Excluded, ",tows_removed_yearcell,"% Tows Removed, ", obs_removed_yearcell, "% Observations Removed")))
       
       }
      
@@ -435,8 +432,8 @@ saveRDS(fishglob_exclude_cells_plots, here::here("figures","standardization","fi
 FishGlob.wellsampledyearscells_complete[,years_sampled_update := length(unique(year)),.(survey_unit)]
 FishGlob.wellsampledyearscells_complete.10year <- FishGlob.wellsampledyearscells_complete[years_sampled_update >= 10,]
 
-#only keep survey units for which fewer than 50% of hauls were deleted by 70% thresholds
-survey_units_keep <- unique(data_loss[percent_hauls_excluded_total <= 50,survey_unit])
+#only keep survey units for which fewer than 50% of tows were deleted by 70% thresholds
+survey_units_keep <- unique(data_loss[percent_tows_excluded_total <= 50,survey_unit])
 
 FishGlob.wellsampledyearscells_complete.final <- FishGlob.wellsampledyearscells_complete.10year[survey_unit %in% survey_units_keep,]
 
@@ -446,9 +443,9 @@ saveRDS(FishGlob.wellsampledyearscells_complete.final, here::here("data","cleane
 data_loss <- name_helper[data_loss, on = "survey_unit"]
 
 #more helpful column names
-data_loss.final <- data_loss[,.(Survey_Name_Season, year_threshold, percent_years_excluded, percent_hauls_excluded_by_year, cell_threshold, percent_cells_excluded, percent_hauls_excluded_total)]
+data_loss.final <- data_loss[,.(survey_unit, Survey_Name_Season, year_threshold, percent_years_excluded, percent_tows_excluded_by_year, cell_threshold, percent_cells_excluded, percent_tows_excluded_total)]
 
-colnames(data_loss.final)<-c("Survey", "Year inclusion threshold\n(% cells sampled in year)", "Percent years excluded", "Percent hauls excluded\nfrom year standardization","Cell inclusion threshold\n(% years sampled in cells)", "Percent cells excluded", "Total percent hauls excluded")
+colnames(data_loss.final)<-c("SURVEY_UNIT_ORDER","Survey", "Year inclusion threshold\n(% cells sampled in year)", "Percent years excluded", "Percent tows excluded\nfrom year standardization","Cell inclusion threshold\n(% years sampled in cells)", "Percent cells excluded", "Total percent tows excluded")
 
 #data loss
 saveRDS(data_loss, here::here("data","cleaned","data_loss.rds"))
@@ -463,7 +460,7 @@ length(unique(FishGlob.wellsampledyearscells_complete.final$haul_id))
 #change in observations
 (nrow(FishGlob.cells)-nrow(FishGlob.wellsampledyearscells_complete.final))/nrow(FishGlob.cells) *100
 
-#numbere of unique speciees
+#number of unique speciees
 length(unique(FishGlob.wellsampledyearscells_complete.final$accepted_name))
 
 ```
@@ -471,25 +468,25 @@ length(unique(FishGlob.wellsampledyearscells_complete.final$accepted_name))
 Are any survey_units missing CPUE?
 ```{r missing cpue}
 
-View(FishGlob_clean[, .(sum(is.na(wgt_cpue)),.N,(round(sum(is.na(wgt_cpue))/.N*100,1))), survey_unit])
+View(FishGlob.wellsampledyearscells_complete.final[, .(sum(is.na(wgt_cpue)),.N,(round(sum(is.na(wgt_cpue))/.N*100,1))), survey_unit])
 ```
 
 Survey Season: NAs for wgt_cpue
-MEDITS: 350911 (no weights,  only abundances,  use abundances (num_cpue) instead?)
+MEDITS: 350911 (no weights,  only abundances,  use abundances (num_cpue) instead
 
 Otherwise, very small proportions, so will just exclude these observations.
 
 
 Delete these observations above except for MEDITS (we will do trends in abundance metrics for this region)
-```{r}
+
+Final cleaning edits
+ - Delete all observations without CPUE except for MEDITS
+ - Sum duplicates, summing from more than one obs for accepted name
+```{r final cleaning edits}
 #delete all rows where wgt_cpue is NA,  unless it is MEDITS region
 FishGlob_clean.noNA <- FishGlob.wellsampledyearscells_complete.final[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS"]
 
-#For NZ-CHAT, we want to lump December observations with next year of observations (January,  February)
-
-FishGlob_clean.noNA[survey_unit == "NZ-CHAT" & month == 12,  year := year+1, ]
-
-#Some spp are duplicated within a haul. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
+#Some spp are duplicated within a tow. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
 FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
                      wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
                      wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
