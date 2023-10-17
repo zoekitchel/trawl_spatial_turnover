@@ -213,6 +213,10 @@ FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_GSL),] #remove ha
 
 -Delete all trawls deeper than 350 M
 ```{r}
+<<<<<<< HEAD
+=======
+#identify haul_ids of hauls we should remove from GSL surveys
+>>>>>>> 8d88acff98c502edab8abae4316aaab0dece37b7
 haul_ids_to_remove_SGEORG <- unique(FishGlob_1.5[(survey == "SGEORG" & depth >350),haul_id])
 
 FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_SGEORG),] #remove hauls before consistent gear/vessel was used
