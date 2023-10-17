@@ -12,21 +12,80 @@ Script 1 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 library(tidyverse)
 library(sp)
 library(raster)
-library(rgeos)
+#library(rgeos)
 library(rgbif)
 library(viridis)
 library(gridExtra)
 library(rasterVis)
 library(concaveman)
 library(sf)
-library(viridis)
 library(cowplot)
 library(data.table)
 set.seed(1)
 
 ```
 
-Pull in compiled and cleaned data from FishGlob, downloaded on November 28, 2022 (V 1.5). This is typically compiled by Dr. Aurore Maureaud. This includes public and private data, and therefore link cannot be shared. However, with editing, you can run analyses for public trawl surveys.
+Pull in compiled and cleaned data from FishGlob downloaded on November 28 2022 (V 1.5). This is typically compiled by Dr. Aurore Maureaud. This includes public and private data and therefore link cannot be shared. However with editing you can run analyses for public trawl surveys.
+
+|Survey code|Survey name short|Survey name long|Agency|Region|Access|Provider/link to access|Inclusion
+|-----------|-----------|----------|-----------|-----------|----------|----------|----------|
+|AI  |Aleutian Islands|Aleutian Islands|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|BITS-1  |Baltic Sea Q1|Baltic Sea Quarter 1|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|BITS-4  |Baltic Sea Q4|Baltic Sea Quarter 4|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|CHL  |Chile|Chile|Universidad de Concepción, Chile|South America|Requires data request|Daniela Yepson daniela.yepsen@gmail.com and Luis Cubillos lucubillos@gmail.com|Included|
+|COL| Colombia| Colombian Caribbean|Universidad Nacional de Colombia|South America|Requires data request|Camilo B. Garcia cbgarciar@unal.edu.co|Too few years|
+|DFO-HS  |Hecate Strait|Hecate Strait|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/780a1c02-1f9c-4994-bc70-a0e9ef8e3968 and OceanAdapt: https://zenodo.org/records/8103080|Too few years|
+|DFO-NF  |Newfoundland|Newfoundland|Department of Fisheries and Oceans| Canada|Requires data request|Mariano Koen-Alonso mariano.koen-alonso@dfo-mpo.gc.ca|Included|
+|DFO-QCS  |Queen Charlotte Sound|Queen Charlotte Sound|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/a278d1af-d567-4964-a109-ae1e84cbd24a and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|DFO-SOG  |Strait of Georgia|Straight of Georgia|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/d880ba18-8790-41a2-bf73-e9247380759b and OceanAdapt: https://zenodo.org/records/8103080| Too few years|
+|DFO-WCHG  |West Coast Haida Gwaii|West Coast Haida Gwaii|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/5ee30758-b1d6-49fe-8c4e-5136f4b39ad1 and OceanAdapt: https://zenodo.org/records/8103080| Too few years|
+|DFO-WCVI  |West Coast Vancouver Island|West Coast Vancouver Island|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/557e42ae-06fe-426d-8242-c3107670b1de and OceanAdapt: https://zenodo.org/records/8103080| Too few years|
+|EBS  |Eastern Bering Sea|Eastern Bering Sea|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|EVHOE  |Bay of Biscay|Bay of Biscay|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|FALK  |Falkland Islands|Falkland Islands|Falkland Islands Fisheries Department|Southern Ocean|Requires data request|Alexander Arkhipkin aarkhipkin@fisheries.gov.fk and Jorge Ramos jeramos@fisheries.gov.fk| Excluded after spatial temporal standardization in next script|
+|FR-CGFS  |English Channel|English Channel|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|GIN  |Guinea|Guinea|National Center of Fisheries Sciences of Boussoura, Conakry, Republic of Guinea|Africa|Requires data request|Mohammed Lamine Camara mlcamara.kennedy@gmail.com|Inconsistent sampling through space and time|
+|GMEX-Summer  |Gulf of Mexico Summer|Gulf of Mexico Summer|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|GMEX-Fall  |Gulf of Mexico Fall|Gulf of Mexico Fall|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|GOA  |Gulf of Alaska|Gulf of Alaska|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|GRL-DE  |Greenland|Greenland|Thuenen Institute of Sea Fisheries|Europe|Requires data request|Karl-Michael Werner karl-michael.werner@thuenen.de|Included|
+|GSL-N  |N Gulf of St. Lawrence|Northern Gulf of St. Lawrence|Department of Fisheries and Oceans|Canada|Public|See OceanAdapt: https://zenodo.org/records/8103080 for specific DFO links|Included|
+|GSL-S  |S Gulf of St. Lawrence|Southern Gulf of St. Lawrence|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/1989de32-bc5d-c696-879c-54d422438e64 and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|ICE-GFS  |Iceland|Iceland|Marine and Freshwater Research Institute, Iceland|Europe|Requires data request|Jón Sólmundsson jon.solmundsson@hafogvatn.is|Included|
+|IE-IGFS  |Irish Sea|Irish Sea|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|IS-TAU| Israel | Israel| Tel Aviv University|Asia|Requires data request| Jonathan Belmaker jonathan.belmaker@gmail.com|Too few years|
+|IS-MOAG|Israel|Israel|Israeli Ministry of Agriculture|Asia|Requires data request|Oren Sonin orens@moag.gov.il and Dori Edelist blackreefs@gmail.com|Inconsistent sampling through space and time|
+|MEDITS  |Mediterranean|Mediterranean|Multiple|Europe|Requires data request|Contact corresponding author for contacts|Included|
+|MRT|Mauritania|Mauritania|Institut Mauritanien de Recherches Océanographiques et des Pêches, Nouadhibou, Mauritania|Africa|Requires data request|Beyah Meissa bmouldhabib@gmail.com|Inconsistent sampling through space and time|
+|NAM  |Namibia|Namibia|National Marine Information and Research Centre, Ministry of Fisheries and Marine Resources, Namibia|Africa|Requires data request|Johannes Kathena john.kathena@mfmr.gov.na|Included|
+|NEUS-Fall  |NE US Fall|Northeast USA Fall|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|NEUS-Spring  |NE US Spring|Northeast USA Spring|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|NIGFS-1  |N Ireland Q1|North Ireland Quarter 1|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|NIGFS-4  |N Ireland Q4|North Ireland Quarter 4|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|Nor-BTS-3  |Barents Sea Norway Q3|Barents Sea Norway Q3|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|NS-IBTS-1  |N Sea Q1|North Sea Quarter 1|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|NS-IBTS-3  |N Sea Q3|North Sea Quarter 3|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|NZ-CHAT  |Chatham Rise NZ|Chatham Rise New Zealand|National Institute of Water and Atmospheric Research Limited, New Zealand| Oceania| Requires data request|Richard O'Driscoll richard.odriscoll@niwa.co.nz and Fabrice Stephenson fabrice.stephenson@waikato.ac.nz|Included|
+|NZ-ECSI  |E Coast S Island NZ|East Coast South Island New Zealand|National Institute of Water and Atmospheric Research Limited, New Zealand| Oceania| Requires data request|Richard O'Driscoll richard.odriscoll@niwa.co.nz and Fabrice Stephenson fabrice.stephenson@waikato.ac.nz|Included|
+|NZ-SUBA  |Sub-Antarctic NZ|Sub-Antarctic New Zealand|National Institute of Water and Atmospheric Research Limited, New Zealand| Oceania| Requires data request|Richard O'Driscoll richard.odriscoll@niwa.co.nz and Fabrice Stephenson fabrice.stephenson@waikato.ac.nz|Included|
+|NZ-WCSI  |W Coast S Island NZ|West Coast South Island New Zealand|National Institute of Water and Atmospheric Research Limited, New Zealand| Oceania| Requires data request|Richard O'Driscoll richard.odriscoll@niwa.co.nz and Fabrice Stephenson fabrice.stephenson@waikato.ac.nz|Included|
+|PT-IBTS  |Portugal|Portugal|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|ROCKALL  |Rockall Plateau|Rockall Plateau|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|S-GEORG  |S Georgia|South Georgia|British Antarctic Survey|Southern Ocean|Requires data request|Mark Belchier mark.belchier@gov.gs and Martin Collins macol@bas.ac.uk|Included|
+|SCS-Fall  |Scotian Shelf Fall|Scotian Shelf Summer|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/1366e1f1-e2c8-4905-89ae-e10f1be0a164 and OceanAdapt: https://zenodo.org/records/8103080|Too few years|Included|
+|SCS-SPRING  |Scotian Shelf Spring|Scotian Shelf Spring|Department of Fisheries and Oceans| Canada|Public|https://open.canada.ca/data/en/dataset/fecf045a-95a2-4b69-8a40-818649a62716 and OceanAdapt: https://zenodo.org/records/8103080|Too much data loss after spatial temporal standardization|
+|SCS-SUMMER  |Scotian Shelf Summer|Scotian Shelf Summer|Department of Fisheries and Oceans|Canada|Public|https://open.canada.ca/data/en/dataset/1366e1f1-e2c8-4905-89ae-e10f1be0a164 and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|SEUS-fall  |SE US Fall|Southeast USA Fall|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|SEUS-spring  |SE US Spring|Southeast USA Spring|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|SEUS-summer  |SE US Summer|Southeast USA Summer|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|SWC-IBTS-1  |Scotland Shelf Sea Q1|Scotland Shelf Sea Quarter 1|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|SWC-IBTS-4  |Scotland Shelf Sea Q4|Scotland Shelf Sea Quarter 4|International Council for the Exploration of the Sea|Europe|Public|https://datras.ices.dk/Data_products/Download/Download_Data_public.aspx|Included|
+|WBLS| Western Black Sea| Western Black Sea|Institute of Fish Resources, Bulgaria|Europe|Requires data request|Elitsa Petrova (elitssa@yahoo.com), Feriha Tserkova & Vesselina Mihneva| Too few years|
+|WCANN  |W Coast US|West Coast USA|National Oceanic and Atmospheric Administration| USA|Public|DisMAP: https://apps-st.fisheries.noaa.gov/dismap/ and OceanAdapt: https://zenodo.org/records/8103080|Included|
+|ZAF-ATL  |Atlantic Ocean ZA|Atlantic Ocean South Africa|Department of Forestry, Fisheries and the Environment, South Africa|Africa|Requires data request| Tracey Fairweather traceyf@daff.gov.za|Included|
+|ZAF-IND  |Indian Ocean ZA|Indian Ocean South Africa|Department of Forestry, Fisheries and the Environment, South Africa|Africa|Requires data request| Tracey Fairweather traceyf@daff.gov.za|Included|
+
+
 
 
 ```{r pull in fishglob database}
@@ -51,11 +110,6 @@ Also adding in seasons for NIGFS
 FishGlob_1.5[survey == "NIGFS", survey_unit := paste0(survey,"-",quarter)]
 ```
 
-Also add seasons for Nor-BTS
-```{r add season to  Nor-BTS}
-FishGlob_1.5[survey == "Nor-BTS" & month %in% c(1:6), survey_unit := "Nor-BTS-1"][survey == "Nor-BTS" & month %in% c(7:12), survey_unit := "Nor-BTS-3"]
-```
-
 ZAF (South Africa) has distinct Atlantic and Indian surveys (split  at ~20.01˚ E, Cape Agulhas)
 
 ```{r add longitudinal region to ZAF}
@@ -71,7 +125,7 @@ sort(unique(FishGlob_1.5[,survey_unit]))
 This version was obtained directly from Karl-Michael Werner [karl-michael.werner@thuenen.de](karl-michael.werner@thuenen.de) who now manages the Greenland survey September 2023. He is based in Germany.
 
 ```{r}
-greenland <- 
+#greenland <- 
 
 ```
 
@@ -80,50 +134,62 @@ Prepped by Laurene Pecuchet (U Trömso, Norway) September 2023 to replace what's
 
 September 14: From Laurene, "I send you in attachment the “new” IMR survey formatted for Fishglob. I have done some small check of the dataset, and so far everything looks good, but I didn’t do a deep check yet, but I don’t see why there should be any problems with it....For your study, I think it is also important that you know that there has been some inconsistencies in taxonomic descriptions in the Barents Sea so that some species should be considered at the genus level instead of for biodiversity analysis, I send you in attach an excel (Barents Sea Fish Reference List.csv) file that summarize which species might be a misidentification and which one should be considered and merged." All of these files now live in "data/Norway_Sep2023"
 
-Given Barents Sea Fish Reference List.csv, there are some rare species that should only be trusted as a true ID if there are particular people on the boat. For consistency, these species will be removed. Despite the following information, these species will be maintained.
--Current disagreement about whether Lycodes rossi and Lycodes reticulatus are different or same, will keep separate for now.
--Specimens of Anarhichas less than 10cm are often misidentified, but we will still keep three distinct species
+Helpful guidance from here: https://www.hi.no/en/hi/nettrapporter/rapport-fra-havforskningen-en-2021-15
+- "2.2.5 - Recommended adjustments to the output before analysis
+Eelpouts and liparids. When combing years, we recommend that all records of eelpouts (Zoarcidae) are pooled to the family level, because they are notoriously difficult to identify (see Appendix 3). The same apply to liparids (Liparidae). If species level data of these families are used, consider excluding data from 2004-2006/2007. These years the staff on some of the Norwegian vessels were inexperienced, and proper identification keys for arctic species were lacking (compare for instance catches of Lycodes frigidus and Lycodes eudipleurostictus in the first years to the later years, Appendix 3). If species level data of these families are used, records to family levels should be removed or else these will be treated as a separate species in the further analysis of the data. Both Zoarcidae and Liparidae have unresolved taxonomy for some genera, therefore we have chosen to pool all liparids of the genus Careproctus and all eelpouts of the genus Gymnelus in the output. Sebastes. The column " Sebastes spp." contains mainly juvenile redfish. Small specimens are very difficult to identify so the protocol is to identify only individuals larger than 10 cm to the species level. Before analysis, all redfish ( S . mentella , S. norvegicus, S. viviparus and Sebastes spp .) should be pooled, or Sebastes spp. should be removed – if not it will be treated as a separate species in the analysis . Records in Appendix 2. The records of the S. viviparus west of Svalbard(Spitsbergen) are unreliable and should be removed if Sebastes data are kept at the species level (Appendix 2). Species verified for the Barents Sea, but outliers in terms the normal depth range, distribution area within the Barents Sea, size etc. were coded as questionable in the data base (Appendix 2) and should be removed before analysis. Consider also removing pelagic species (e.g. capelin and herring), as these are poorly sampled by the bottom trawl. The data should be standardised with towing distance before analysis."
 
-```{r}
-barents_sea_spp_fix <- fread(here::here("data","Norway_Sep2023","Barents Sea Fish Reference List.csv"))
+Therefore, we will:
+- Remove all records of eelpouts and liparids (Family = Zoarcidae or Liparidae) (as we only include species ID'd to species)
+- Remove redfish (Genus = Sebastes)
 
-#reduce to OG identification and fixed identification column 
-barents_sea_spp_fix <- barents_sea_spp_fix[,.(NewValue, Scientific)] 
+```{r norway data}
 
 #load Norwegian data
 load(here::here("data","Norway_Sep2023","NOR-BTS_clean.RData"))
 norway_clean <- data.table(data)
-rm(readme)
-load(here::here("data","Norway_Sep2023","NOR-BTS_std_clean.RData")) #includes fishglob flagging which I will not use
-norway_clean_std <- data.table(data)
-rm(readme)
-rm(data)
 
-#to fix naming, link species names in data to species names in barents sea spp fix
-norway_clean_spp <- unique(norway_clean[,.(accepted_name, verbatim_name)])
+#remove observations without dates
+norway_clean <- norway_clean[complete.cases(norway_clean[,.(month)]),]
 
-norway_clean_spp[,Scientific := verbatim_name]
+#remove species records in accordance with recommendation from HI
+norway_clean <- norway_clean[!(family %in% c("Zoarcidae","Liparidae") | genus == "Sebastes"),]
 
-#merge with spp key from laurene
-norway_clean_spp <- norway_clean_spp[barents_sea_spp_fix, on = "Scientific"]
+#some column names don't match fishglob (fishglob = num, num_h, num_cpue, wgt, wgt_h, wgt_cpue; norway = num, num_cpue (number of ind./hour), num_cpua (number of ind./km2), wgt, wgt_cpue (kg/min), wgt_cpua(kg/km2)  )
+#also, some column units in the readme are in correct. Therefore, I will generate _cpue and _h values here
+# we will need to check  and rename columns
+setnames(norway_clean, c("haul_dur"), c("haul_dur_m"))
+norway_clean[,haul_dur := haul_dur_m/60] #haul duration currently in minutes, need hours
+norway_clean[,num_h := num/haul_dur][,num_cpue := num/area_swept][,wgt_h := wgt/haul_dur][,wgt_cpue := wgt/area_swept]
 
-View(norway_clean_spp[Scientific == verbatim_name])
+#change some columns to numeric
+cols = c("month","day")
+norway_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
 
-#specific spp fix
-norway_clean[family == "Myctophidae", ]
+#also, delete source and timestamp
+fishglob_colnames <- colnames(FishGlob_1.5)
+norway_clean <- norway_clean[,..fishglob_colnames]
+
+norway_clean[survey == "Nor-BTS" & month %in% c(1:6), survey_unit := "Nor-BTS-1"][survey == "Nor-BTS" & month %in% c(7:12), survey_unit := "Nor-BTS-3"]
+
+#Overlap between IBTS and Nor-BTS surveys below 62˚latitude, so delete all hauls that occur below 62˚latitude
+norway_clean <- norway_clean[latitude  >= 62,]
+
 ```
 
 
 Delete Greenland and Norway
 ```{r}
-FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS", "GRL-DE"))]
+FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS"
+                                             #,
+                                             #"GRL-DE" #ignore greenland for now...
+                                             ))]
 ```
 
 
 Add in updated Greenland and Norway data
 ```{r}
-FishGlob_1.5 <-rbind(FishGlob_1.5,norway)
-FishGlob_1.5 <-rbind(FishGlob_1.5,greenland)
+FishGlob_1.5 <-rbind(FishGlob_1.5,norway_clean)
+#FishGlob_1.5 <-rbind(FishGlob_1.5,greenland)
 ```
 
 
@@ -142,21 +208,22 @@ haul_ids_to_remove_GSL <- unique(FishGlob_1.5[(survey == "GSL-N" & year < 2005)|
 FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_GSL),] #remove hauls before consistent gear/vessel was used
 ```
 
-*Nor-BTS*  
-- Overlap between IBTS and Nor-BTS surveys below 62˚latitude, so delete all hauls that occur below 62˚latitude
-```{r}
-#identify haul_ids of hauls we should remove from Nor-BTS surveys
-haul_ids_to_remove_Nor_BTS <- unique(FishGlob_1.5[(survey == "Nor-BTS" & latitude  < 62),haul_id])
+*SGEORG*
+- From Martin Collins, "Most surveys were focused on demersal fish on the South Georgia shelf (< 350 m), but surveys in 2003, 2010 and 2019 had some deeper trawls.  The deeper trawls caught very different fish, so are unlikely to be of use to a long-term analysis, but I have left them in."
 
-FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_Nor_BTS),] #remove hauls before consistent gear/vessel was used
+-Delete all trawls deeper than 350 M
+```{r}
+#identify haul_ids of hauls we should remove from GSL surveys
+haul_ids_to_remove_SGEORG <- unique(FishGlob_1.5[(survey == "SGEORG" & depth >350),haul_id])
+
+FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_SGEORG),] #remove hauls before consistent gear/vessel was used
 ```
 
-*SGEORG*
-- From Martin Collins, "Most surveys were focussed on demersal fish on the South Georgia shelf (< 350 m), but surveys in 2003, 2010 and 2019 had some deeper trawls.  The deeper trawls caught very different fish, so are unlikely to be of use to a long-term analysis, but I have left them in."
-
--Delete all trawls below 350 M
+*NZ-CHAT*
+-bump december observations to next year because observations occur in 12,1,2
 ```{r}
-
+#bump observations forward
+FishGlob_1.5[survey == "NZ-CHAT" & month == 12,  year := year+1, ]
 ```
 
 
@@ -167,6 +234,7 @@ FishGlob_1.5 <- FishGlob_1.5[!(haul_id %in% haul_ids_to_remove_Nor_BTS),] #remov
 FishGlob_1.5[,years_sampled := length(unique(year)),.(survey_unit)]
 
 summary(FishGlob_1.5$years_sampled) #ranges from 2 (DFO Straight of Georgia) to 57 (Northeast US)
+View(unique(FishGlob_1.5[,.(survey_unit, years_sampled)]))
 
 #statistics about full dataset
 nrow(FishGlob_1.5) 
@@ -190,7 +258,10 @@ rm(FishGlob_1.5)
 ###For taxonomic analyses, resolution to species is required. Therefore, we will  exclude any observations not resolved to species. 
 
 ```{r spp ID only}
-FishGlob.10year.spp <- FishGlob.10year[rank %in% c("Species", "Subspecies"),] #4077730 total observations
+#month a number
+FishGlob.10year[,month := as.numeric(month)]
+
+FishGlob.10year.spp <- FishGlob.10year[rank %in% c("Species", "Subspecies"),] #3869384 total observations
 
 #remove full species database
 rm(FishGlob.10year)
@@ -319,11 +390,11 @@ ggsave(location_by_year, filename = "location_by_year.eps",path = here::here("fi
 
 
 ```{r location by month plots}
-location_by_month <- ggplot(FishGlob.10year.uniquehauls) +
-  geom_point(aes(x = longitude_adj, y = latitude, color = month), size = 0.3, alpha = 0.5) +
+(location_by_month <- ggplot(FishGlob.10year.uniquehauls) +
+  geom_point(aes(x = longitude_adj, y = latitude, color = as.numeric(month)), size = 0.3, alpha = 0.5) +
   scale_color_viridis(option = "plasma") +
   facet_wrap(~survey_unit, scales = "free") +
-  theme_classic()
+  theme_classic())
 
 ggsave(location_by_month, filename = "location_by_month.pdf",path = here::here("figures","view_data"), height = 8, width = 12, units = "in")
 
@@ -335,10 +406,10 @@ ggsave(location_by_month, filename = "location_by_month.eps",path = here::here("
 
 ##Region Specific Data Processing
 
--Fredston et al. 2022 and Batt et al. 2017 informed North American data processing
--Personal communication with Aurore Maureaud re: work by L. Pecuchet and R. Frelat and the supplementary material for Maureaud et al. 2019 informed European data processing
+-Fredston et al. 2022 Nature and Batt et al. 2017 Ecology Letters informed North American data processing
+-Personal communication with Aurore Maureaud and Laurene Pecuchet re: work by A. Maureaud, L. Pecuchet and R. Frelat and the supplementary material for Maureaud et al. 2019 Proceedings of the Royal Society B: Biological Sciences informed European data processing
 -Additional data processing informed by data itself, and by FishGlob pdf summary documents
--limit to max 3 months for each survey unit, representative of a 'season'
+-limit to max 3 months for each survey unit, representative of a 'season' (exception = West Coast USA where all 4 months sampled consistently)
 
 ####"AI"
 ```{r AI visual}
@@ -1714,7 +1785,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "NEUS-Spring",], 
 ```
 
 -Keep 3,4,5 months
--Inconsistent spatial distribution through time, but should be caught in standardization step below
+-Inconsistent spatial distribution through time, but should be caught in standardization step
 -Seemingly consistent richness (especially after 87, should be fixed with standardization step)
 -Seemingly consistent number of hauls (especially after 81, should be fixed with standardization step)
 
@@ -1780,7 +1851,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "NEUS-Fall",], ae
 ```
 
 -Keep 9,10,11 months
--Inconsistent spatial distribution through time, but should be caught in standardization step below
+-Inconsistent spatial distribution through time, but should be caught in standardization step
 -Seemingly consistent richness (especially after 84, should be fixed with standardization step)
 -Seemingly consistent number of hauls (especially after 85, should be fixed with standardization step)
 
@@ -1844,7 +1915,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "NIGFS-1",], aes(
 ```
 
 -Keep 2,3,4 months
--Inconsistent spatial distribution through time, but should be caught in standardization step below
+-Inconsistent spatial distribution through time, but should be caught in standardization step
 -Seemingly consistent richness
 -Seemingly consistent number of hauls
 
@@ -1903,7 +1974,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "NIGFS-4",], aes(
 ```
 
 -Keep 10,11 months
--Consistent spatial distribution through time, but should be caught in standardization step below
+-Consistent spatial distribution through time, but should be caught in standardization step
 -Seemingly consistent richness
 -Seemingly consistent number of hauls
 
@@ -1913,67 +1984,8 @@ nigfs_4_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "NIGFS-4" & mo
 
 ####Nor-BTS
 
-First half of year (1:6), Excluded from final dataset
-Nor-BTS-1
-```{r Nor-BTS-1}
-ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "Nor-BTS-1",]) +
-  geom_tile(aes(x = factor(month), y = factor(season), fill = haul_proportion_survey_season),color = "white") +
-  scale_fill_viridis() +
-  labs(x = "Month", y = "Season",fill = "Proportion of All Survey Hauls in FishGlob") +
-  theme_classic()
+OG FISHGLOB includes Nor-BTS-1 as well, but this was not shared by L. Pecuchet, and therefore ignored
 
-ggplot(FishGlob.10year.uniquehauls.quarter[survey_unit == "Nor-BTS-1",]) +
-  geom_tile(aes(x = factor(month), y = factor(quarter), fill = haul_proportion_survey_quarter),color = "white") +
-  scale_fill_viridis() +
-  labs(x = "Month", y = "Quarter",fill = "Proportion of All Survey Hauls in FishGlob") +
-  theme_classic()
-
-ggplot(FishGlob.10year.uniquehauls.annual.month[survey_unit == "Nor-BTS-1",]) +
-  geom_tile(aes(x = year, y = factor(month), fill = haul_proportion_month_yearly),color = "white") +
-  scale_fill_viridis() +
-  labs(x = "Year", y = "Month",fill = "Proportion of Annual Hauls") +
-  theme_classic()
-
-ggplot(FishGlob.10year.uniquehauls.annual.quarter[survey_unit == "Nor-BTS-1",]) +
-  geom_tile(aes(x = year, y = factor(quarter), fill = haul_proportion_quarter_yearly),color = "white") +
-  scale_fill_viridis() +
-  labs(x = "Year", y = "Quarter",fill = "Proportion of Annual Hauls") +
-  theme_classic()
-
-ggplot(FishGlob.10year.uniquehauls[survey_unit == "Nor-BTS-1"&month,]) +
-  geom_point(aes(x = longitude_adj, y = latitude, color = year), size = 0.3, alpha = 0.5) +
-  scale_color_viridis() +
-  theme_classic()
-
-ggplot(FishGlob.10year.uniquehauls[survey_unit == "Nor-BTS-1"&month,]) +
-  geom_point(aes(x = longitude_adj, y = latitude, color = month), size = 0.3, alpha = 0.5) +
-  scale_color_viridis(option = "plasma") +
-  theme_classic()
-
-# # of species per year??
-ggplot(data = FishGlob.10year.spp_survey_year.r[survey_unit == "Nor-BTS-1",], aes(x = year, y=spp_count_survey_year)) +
-  geom_col() +
-  theme_classic()
-
-# # of hauls per year
-ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "Nor-BTS-1",], aes(x = year, y=haulid_count_survey_year)) +
-  geom_col() +
-  theme_classic()
-
-```
-
--Use 1:3 months
--Somewhat inconsistent spatial distribution through time (northern sites sampled later), but should be caught in standardization step below
--Laurene Pecuchet (U Tromso) told us that only surveys 2004 and onwards work for biodiversity analyses
--From 2004, consistent number of hauls except for 2013 which we will exclude
-
-
-```{r Nor-BTS-1 processing}
-nor_bts_1_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "Nor-BTS-1" & month %in% c(1:3) & year >= 2004 & year != 2013, haul_id])
-```
-
-
-Second half of year (2:12)
 Nor-BTS-3
 ```{r Nor-BTS-3}
 ggplot(FishGlob.10year.uniquehauls.season[survey_unit == "Nor-BTS-3",]) +
@@ -2023,7 +2035,7 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "Nor-BTS-3",], ae
 ```
 
 -Use months 8,9,10
--Somewhat inconsistent spatial distribution through time, but should be caught in standardization step below
+-Somewhat consistent spatial distribution through time
 -Number of hauls is variable, but no clear years to exclude
 -Laurene Pecuchet (U Tromso) told us that only surveys 2004 and onwards work for biodiversity analyses
 
@@ -2202,14 +2214,17 @@ ggplot(data = FishGlob.10year.spp_haulid_year.r[survey_unit == "NZ-CHAT",], aes(
 
 ```
 
--Use months 12,1,2 (NOTE THAT THIS NZ-CHAT SURVEY CROSSES YEAR, SO LUMP 1 and 2 with previous year)
+-Use months 12,1,2 (NOTE THAT THIS NZ-CHAT SURVEY CROSSES YEAR, SO WE ALREADY LUMPED 12 with NEXT year)
 -Consistent spatial distribution through time
 -Seemingly consistent richness
 -Seemingly consistent number of hauls after 1995
 
 
 ```{r NZ-CHAT processing}
+
+
 nz_chat_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "NZ-CHAT" & month %in% c(12,1,2) & year >= 1995, haul_id])
+
 ```
 
 NZ-ECSI
@@ -3185,13 +3200,20 @@ zaf_ind_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "ZAF-IND" & mo
 list_obj <- ls(pattern = "_keep")
 
 #combine
-fishglob_haulids_to_keep <- unlist(lapply(list_obj, get)) #240529 hauls (Started with 296800)
+fishglob_haulids_to_keep <- unlist(lapply(list_obj, get)) #229894 hauls (Started with 278405)
 
 FishGlob.10year.spp_manualclean <- FishGlob.10year.spp[haul_id %in% fishglob_haulids_to_keep,]
 
+#Require latitude and longitude for all observations
+FishGlob.10year.spp_manualclean <- FishGlob.10year.spp_manualclean[complete.cases(FishGlob.10year.spp_manualclean[,.(latitude, longitude)])] #check that this works
+
+#another check for # years sampled
+#new row for total number of years sampled
+FishGlob.10year.spp_manualclean[,years_sampled := length(unique(year)),.(survey_unit)]
+View(unique(FishGlob.10year.spp_manualclean[,.(survey_unit, years_sampled)]))
+
 #save
 saveRDS(FishGlob.10year.spp_manualclean, file = here::here("data","cleaned","FishGlob.10year.spp_manualclean.rds"))
-
 
 ```
 
