@@ -20,6 +20,8 @@ library(concaveman)
 library(dplyr)
 library(purrr)
 library(sf)
+library(ggpattern) #geom_polygon_pattern()?
+#I have also experienced this issue, an st_cast to multipolygon instantly fixed the patterns from not showing.
 
 ```
 

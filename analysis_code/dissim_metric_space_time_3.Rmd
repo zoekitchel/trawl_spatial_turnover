@@ -1,5 +1,7 @@
 ---
 title: "Calculating Dissimilarity Metrics Across Space and Time"
+author: Zoë J. Kitchel
+date: October 17, 2023
 output: html_notebook
 ---
 Script 3 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
@@ -13,8 +15,10 @@ library(betapart) #allows us to partition beta diversity
 library(geosphere)
 library(ggpubr) #stat_regline_equation
 library(nlme)
+```
 
-
+Pull in clean fishglob data
+```{r pull in clean fishglob data}
 FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 
 
@@ -363,28 +367,49 @@ for (i in 1:length(all_survey_units)) {
   
   } #closes survey/region
 
+#Be sure to check which one of these you actually want to un-hash!
 
-saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
+#saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
 
-distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
+#distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
+```
+
+
+Some NAs in multiple years for NEUS spring and fall, spring scotian shelf, Queen Charlotte Sound (2013 only).
+
+```{r}
+missing_values <- distances_dissimilarities_allyears[!complete.cases(distances_dissimilarities_allyears),] #rows with missing values
+
+View(missing_values)
+
+missing_values[,count_NA := .N,.(survey_unit, year)]
+
+#issues in 
+View(unique(missing_values[,.(survey_unit,year, count_NA)]))
+
+#NEUS Fall
+#This occurred for haul 109-110 because neither had any species (will manually change dissimilarity to 0)
+
+#SCS Spring
+#Same issue, neither observation had any species
+
+#total percent missing?
+nrow(missing_values)/nrow(distances_dissimilarities_allyears)*100
+
+#We will keep balanced/gradient as NA, but will change totals to 0
+
+distances_dissimilarities_allyears[,jaccard_dissimilarity_total := ifelse(is.na(jaccard_dissimilarity_total),0,jaccard_dissimilarity_total)][,bray_curtis_dissimilarity_total := ifelse(is.na(bray_curtis_dissimilarity_total),0,bray_curtis_dissimilarity_total)] #NB: does not change distribution at all
+
 ```
 
 
 Take yearly mean of each value
 
-Some regions have NAs, not sure why
-SCS-SUMMER 89-94
-DFO-QCS 2013
-NEUS-Spring
-NEUS-Fall
-
-For now, do NA.RM = T, but at some point I need to figure out why we have NAs to begin with in distances_dissimilarities_allyears
-
-
 ```{r yearly means}
-
+#yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
 distances_dissimilarities_allyears[, bray_curtis_dissimilarity_balanced_mean := mean(bray_curtis_dissimilarity_balanced, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_gradient_mean := mean(bray_curtis_dissimilarity_gradient, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_total_mean := mean(bray_curtis_dissimilarity_total, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_turnover_mean := mean(jaccard_dissimilarity_turnover, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_nestedness_mean := mean(jaccard_dissimilarity_nestedness, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_total_mean := mean(jaccard_dissimilarity_total, na.rm = T),.(survey_unit,year)]
 
+#unique rows
 distances_dissimilarities_allyears.r <- unique(distances_dissimilarities_allyears[,.(survey, survey_unit, year,abund_biomass, bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
 
 rm(distances_dissimilarities_allyears)
@@ -410,7 +435,22 @@ saveRDS(distances_dissimilarities_allyears.r,  here::here("output", "dissimilari
 
 
 
-###SCRATCH BELOW
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###SCRATCH BELOW (Probably can be deleted)
 
 
 

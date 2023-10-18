@@ -1,19 +1,10 @@
 ---
-title: "Year TOTAL Dissimilarity Models"
+title: "Dissimilarity time series analysis"
+author: Zoë J. Kitchel
+date: October 17, 2023
 output: html_notebook
 ---
-
-This code is Script 4a  for Kitchel et al. Biotic homogenization, the exception and not the rule for marine fish communities manuscript.
-
-COPY FROM THIS SCRIPT
-
-(We expect this to be the main analyses in the text)
-
-- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
-
-- Code by Zoë J. Kitchel
-
-SESSION INFO TO DO
+Primary script 4 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(data.table)
@@ -354,9 +345,8 @@ jaccard_total_lmer_confint <- confint(jaccard_total_lmer)
 #populate data table of lmer predictions
 lmer_jaccard_total_predictions[,jaccard_lmer_preds := fixef(jaccard_total_lmer)[[1]] + fixef(jaccard_total_lmer)[[2]] * year_adj][,jaccard_lmer_preds_lowerCI := jaccard_total_lmer_confint[5] + jaccard_total_lmer_confint[6] * year_adj][,jaccard_lmer_preds_upperCI := jaccard_total_lmer_confint[11] + jaccard_total_lmer_confint[12] * year_adj]
 ```
+
 ###Move forward with Bray Curtis total (others to supplement, although will include in plot below)
-
-
 Coefficients for LMER by survey_unit
 ```{r}
 #unique survey unit year combos
@@ -715,6 +705,8 @@ points_wavylines_bray_total_year_reduced_gam_greyscale
 
 ggsave(points_wavylines_bray_total_year_reduced_gam_greyscale, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_greyscale.jpg", height = 6, width = 6, unit = "in")
 ```
+
+
 Alternative, color by trend
 ```{r color wavy lines by trend}
 
@@ -921,8 +913,7 @@ ggsave(points_wavylines_jaccard_total_year_reduced_gam_individual_facet_25_42, p
 ```
 
 
-
-Region by region build up
+Region by region build up (for presentations)
 ```{r region build up}
 #EBS ONLY (segue for chapter 3)
 points_wavylines_bray_total_year_reduced_gam_colorbytrend_EBSonly <- ggplot() +
