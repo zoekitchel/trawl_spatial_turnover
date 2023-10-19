@@ -113,5 +113,5 @@ Regional_statistics_runbefore drivers
 
 ## Notes
 UNDER CONSTRUCTION
-* Software versions used in this analysis are captured by `renv` and listed [in the lockfile](....renv.lock). Here is [a summary of how renv works](https://rstudio.github.io/renv/articles/renv.html). 
-* Most of these analyses were run on a personal computer, and should be easy to reproduce, except `` and ``, which were conducted in R 3.6.0 on a machine with the following specifications: Windows Server 2019 2-Intel 6154 Xeon 3.0Ghz 18cores(36 threads) each 512 GB memory 6TB- SSD storage 18TB- HDD storage NVIDIA P4000 8Gb 10Gb ethernet
+* Package versions used in this analysis are captured by `renv` and listed [in the lockfile](....renv.lock). Here is [a summary of how renv works](https://rstudio.github.io/renv/articles/renv.html). 
+* Most of these analyses were run on a personal computer using R 4.2.1, and should be easy to reproduce for public data. The exception is the temperature extraction and averaging, as these require averaging of extremely large source files. Therefore, we recommend users to start with averaged temperature file, ''.
