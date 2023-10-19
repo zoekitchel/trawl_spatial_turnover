@@ -349,15 +349,32 @@ distances_dissimilarities_allyears_15perc_excluded <- readRDS(here::here("output
 ```
 
 
-Take yearly mean of each value
+Some NAs in multiple years for NEUS spring and fall, spring scotian shelf, Queen Charlotte Sound (2013 only).
 
-Some regions have NAs, not sure why
-SCS-SUMMER 89-94
-DFO-QCS 2013
-NEUS-Spring
-NEUS-Fall
+```{r}
+missing_values <- distances_dissimilarities_allyears[!complete.cases(distances_dissimilarities_allyears),] #rows with missing values
 
-For now, do NA.RM = T, but at some point I need to figure out why we have NAs to begin with in distances_dissimilarities_allyears_15perc_excluded
+View(missing_values)
+
+missing_values[,count_NA := .N,.(survey_unit, year)]
+
+#issues in 
+View(unique(missing_values[,.(survey_unit,year, count_NA)]))
+
+#NEUS Fall
+#This occurred for haul 109-110 because neither had any species (will manually change dissimilarity to 0)
+
+#SCS Spring
+#Same issue, neither observation had any species
+
+#total percent missing?
+nrow(missing_values)/nrow(distances_dissimilarities_allyears)*100
+
+#We will keep balanced/gradient as NA, but will change totals to 0
+
+distances_dissimilarities_allyears[,jaccard_dissimilarity_total := ifelse(is.na(jaccard_dissimilarity_total),0,jaccard_dissimilarity_total)][,bray_curtis_dissimilarity_total := ifelse(is.na(bray_curtis_dissimilarity_total),0,bray_curtis_dissimilarity_total)] #NB: does not change distribution at all
+
+```
 
 
 ```{r yearly means}
