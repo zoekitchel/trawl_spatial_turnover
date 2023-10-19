@@ -1,17 +1,11 @@
 ---
-title: "Year TOTAL Dissimilarity NULL Models (reshuffle and cyclic shift)"
+title: "Dissimilarity time series analysis for reshuffled years"
+author: Zoë J. Kitchel
+date: October 17, 2023
 output: html_notebook
 ---
 
-This code is Script 4a  for Kitchel et al. Biotic homogenization, the exception and not the rule for marine fish communities manuscript.
-
-- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
-
-"A null model is a pattern-generating model based on randomization of ecological data and is designed to produce a pattern that would be expected in the absence of a particular ecological mechanism (Gotelli and Graves 1996; Gotelli and McGill 2006). " Ryosuke Nakadai et al 2021
-
-- Code by Zoë J. Kitchel
-
-SESSION INFO TO DO
+Supplementary script 4b for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(data.table)
@@ -26,183 +20,43 @@ library(mgcv) #to make gam
 library(cowplot)
 library(lme4)
 
+```
+
+Pull dissimilarity table
+```{r pull outputs from previous scripts}
 #Pull Dissimilarity Means
-distances_dissimilarities_allyears.r <- readRDS(here::here("output", "dissimilarities", "distances_dissimilarities_allyears.r.rds"))
+distances_dissimilarities_allyears <- readRDS(here::here("output", "dissimilarities", "distances_dissimilarities_allyears.rds"))
 
 #make survey and survey unit factors
-distances_dissimilarities_allyears.r[,survey:=factor(survey)][,survey_unit:=factor(survey_unit)]
+distances_dissimilarities_allyears[,survey:=factor(survey)][,survey_unit:=factor(survey_unit)]
 
 #adjust years
-distances_dissimilarities_allyears.r[,year_adj := year-min(year)+1]
+distances_dissimilarities_allyears[,year_adj := year-min(year)+1]
 
 #add new variable for year in sequence per region
-distances_dissimilarities_allyears.r[,first_year := min(year),.(survey_unit)]
-distances_dissimilarities_allyears.r[,last_year := max(year),.(survey_unit)]
+distances_dissimilarities_allyears[,first_year := min(year),.(survey_unit)]
+distances_dissimilarities_allyears[,last_year := max(year),.(survey_unit)]
 
-#distances_dissimilarities_allyears.r[,year_in_seq := year-first_year+1]
+#distances_dissimilarities_allyears[,year_in_seq := year-first_year+1]
 
-distances_dissimilarities_allyears.r[,years_sampled := last_year-first_year+1]
+distances_dissimilarities_allyears[,years_sampled := last_year-first_year+1]
+
+#list of surveys
+survey_unit.list <- levels(factor(distances_dissimilarities_allyears$survey_unit))
 
 
 ```
-
-###Palette for Plotting
-Palette for plotting all 42 survey units
-```{r link colors to survey units}
-survey_unit.list <- levels(factor(distances_dissimilarities_allyears.r[,survey_unit]))
-
-palette_42 <- c(
-  "#5A5156", #AI
-  "#DF00DB", #BITS-1
-  "#DB8EDA", #BITS-4
-  "#F6222E", #CHL
-  "#F8A19F", #DFO-NF
-  "#16FF32", #DFO-QCS
-  "#325A9B", #EBS
-  "#3283FE", #EVHOE
-  "#FEAF16", #FR-CGFS
-  "#fccb6d", #GMEX-Fall
-  "#1C8356", #GMEX-Summer
-  "#C4451C", #GOA
-  "#85660D", #GRL-DE
-  "#B0009F", #GSL-N
-  "#BF79B8", #GSL-S
-  "#1CBE4F", #ICE-GFS
-  "#782AB6", #IE-IGFS
-  "#90AD1C", #MEDITS
-  "#6B003A", #NAM
-  "#A75B00", #NEUS-Fall
-  "#E3B072", #NEUS-Spring
-  "#02E8B6", #NIGFS-1
-  "#97E7D5", #NIGFS-4
-  "#B00068", #Nor-BTS-3
-  "#00B9E3", #NS-IBTS-1
-  "#95E2F4", #NS-IBTS-3
-  "#B3CE73", #NZ-CHAT
-  "#689500", #NZ-ECSI
-  "#364d02",#NZ-SUBA
-  "#AAF400", #NZ-WCSI
-  "#AA0DFE", #PT-IBTS
-  "#7f9eb8", #ROCKALL
-  "#FA0087", #S-GEORG
-  "#DEA0FD", #SCS-Summer
-  "#FCEF88", #SEUS-fall
-  "#A59405", #SEUS-spring
-  "#FCE100", #SEUS-summer
-  "#544563", #SWC-IBTS-1
-  "#a37fc7", #SWC-IBTS-4
-  "#C075A6", #WCANN
-  "#BDCDFF", #ZAF-ATL
-  "#003EFF"  #ZAF-IND
-)
-
-color_link <- data.table(survey_unit = survey_unit.list,hex = palette_42)
-```
-
-Add names for plotting
-```{r add names for plotting}
-
-name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
-                                    "Baltic Sea Q1",
-                                    "Baltic Sea Q4",
-                                    "Chile",
-                                    "Newfoundland",
-                                    "Queen Charlotte Sound",
-                                    "Eastern Bering Sea",
-                                    "Bay of Biscay",
-                                    "English Channel",
-                                    "Gulf of Mexico Summer",
-                                    "Gulf of Alaska",
-                                    "Greenland",
-                                    "N Gulf of St. Lawrence",
-                                    "S Gulf of St. Lawrence",
-                                    "Iceland",
-                                    "Irish Sea",
-                                    "Mediterranean",
-                                    "Namibia",
-                                    "NE US Fall",
-                                    "NE US Spring",
-                                    "N Ireland Q1",
-                                    "N Ireland Q4",
-                                    "Barents Sea Norway Q3",
-                                    "N Sea Q1",
-                                    "N Sea Q3",
-                                    "Chatham Rise NZ",
-                                    "E Coast S Island NZ",
-                                    "W Coast S Island NZ",
-                                    "Portugal",
-                                    "S Georgia",
-                                  "Scotian Shelf Summer",
-                                  "SE US Fall",
-                                  "SE US Spring",
-                                  "SE US Summer",
-                                  "W Coast US",
-                                  "Atlantic Ocean ZA",
-                                  "Indian Ocean ZA",
-                                   "Rockall Plateau",
-                                  "Scotland Shelf Sea Q1",
-                                  "Scotland Shelf Sea Q4",
-                                  "Falkland Islands",
-                                  "Gulf of Mexico Fall",
-                                  "Barents Sea Norway Q1",
-                                  "Sub-Antarctic NZ",
-                                  "Scotian Shelf Spring"),
-                          survey_unit = c(
-                                  "AI",        
-                                  "BITS-1",    
-                                  "BITS-4",    
-                                  "CHL",       
-                                  "DFO-NF",    
-                                  "DFO-QCS",   
-                                  "EBS",       
-                                  "EVHOE",     
-                                  "FR-CGFS",   
-                                  "GMEX-Summer",
-                                  "GOA",       
-                                  "GRL-DE",    
-                                  "GSL-N",     
-                                  "GSL-S",     
-                                  "ICE-GFS",   
-                                  "IE-IGFS",   
-                                  "MEDITS",    
-                                  "NAM",       
-                                  "NEUS-Fall", 
-                                  "NEUS-Spring",
-                                  "NIGFS-1",   
-                                  "NIGFS-4",   
-                                  "Nor-BTS-3", 
-                                  "NS-IBTS-1", 
-                                  "NS-IBTS-3", 
-                                  "NZ-CHAT",   
-                                  "NZ-ECSI",   
-                                  "NZ-WCSI",   
-                                  "PT-IBTS",   
-                                  "S-GEORG",   
-                                  "SCS-SUMMER",
-                                  "SEUS-fall", 
-                                  "SEUS-spring",
-                                  "SEUS-summer",
-                                  "WCANN",     
-                                  "ZAF-ATL",   
-                                  "ZAF-IND",
-                                  "ROCKALL",
-                                  "SWC-IBTS-1",
-                                  "SWC-IBTS-4",
-                                  "FALK",
-                                  "GMEX-Fall",
-                                  "Nor-BTS-1",
-                                  "NZ-SUBA",
-                                  "SCS-SPRING"
-                          ))
-
-
-color_link <- name_helper[color_link, on = "survey_unit"]
-
+ 
+ Pull in palette and name helper
+```{r}
+source(here::here("analysis_code","color_links.R"))
 ```
 
 Load up 'true slopes' and CIs for comparison
 ```{r}
-BC_total_model_coefs_reduced_length.unique <- readRDS(here::here("output","region_stats","BC_total_model_coefs_reduced_length.unique.Rds"))
+
+bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
+bray_curtis_total_coefs.r_true <- bray_curtis_total_coefs.r
 ```
 
 
@@ -216,20 +70,20 @@ I need to:
 - pull mean and CI for each region
 ```{r}
 #surveys
-all_survey_units <- levels(name_helper[,.(survey_unit)])
-years_adj <- sort(unique(distances_dissimilarities_allyears.r$year_adj))
+all_survey_units <- color_link$survey_unit
+years <- sort(unique(distances_dissimilarities_allyears$year))
 
 
 for (i in 1:1000){
 
-  BC_dissimilarity_time <- distances_dissimilarities_allyears.r[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
+  BC_dissimilarity_time <- distances_dissimilarities_allyears[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
   
-  year_run_key <- data.table(year_adj = years_adj, years_adj_null = sample(years_adj, length(years_adj), replace = F))
+  year_run_key <- data.table(year = years, years_null = sample(years, length(years), replace = F))
   
-  BC_dissimilarity_time  <- BC_dissimilarity_time[year_run_key, on = "year_adj"]
+  BC_dissimilarity_time  <- BC_dissimilarity_time[year_run_key, on = "year"]
   
   #run overall model
-  bray_curtis_total_lm <- lm(bray_curtis_dissimilarity_total_mean ~ years_adj_null * survey_unit,data = BC_dissimilarity_time)
+  bray_curtis_total_lm <- lm(bray_curtis_dissimilarity_total_mean ~ years_null * survey_unit,data = BC_dissimilarity_time)
     
   bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients)
   bray_curtis_total_coefs[,var := rownames(summary(bray_curtis_total_lm)$coefficients)]
@@ -238,7 +92,7 @@ for (i in 1:1000){
   bray_curtis_total_coefs.r <- bray_curtis_total_coefs[c(2,44:84),]
   
   #adjust survey unit name by deleting beginning of string
-  bray_curtis_total_coefs.r[,survey_unit := substr(var, 27, str_length(var))][var == "	
+  bray_curtis_total_coefs.r[,survey_unit := substr(var, 23, str_length(var))][var == "	
 years_adj_null",survey_unit := "AI"]
   
   #calculate interaction coefficients
@@ -260,7 +114,7 @@ years_adj_null",survey_unit := "AI"]
 
 #link "true" slope counts
 
-true_slopes <- data.table(run = "observed",differentiating = sum(BC_total_model_coefs_reduced_length.unique$Directional_Change_sig == "Differentiation"), homogenizing = sum(BC_total_model_coefs_reduced_length.unique$Directional_Change_sig == "Homogenization"))
+true_slopes <- data.table(run = "observed",differentiating = sum(bray_curtis_total_coefs.r_true$differentiating == "Differentiation"), homogenizing = sum(bray_curtis_total_coefs.r_true$homogenizing))
 
 
 all_null_runs_reshuffle_year <- rbind(all_null_runs_reshuffle_year,true_slopes)
@@ -281,13 +135,27 @@ all_null_runs_reshuffle_year <- rbind(all_null_runs_reshuffle_year,true_slopes)
   labs(x = "Number of surveys homogenizing", y = "Count") +
   theme_classic())
 
-reshuffle_null_plot <- cowplot::plot_grid(reshuffle_differentiation_plot, reshuffle_homogenizing_plot,
+reshuffle_null_plot <- cowplot::plot_grid(reshuffle_homogenizing_plot,reshuffle_differentiation_plot, 
                                      ncol = 2)
 
 ggsave(reshuffle_null_plot, path = here::here("figures"), filename = "reshuffle_null_plot.jpg", width = 6.5, height = 3)
 
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#NO LONGER DOING BELOW
 ##2) Vary start year (maintain correlation among species and autocorrelation within a species, but introduces weird breakpoints)
 
 I need to:
@@ -298,14 +166,14 @@ I need to:
 ```{r}
 #surveys
 all_survey_units <- levels(name_helper[,.(survey_unit)])
-years_adj <- sort(unique(distances_dissimilarities_allyears.r$year_adj))
+years_adj <- sort(unique(distances_dissimilarities_allyears$year_adj))
 
 #only 45 possibilities, so does it make sense to sample 1000 times? probably not?
 
 #for (i in 1:1000)){ #if we want 1000 runs
   for (i in 1:length(years_adj)){ #if we want 45 runs
 
-  BC_dissimilarity_time <- distances_dissimilarities_allyears.r[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
+  BC_dissimilarity_time <- distances_dissimilarities_allyears[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
   
  # start_year <- sample(1:length(years_adj), 1) #if instead we want 1000 random runs
   start_year <- years_adj[i]
