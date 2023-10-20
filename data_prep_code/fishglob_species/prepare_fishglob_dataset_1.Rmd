@@ -154,7 +154,7 @@ norway_clean <- norway_clean[complete.cases(norway_clean[,.(month)]),]
 #remove species records in accordance with recommendation from HI
 norway_clean <- norway_clean[!(family %in% c("Zoarcidae","Liparidae") | genus == "Sebastes"),]
 
-#some column names don't match fishglob (fishglob = num, num_h, num_cpue, wgt, wgt_h, wgt_cpue; norway = num, num_cpue (number of ind./hour), num_cpua (number of ind./km2), wgt, wgt_cpue (kg/min), wgt_cpua(kg/km2)  )
+#some column names don't match fishglob 1.5 (fishglob = num, num_h, num_cpue, wgt, wgt_h, wgt_cpue; norway = num, num_cpue (number of ind./hour), num_cpua (number of ind./km2), wgt, wgt_cpue (kg/min), wgt_cpua(kg/km2)  )
 #also, some column units in the readme are in correct. Therefore, I will generate _cpue and _h values here
 # we will need to check  and rename columns
 setnames(norway_clean, c("haul_dur"), c("haul_dur_m"))
@@ -176,10 +176,30 @@ norway_clean <- norway_clean[latitude  >= 62,]
 
 ```
 
-
-Delete Greenland and Norway
+DFO-QCS, HS, WCHG, WCVI had issues with cpue in fishglob version used. Therefore, we will pull in new version of QCS (others won't be pulled in, as they aren't used in analsyes because of short time period)
 ```{r}
-FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS"
+#load QCS data
+load(here::here("data","DFO-QCS_Sep2023","QCS_clean.RData"))
+QCS_clean <- data.table(data)
+
+#some column names don't match fishglob 1.5 (fishglob = num, num_h, num_cpue, wgt, wgt_h, wgt_cpue; norway = num, num_cpue (number of ind./hour), num_cpua (number of ind./km2), wgt, wgt_cpue (kg/min), wgt_cpua(kg/km2)  )
+#also, some column units in the readme are in correct. Therefore, I will generate _cpue and _h values here
+# we will need to check  and rename columns
+QCS_clean[,num_h := num/haul_dur][,num_cpue := num/area_swept][,wgt_h := wgt/haul_dur][,wgt_cpue := wgt/area_swept]
+
+#change some columns to numeric
+cols = c("month","day")
+QCS_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+
+#also, delete source and timestamp
+fishglob_colnames <- colnames(FishGlob_1.5)
+QCS_clean <- QCS_clean[,..fishglob_colnames]
+```
+
+
+Delete Greenland, Norway, and QCS
+```{r}
+FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS","DFO-QCS"
                                              #,
                                              #"GRL-DE" #ignore greenland for now...
                                              ))]
@@ -188,7 +208,7 @@ FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS"
 
 Add in updated Greenland and Norway data
 ```{r}
-FishGlob_1.5 <-rbind(FishGlob_1.5,norway_clean)
+FishGlob_1.5 <-rbind(FishGlob_1.5,norway_clean,QCS_clean)
 #FishGlob_1.5 <-rbind(FishGlob_1.5,greenland)
 ```
 
