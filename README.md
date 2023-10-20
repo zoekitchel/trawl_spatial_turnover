@@ -92,6 +92,9 @@ Supplement:
 - Figure S10:
 - Figure S11:
 - Figure S12:
+- Figure S13:
+- Figure S14: `analysis_code` > `Regional_statistics_7.Rmd`
+- Figure S15: `analysis_code` > `Regional_statistics_7.Rmd`
 - Table S1: `data_providers_allsurveys.xlsx`, and see Maureaud et al. 2021 Global Change Biology Supplemental Materials
 - Table S2:
 - Table S3:`analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`

@@ -11,7 +11,7 @@ Script 7 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 library(data.table)
 library(ggplot2)
 library(sf)
-library(rgeos)
+#library(rgeos)
 library(concaveman)
 library(raster)
 library(stringr)
@@ -21,25 +21,27 @@ library(nlme)
 library(MuMIn)
 library(cowplot)
 library(lme4)
+```
 
-
+Load data
+```{r load data}
 #raw data
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean"))
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 
 #model coefficients from year_dissimilarity_BC_total_models_4a.Rmd
-BC_total_model_coefs_reduced_length.unique <- readRDS(here::here("output","region_stats","BC_total_model_coefs_reduced_length.unique.Rds"))
+bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
+bray_curtis_total_coefs.r[,`Significant Trends`:= ifelse(differentiating == 1, "differentiating",ifelse(homogenizing == 1,"homogenizing","no trend"))]
 
 #NB: years sampled = last_year-first_year+1
 
-distances_dissimilarities_allyears.r <- readRDS(here::here("output","dissimilarities","distances_dissimilarities_allyears.r.rds"))
+distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities","distances_dissimilarities_allyears.rds"))
 
 ```
-
-Pull in color, name, helper
+ 
+Pull in palette and name helper
 ```{r}
-color_link (fread, here::here("output","color_link.csv"))
+source(here::here("analysis_code","color_links.R"))
 ```
-
 
 ```{r list of all survey season combinations}
 all_survey_units <- unique(FishGlob_clean[, survey_unit])
@@ -79,6 +81,9 @@ FishGlob_clean[,latitude_annual_range := max(latitude,na.rm =T)-min(latitude,na.
 #add column for depth range per year
 FishGlob_clean[,depth_annual_range := max(depth,na.rm =T)-min(depth,na.rm =T),.(year, survey_unit)]
 
+#add column for average CPUE per tow
+FishGlob_clean[,wgt_cpue_annual := ifelse(survey_unit == "MEDITS", sum(num_cpue, na.rm = T), sum(wgt_cpue, na.rm = T)), .(year, survey_unit)]
+
 #unique rows
 FishGlob_richness_year_survey <- unique(FishGlob_clean[,.(survey_unit, year, wgt_cpue_annual, haul_id_count_annual, spp_count_annual, depth_annual_avg,depth_annual_range, latitude_annual_avg, latitude_annual_range)])
 
@@ -90,7 +95,7 @@ fwrite(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richn
 
 ```
 
-Calculate coefficients from lmer for trend in species richness within a region over time
+Calculate coefficients from lm for trend in species richness within a region over time
 ```{r}
 #plot year vs richness for each reg
 ggplot(data = FishGlob_richness_year_survey) +
@@ -98,51 +103,65 @@ ggplot(data = FishGlob_richness_year_survey) +
   facet_wrap(~survey_unit, scales = "free") +
   theme_classic()
 
-richness_trend_lme <- lme(spp_count_annual ~ year_adj, random = (~1 + year_adj|survey_unit),data = FishGlob_richness_year_survey)
+#simple lm
+richness_trend_lm <- lm(spp_count_annual ~ year*survey_unit, data = FishGlob_richness_year_survey)
 
-richness_trend_coefs <- data.table(coef(richness_trend_lme))
-richness_trend_coefs[,survey_unit := rownames(coef(richness_trend_lme))][,Year_Coef_richness := round(year_adj,5)][,Intercept_richness := round(`(Intercept)`,2)]
-View(richness_trend_coefs)
-
-richness_trend_coefs <- richness_trend_coefs[name_helper, on = "survey_unit"]
-
-richness_trend_coefs.exp <- richness_trend_coefs[,.(Survey_Name_Season, Intercept_richness, Year_Coef_richness, survey_unit)]
+spp_richness_coefs <- data.table(summary(richness_trend_lm)$coefficients)
+  spp_richness_coefs[,var := rownames(summary(richness_trend_lm)$coefficients)]
+  
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
+  spp_richness_coefs.r <- spp_richness_coefs[c(2,44:84),]
+  
+  #adjust survey unit name by deleting beginning of string
+  spp_richness_coefs.r[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
+  
+  #calculate interaction coefficients
+  AI_estimate <- spp_richness_coefs.r[1,Estimate]
+  spp_richness_coefs.r[1,survey_unit_richness_coefficient := AI_estimate]
+  spp_richness_coefs.r[2:42,survey_unit_richness_coefficient := (AI_estimate + Estimate)]
+  
+  setnames(spp_richness_coefs.r, "Std. Error", "richness_coefficient_error")
+  
+  spp_richness_coefs.r <- spp_richness_coefs.r[,.(survey_unit, survey_unit_richness_coefficient, richness_coefficient_error)]
 
 #export this table
-fwrite(richness_trend_coefs.exp, file = here::here("output","richness_trend_coefs.exp.csv"))
+fwrite(spp_richness_coefs.r, file = here::here("output","spp_richness_coefs.r.csv"))
 ```
 
 Link trend in beta diversity to trend in gamma diversity
 ```{r}
+library(ggrepel)
 #merge
-trend_coefs <- richness_trend_coefs.exp[BC_total_model_coefs_reduced_length.unique, on = c("survey_unit")]
+trend_coefs <- spp_richness_coefs.r[bray_curtis_total_coefs.r, on = c("survey_unit")]
 
-trends_beta_gamma <- ggplot(data = trend_coefs, aes(x = Year_Coef_richness, y = year_adj)) +
-    geom_hline(yintercept = 0, color = "grey", linetype = "dashed") +
+trend_coefs <- trend_coefs[color_link, on = "survey_unit"]
+
+trends_beta_gamma <- ggplot(data = trend_coefs, aes(x = survey_unit_richness_coefficient, y = survey_unit_coefficient)) +
+  geom_hline(yintercept = 0, color = "grey", linetype = "dashed") +
   geom_vline(xintercept = 0, color = "grey", linetype = "dashed") +
   geom_point() +
-  geom_text(aes(label = Survey_Name_Season), size = 1.5, nudge_y = 0.0003) +
+  geom_text_repel(aes(label = Survey_Name_Season), size = 2.5) + # Use geom_text_repel
   labs(x = "Trend in γ-diversity", y = "Trend in β-diversity") +
   theme_classic()
 
-ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_gamma.jpg")
+ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_gamma.jpg", height = 7, width = 7)
 
-#linear model?
-summary(lm(Year_Coef_richness~year_adj, data = trend_coefs))
+ #linear model?
+summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs))
 ```
 
 Beta vs. gamma raw
 ```{r}
 #link names
-distances_dissimilarities_allyears.r <- name_helper[distances_dissimilarities_allyears.r, on = "survey_unit"]
+distances_dissimilarities_allyears <- color_link[distances_dissimilarities_allyears, on = "survey_unit"]
 
-distances_dissimilarities_allyears.r <- FishGlob_richness_year_survey[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
+distances_dissimilarities_allyears <- FishGlob_richness_year_survey[distances_dissimilarities_allyears, on = c("year","survey_unit")]
 
 setkey(color_link, survey_unit)
 
-setkey(distances_dissimilarities_allyears.r,  survey_unit)
+setkey(distances_dissimilarities_allyears,  survey_unit)
 
-beta_gamma_raw_plot <- ggplot(data = distances_dissimilarities_allyears.r, aes(x = spp_count_annual, y = bray_curtis_dissimilarity_total_mean)) +
+beta_gamma_raw_plot <- ggplot(data = distances_dissimilarities_allyears, aes(x = spp_count_annual, y = bray_curtis_dissimilarity_total_mean)) +
   geom_point(aes(color = survey_unit), alpha = 0.4) +
   labs(x = "γ-diversity", y = "β-diversity") +
   scale_color_manual(values = color_link$hex, labels = color_link$Survey_Name_Season) +
@@ -167,21 +186,16 @@ SODA_data_temp_avgs_full[,year := year_for_avg]
 #pull in fishing data
 SAU_summed_tonnes.r <- readRDS(here::here("data","sea_around_us","SAU_summed_tonnes.rds"))
 
-#pull in regional statistics
-#region_stats <- readRDS(here::here("output","region_stats", "region_stats.rds"))
-
-#year by year gamma diversity and other stats
-#FishGlob_richness_year_survey <- readRDS(file = here::here("output","FishGlob_richness_year_survey.Rds"))
 ```
 
 
 Merge with temp and fishing values
 ```{r}
 #temp
-distances_dissimilarities_allyears.r.temp <- SODA_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
+distances_dissimilarities_allyears.temp <- SODA_data_temp_avgs_full[distances_dissimilarities_allyears, on = c("year","survey_unit")]
 
 #fishing
-dissimilarities_temp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.r.temp, on = c("year", "survey_unit")]
+dissimilarities_temp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.temp, on = c("year", "survey_unit")]
 
 ```
 
@@ -200,21 +214,36 @@ fwrite(dissimilarities_temp_fishing, here::here("output","dissimilarities_temp_f
 avg_temp_avg_fishing <- unique(dissimilarities_temp_fishing[,.(survey_unit,mean_reg_fishing_allyears, mean_reg_temp_allyears)]) 
 
 #link coefficients
-year_survey_unit_characteristics <- BC_total_model_coefs_reduced_length.unique[avg_temp_avg_fishing, on = "survey_unit"]
+year_survey_unit_characteristics <- spp_richness_coefs.r[avg_temp_avg_fishing, on = "survey_unit"]
 
 ```
 
 We need to look at gamma vs beta for all regions independently
 ```{r}
+setorder(dissimilarities_temp_fishing, survey_unit)
 
-ggplot(dissimilarities_temp_fishing) +
+
+#reorder survey name season by survey unit
+
+dissimilarities_temp_fishing[, Survey_Name_Season := factor(Survey_Name_Season, levels=unique(dissimilarities_temp_fishing$Survey_Name_Season), ordered=TRUE)]
+
+Fishglob_gamma_beta_1_24 <- ggplot(dissimilarities_temp_fishing[survey_unit %in% all_survey_units[1:24]]) +
   geom_point(aes(x = spp_count_annual, y = bray_curtis_dissimilarity_balanced_mean), color = "orange", size = 1) +
   geom_point(aes(x = spp_count_annual, y = jaccard_dissimilarity_turnover_mean), color = "slateblue", size = 1) +
-  facet_wrap(~survey_unit, scales = "free") +
+  facet_wrap(~Survey_Name_Season, scales = "free") +
   labs(y = "β-diversity", x = "γ-diversity") +
   theme_classic()
 
-ggsave(path = here::here("figures"), filename = "Fishglob_gamma_beta.jpg", width = 11, height = 8, units = "in")
+Fishglob_gamma_beta_25_42 <- ggplot(dissimilarities_temp_fishing[survey_unit %in% all_survey_units[25:42]]) +
+  geom_point(aes(x = spp_count_annual, y = bray_curtis_dissimilarity_balanced_mean), color = "orange", size = 1) +
+  geom_point(aes(x = spp_count_annual, y = jaccard_dissimilarity_turnover_mean), color = "slateblue", size = 1) +
+  facet_wrap(~Survey_Name_Season, scales = "free") +
+  labs(y = "β-diversity", x = "γ-diversity") +
+  theme_classic()
+
+ggsave(Fishglob_gamma_beta_1_24, path = here::here("figures"), filename = "Fishglob_gamma_beta_1_24.jpg", width = 9, height = 11, units = "in")
+
+ggsave(Fishglob_gamma_beta_25_42, path = here::here("figures"), filename = "Fishglob_gamma_beta_25_42.jpg", width = 9, height =11, units = "in")
 ```
 
 
@@ -231,7 +260,7 @@ Calculate stats of all regions
 #survey_unit
 region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,direction_of_change := as.character()][,significant := as.logical()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_haul_id_count_annual := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mean_annual_cpue := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,Trend := as.character()]
 
   region_stats[,V1:=NULL]
 
@@ -267,24 +296,22 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"years_sampled"] <- length(unique(reduced_FishGlob_cleaned.10year$year))
                   region_stats[i,"lat_range"] <- max(lat_lon$latitude)-min(lat_lon$latitude)
                   region_stats[i,"mid_lat"] <- mean(lat_lon$latitude)
+                  region_stats[i, "mean_annual_cpue"] <- mean(reduced_FishGlob_cleaned.10year$wgt_cpue_annual)
                   region_stats[i,"lon_range"] <- max(lat_lon$long_shift)-min(lat_lon$long_shift)
                   region_stats[i,"area_km"] <- area/(1000^2)
                   region_stats[i,"depth_range"] <- max(reduced_FishGlob_cleaned.10year$depth, na.rm = T)-min(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
                   region_stats[i,"mid_depth"] <- mean(reduced_FishGlob_cleaned.10year$depth, na.rm = T)
                   region_stats[i,"mean_temp"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_temp_allyears]
                   region_stats[i,"mean_landings"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_fishing_allyears]
-                  region_stats[i,"bray_coef"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],year_adj]
-                  region_stats[i,"bray_coef_lwr"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],lwr]
-                  region_stats[i,"bray_coef_upr"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],upr]
-                  region_stats[i,"Directional_Change"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],Directional_Change]
-                  region_stats[i,"significant"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],significant]
+                  region_stats[i,"bray_coef"] <- trend_coefs[survey_unit == all_survey_units[i],survey_unit_coefficient]
+                  region_stats[i,"bray_coef_lwr"] <- trend_coefs[survey_unit == all_survey_units[i],lwr]
+                  region_stats[i,"bray_coef_upr"] <- trend_coefs[survey_unit == all_survey_units[i],upr]
+                  region_stats[i,"Trend"] <- trend_coefs[survey_unit == all_survey_units[i],`Significant Trends`]
 }
   
 #if any values are -Inf, change to NA
 invisible(lapply(names(region_stats),function(.name) set(region_stats, which(is.infinite(region_stats[[.name]])), j = .name,value =NA)))
 
-#add significant directions column
-region_stats[,"Significant Trends" := ifelse(significant==T, Directional_Change, "No trend in dissimilarity")]
 
 #add column for avg # of hauls per area
 region_stats[,avg_hauls_area := mean_haul_id_count_annual/area_km]
@@ -301,7 +328,8 @@ plot(conc)
 plot(conc_nooverlap)
 ```
 
-Calculate annual area of sampling
+Calculate annual area of sampling (This takes a while)
+
 ```{r calculate annual area of sampling}
 
 #set up empty data table with year and region
@@ -356,6 +384,45 @@ for (i in 1:length(all_survey_units)) {
 fwrite(region_area_byyear, file = here::here("output","region_area_byyear.csv"))
 ```
 
+Merge region stats with dissimilarities
+```{r}
+#region_statistics
+dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing[region_stats, on = "survey_unit"]
+dissimilarities_temp_fishing_regstats[,spp_num.s := scale(spp_num)]
+
+dissimilarities_temp_fishing_regstats[,bray_curtis_dissimilarity_balanced_mean.s := scale(bray_curtis_dissimilarity_balanced_mean, center = F),survey_unit]
+
+dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing_regstats[FishGlob_richness_year_survey, on = c("year","survey_unit")]
+
+dissimilarities_temp_fishing_regstats[,spp_count_annual.s := scale(spp_count_annual)]
+
+#save avg values
+saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","dissimilarities","dissimilarities_temp_fishing_regstats.rds"))
+```
+
+Format region_stats for paper supplement
+```{r}
+region_stats.format <- copy(region_stats)
+
+region_stats.format <- region_stats[color_link, on = "survey_unit", nomatch = F]
+
+region_stats.format[,`Mean annual CPUE (kg/km^2)`:=mean_annual_cpue][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
+
+setorder(region_stats.format, survey_unit)
+
+region_stats.format <- region_stats.format[,.(Survey_Name_Season, `First year`,`Last year`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`,`Number of species across all years`,`Mean annual CPUE (kg/km^2)`,`Mean annual tow count`, `Mean annual fisheries landings (1000s of tonnes)`)]
+
+
+View(region_stats.format)
+
+colnames(region_stats.format)
+
+#export to csv
+fwrite(region_stats.format, here::here("output","region_stats","region_stats.format.csv"))
+
+```
+
+
 
 Proportion test (prop homogenizing/differentiating vs. prop not)
 
@@ -372,16 +439,21 @@ A:  The alternative is that this proportion is different in at
    Differentiation was more common in the southern hemisphere (four out of eight surveys), while homogenization was more common in the northern hemisphere (eight out of 29 surveys).
 
 ```{r prop test}
+
+
                 #N, S
-homogenizers <- c(6,0)
-differentiators <- c(4,4)
-total_surveys <- c(34,8)
+homogenizers <- c(7,0)
+differentiators <- c(8,6)
+total_surveys <- c(33,9)
 
 
 prop.test(homogenizers,total_surveys) #p value >> 0.05, so groups are not differennt
-prop.test(differentiators,total_surveys) #p value << 0.04, so groups are significantly different
+prop.test(differentiators,total_surveys) #p value < 0.05, so groups are significantly different
 
 ```
+
+
+##Scatterplots showing dissimialrity vs survey characteristics
 
 No trend, except for abs of bray coef
 ```{r spp num}
@@ -504,7 +576,6 @@ summary(lm(bray_coef~mid_lat, data = region_stats)) #nearly significant
       
 ```
 
-#NEED TO FIX FOR REGIONS THAT CROSS DATE LINE
 ```{r longitudinal range}
 
 ggplot(region_stats) +
@@ -699,41 +770,5 @@ legend <- get_legend(avg_hauls_area_vs_coef +   guides(color = guide_legend(over
 dissimilarity_coef_characteristic_plots_merged <- plot_grid(legend, all_vs_coef_plots, ncol = 1, rel_heights = c(1,15))
 
 ggsave(dissimilarity_coef_characteristic_plots_merged, path = here::here("figures","bray_coef_vs_survey_characteristics"), filename = "dissimilarity_coef_characteristic_plots_merged.jpg", height =9, width = 7.8, unit = "in")
-```
-
-
-Merge region stats with dissimilarities
-```{r}
-#region_statistics
-dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing[region_stats, on = "survey_unit"]
-dissimilarities_temp_fishing_regstats[,spp_num.s := scale(spp_num)]
-
-dissimilarities_temp_fishing_regstats[,bray_curtis_dissimilarity_balanced_mean.s := scale(bray_curtis_dissimilarity_balanced_mean, center = F),survey_unit]
-
-dissimilarities_temp_fishing_regstats <- dissimilarities_temp_fishing_regstats[FishGlob_richness_year_survey, on = c("year","survey_unit")]
-
-dissimilarities_temp_fishing_regstats[,spp_count_annual.s := scale(spp_count_annual)]
-
-#save avg values
-saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","dissimilarities","dissimilarities_temp_fishing_regstats.rds"))
-```
-
-Format region_stats for paper supplement
-```{r}
-region_stats.format <- copy(region_stats)
-
-region_stats.format <- region_stats[name_helper, on = "survey_unit", nomatch = F]
-
-region_stats.format[,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
-
-region_stats.format <- region_stats.format[,.(Survey_Name_Season, `Number of species across all years`,`First year`,`Last year`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`, `Mean annual fisheries landings (1000s of tonnes)`, `Mean annual tow count`)]
-
-View(region_stats.format)
-
-colnames(region_stats.format)
-
-#export to csv
-fwrite(region_stats.format, here::here("output","region_stats","region_stats.format.csv"))
-
 ```
 
