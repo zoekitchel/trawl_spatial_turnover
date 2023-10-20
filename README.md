@@ -75,26 +75,26 @@ Scripts without an associated number are accessory scripts. They are not needed 
 
 **Source scripts for figures and tables**
 Main text:
-- Figure 1: `figure_code` > `Map_surveys_coefvalues.Rmd` 
-- Figure 2: `analysis_code` > `dissim_metric_space_time_3.Rmd`
+- Figure 1: `figure_code` > `visualization_homogenization_differentiation.Rmd` then `figure_code` > `Map_surveys_coefvalues.Rmd` 
+- Figure 2: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
 - Figure 3: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
 
 Supplement:
-- Figure S1:
-- Figure S2:
-- Figure S3:
-- Figure S4:
-- Figure S5:
+- Figure S1: `analysis_code` > `year_dissimilarity_BC_total_models_4b_nullmodelreshuffle.Rmd`
+- Figure S2: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Figure S3: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Figure S4: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Figure S5: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
 - Figure S6:
-- Figure S7:
-- Figure S8:
+- Figure S7: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Figure S8: 
 - Figure S9:
 - Figure S10:
 - Figure S11:
 - Figure S12:
-- Table S1:
+- Table S1: `data_providers_allsurveys.xlsx`, and see Maureaud et al. 2021 Global Change Biology Supplemental Materials
 - Table S2:
-- Table S3:
+- Table S3:`analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
 - Table S4:
 - Table S5:
 - Table S6:
@@ -102,14 +102,7 @@ Supplement:
 - Table S8:
 - Table S9:
 - Table S10:
-- Table S11:
-- Table S12:
-- Table S13:
-- Table S14:
 
-
-TO FIGURE OUT
-Regional_statistics_runbefore drivers
 
 ## Notes
 UNDER CONSTRUCTION

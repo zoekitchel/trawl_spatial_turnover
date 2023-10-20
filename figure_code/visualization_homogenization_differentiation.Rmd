@@ -3,15 +3,7 @@ title: "Figure Visualization Homogenization, Differentiation, and Stability"
 output: html_notebook
 ---
 
-Example of homogenization and differentiation as ODS
-
-This code is Script for Figure X for Kitchel et al. TITLE manuscript.
-
-- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
-
-- Code by Zoë J. Kitchel
-
-SESSION INFO TO DO
+Figure 1 script part 1 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(data.table)
@@ -28,18 +20,7 @@ library(cowplot)
 
 Load Data
 ```{r}
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
-
-```
-
-Delete these observations above except for MEDITS (we will do trends in abundance metrics for this region)
-```{r}
-#delete all rows where wgt_cpue is NA,  unless it is MEDITS region
-FishGlob_clean.noNA <- FishGlob_clean[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS"]
-
-#check
-summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these
-FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 
 ```
 
@@ -48,10 +29,10 @@ Examples:
 Homogenization: "SEUS-summer"
 Year 4 versus 6th to final 
 ```{r seus summer contrast plot mds}
-seus_years <- unique(FishGlob_clean.noNA[survey_unit == "SEUS-summer",year])
+seus_years <- unique(FishGlob_clean[survey_unit == "SEUS-summer",year])
 #year 4 = 1993,  final year = 2019
 
-seus_summer <- FishGlob_clean.noNA[survey_unit == "SEUS-summer" & year %in% c(1993,2019),]
+seus_summer <- FishGlob_clean[survey_unit == "SEUS-summer" & year %in% c(1993,2019),]
 
 #1993
 seus_1993 <- dcast(seus_summer[year == 1993,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
@@ -97,10 +78,10 @@ seus_summer_mds_contrast
 Differentiation: "NZ-WCSI" "#AAF400"
 Year 1 versus to final 
 ```{r}
-nz_wcsi_years <- unique(FishGlob_clean.noNA[survey_unit == "NZ-WCSI",year])
+nz_wcsi_years <- unique(FishGlob_clean[survey_unit == "NZ-WCSI",year])
 #year 1 = 2000,  final year = 2019
 
-nz_wcsi <- FishGlob_clean.noNA[survey_unit == "NZ-WCSI" & year %in% c(2000,2019),]
+nz_wcsi <- FishGlob_clean[survey_unit == "NZ-WCSI" & year %in% c(2000,2019),]
 
 #2000
 nz_wcsi_2000 <- dcast(nz_wcsi[year == 2000,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
@@ -146,10 +127,10 @@ nz_wcsi_mds_contrast
 Stable: "SCS-SUMMER"
 Year 2 in series vs final year 
 ```{r}
-scs_summer_years <- unique(FishGlob_clean.noNA[survey_unit == "SCS-SUMMER",year])
+scs_summer_years <- unique(FishGlob_clean[survey_unit == "SCS-SUMMER",year])
 #year 2 = 1988,  final year = 2019
 
-scs_summer <- FishGlob_clean.noNA[survey_unit == "SCS-SUMMER" & year %in% c(1988,2019),]
+scs_summer <- FishGlob_clean[survey_unit == "SCS-SUMMER" & year %in% c(1988,2019),]
 
 #1988
 scs_summer_1988 <- dcast(scs_summer[year == 1988,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species

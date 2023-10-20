@@ -1,17 +1,22 @@
 ---
 title: "Map of Surveys with Coefficient Values and Classifications"
+author: Zoe Kitchel
+date: October 19 2023
 output: html_notebook
 ---
 
+Figure 1 script part 2 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
+
 Here, I plan to make a global map showing how each survey region is classified (homogenization, differentiation, no significant change.)
+Run visualization_homogenization_differentiation.Rmd first!
 
 ```{r}
 library(data.table)
 library(ggplot2)
 library(ggspatial) #basemap
-library(rgdal)
+#library(rgdal)
 library(sp)
-library(rgeos)
+#library(rgeos)
 library(viridis)
 library(here)
 library(maps)
@@ -25,127 +30,26 @@ library(ggpattern) #geom_polygon_pattern()?
 
 ```
 
+ Pull in palette and name helper
+```{r}
+source(here::here("analysis_code","color_links.R"))
+```
+
 Pull in data
 ```{r pull in data}
-region_stats <- readRDS(here::here("output","region_stats","region_stats.rds"))
+#trend
+bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
+bray_curtis_total_coefs.r[,`Significant Trends`:= ifelse(differentiating == 1, "differentiating",ifelse(homogenizing == 1,"homogenizing","no trend"))]
 
 #raw data
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
-
-#Additional cleaning (first written in "BC_total_dissim_metric_space_time.Rmd")*
-
-#Delete observations without CPUE except for MEDITS (we will do trends in abundance metrics for this region)
-FishGlob_clean.noNA <- FishGlob_clean[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS",]
-
-FishGlob_clean.noNA <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
-
-#combine with more helpful names
-
-```
-
-Key to combine with more helpful names
-```{r}
-name_helper <- data.table(Survey_Name_Season = c("Aleutian Islands",
-                                    "Baltic Sea Q1",
-                                    "Baltic Sea Q4",
-                                    "Chile",
-                                    "Newfoundland",
-                                    "Queen Charlotte Sound",
-                                    "Eastern Bering Sea",
-                                    "Bay of Biscay",
-                                    "English Channel",
-                                    "Gulf of Mexico Summer",
-                                    "Gulf of Alaska",
-                                    "Greenland",
-                                    "N Gulf of St. Lawrence",
-                                    "S Gulf of St. Lawrence",
-                                    "Iceland",
-                                    "Irish Sea",
-                                    "Mediterranean",
-                                    "Namibia",
-                                    "NE US Fall",
-                                    "NE US Spring",
-                                    "N Ireland Q1",
-                                    "N Ireland Q4",
-                                    "Barents Sea Norway Q3",
-                                    "N Sea Q1",
-                                    "N Sea Q3",
-                                    "Chatham Rise NZ",
-                                    "E Coast S Island NZ",
-                                    "W Coast S Island NZ",
-                                    "Portugal",
-                                    "S Georgia",
-                                  "Scotian Shelf Summer",
-                                  "SE US Fall",
-                                  "SE US Spring",
-                                  "SE US Summer",
-                                  "W Coast US",
-                                  "Atlantic Ocean ZA",
-                                  "Indian Ocean ZA",
-                                   "Rockall Plateau",
-                                  "Scotland Shelf Sea Q1",
-                                  "Scotland Shelf Sea Q4",
-                                  "Falkland Islands",
-                                  "Gulf of Mexico Fall",
-                                  "Barents Sea Norway Q1",
-                                  "Sub-Arctic NZ",
-                                  "Scotian Shelf Spring"),
-                          survey_unit = c(
-                                  "AI",        
-                                  "BITS-1",    
-                                  "BITS-4",    
-                                  "CHL",       
-                                  "DFO-NF",    
-                                  "DFO-QCS",   
-                                  "EBS",       
-                                  "EVHOE",     
-                                  "FR-CGFS",   
-                                  "GMEX-Summer",
-                                  "GOA",       
-                                  "GRL-DE",    
-                                  "GSL-N",     
-                                  "GSL-S",     
-                                  "ICE-GFS",   
-                                  "IE-IGFS",   
-                                  "MEDITS",    
-                                  "NAM",       
-                                  "NEUS-Fall", 
-                                  "NEUS-Spring",
-                                  "NIGFS-1",   
-                                  "NIGFS-4",   
-                                  "Nor-BTS-3", 
-                                  "NS-IBTS-1", 
-                                  "NS-IBTS-3", 
-                                  "NZ-CHAT",   
-                                  "NZ-ECSI",   
-                                  "NZ-WCSI",   
-                                  "PT-IBTS",   
-                                  "S-GEORG",   
-                                  "SCS-SUMMER",
-                                  "SEUS-fall", 
-                                  "SEUS-spring",
-                                  "SEUS-summer",
-                                  "WCANN",     
-                                  "ZAF-ATL",   
-                                  "ZAF-IND",
-                                  "ROCKALL",
-                                  "SWC-IBTS-1",
-                                  "SWC-IBTS-4",
-                                  "FALK",
-                                  "GMEX-Fall",
-                                  "Nor-BTS-1",
-                                  "NZ-SUBA",
-                                  "SCS-SPRING"
-                          ))
-
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 
 
 ```
-
 
 Unique lat lon values
 ```{r unique lat lon}
-unique_lat_lon_survey_units <- unique(FishGlob_clean.noNA[,.(survey_unit, survey, latitude, longitude)])
+unique_lat_lon_survey_units <- unique(FishGlob_clean[,.(survey_unit, survey, latitude, longitude)])
 #shift longitude for mapping
 unique_lat_lon_survey_units[,longitude_s := ifelse(longitude >160, longitude - 360, longitude)]
 
@@ -156,58 +60,8 @@ coordinates(unique_lat_lon_survey_units.spdf) <- c(5,3)
 unique_lat_lon_survey_units.spdf$long <- unique_lat_lon_survey_units$longitude_s
 unique_lat_lon_survey_units.spdf$lat <- unique_lat_lon_survey_units$latitude
 
-```
+rm(FishGlob_clean)
 
-Palette for plotting all 42 survey units
-```{r link colors to survey units}
-survey_unit.list <- levels(as.factor(FishGlob_clean.noNA[,survey_unit]))
-
-palette_42 <- c(
-  "#5A5156", #AI
-  "#DF00DB", #BITS-1
-  "#DB8EDA", #BITS-4
-  "#F6222E", #CHL
-  "#F8A19F", #DFO-NF
-  "#16FF32", #DFO-QCS
-  "#325A9B", #EBS
-  "#3283FE", #EVHOE
-  "#FEAF16", #FR-CGFS
-  "#fccb6d", #GMEX-Fall
-  "#1C8356", #GMEX-Summer
-  "#C4451C", #GOA
-  "#85660D", #GRL-DE
-  "#B0009F", #GSL-N
-  "#BF79B8", #GSL-S
-  "#1CBE4F", #ICE-GFS
-  "#782AB6", #IE-IGFS
-  "#90AD1C", #MEDITS
-  "#6B003A", #NAM
-  "#A75B00", #NEUS-Fall
-  "#E3B072", #NEUS-Spring
-  "#02E8B6", #NIGFS-1
-  "#97E7D5", #NIGFS-4
-  "#B00068", #Nor-BTS-3
-  "#00B9E3", #NS-IBTS-1
-  "#95E2F4", #NS-IBTS-3
-  "#B3CE73", #NZ-CHAT
-  "#689500", #NZ-ECSI
-  "#364d02",#NZ-SUBA
-  "#AAF400", #NZ-WCSI
-  "#AA0DFE", #PT-IBTS
-  "#7f9eb8", #ROCKALL
-  "#FA0087", #S-GEORG
-  "#DEA0FD", #SCS-Summer
-  "#FCEF88", #SEUS-fall
-  "#A59405", #SEUS-spring
-  "#FCE100", #SEUS-summer
-  "#544563", #SWC-IBTS-1
-  "#a37fc7", #SWC-IBTS-4
-  "#C075A6", #WCANN
-  "#BDCDFF", #ZAF-ATL
-  "#003EFF"  #ZAF-IND
-)
-
-color_link <- data.table(survey_unit = survey_unit.list,hex = palette_42)
 ```
 
 Base map
@@ -225,7 +79,7 @@ basemap_points_color_survey_unit <- ggplot() +
   geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
   geom_point(data = data.frame(unique_lat_lon_survey_units.spdf),
              aes(x = long, y = lat, group = survey_unit, color = survey_unit), size = 0.001, alpha = 0.8) +
-  scale_color_manual(values = palette_42) +
+  scale_color_manual(values = color_link$hex) +
   coord_map() +
   theme_classic() +
   theme(legend.position = "null")
@@ -298,13 +152,13 @@ all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$surve
 ggplot() +
   geom_sf(data = all_survey_units_polygons.clean, aes(fill = survey_unit), color = NA) +
   geom_sf(data = all_survey_units_centroid_points, aes(fill = survey_unit)) +
-  scale_fill_manual(values = palette_42) +
+  scale_fill_manual(values = color_link$hex) +
   theme_classic()
 ```
 
 Link with name helper
 ```{r}
-all_survey_units_polygons.names <- left_join(all_survey_units_polygons.clean, name_helper, on = "survey_unit")
+all_survey_units_polygons.names <- left_join(all_survey_units_polygons.clean, color_link, by = "survey_unit")
 ```
 
 
@@ -313,7 +167,7 @@ all_survey_units_polygons.names <- left_join(all_survey_units_polygons.clean, na
 (survey_unit_filled_polygons <- ggplot() +
   geom_sf(data = all_survey_units_polygons.names, aes(fill = reorder(Survey_Name_Season,survey_unit)), color = NA, alpha = 0.3) +
   geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
-  scale_fill_manual(values = palette_42) +
+  scale_fill_manual(values = color_link$hex) +
   coord_sf() +
   lims(x = c(-200,60)) +
   theme_classic() +
@@ -325,7 +179,7 @@ ggsave(survey_unit_filled_polygons, path = here::here("figures"), filename = "su
 (survey_unit_outline_polygons <- ggplot() +
   geom_sf(data = all_survey_units_polygons.names, aes(color = reorder(Survey_Name_Season,survey_unit)), fill = NA, alpha = 0.5, linewidth = 0.1) +
   geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey") +
-  scale_color_manual(values = palette_42) +
+  scale_color_manual(values = color_link$hex) +
   coord_sf() +
   lims(x = c(-200,60)) +
   theme_classic() +
@@ -352,14 +206,26 @@ base_theme <- theme(axis.text=element_text(size=7),
                     legend.background = element_rect(fill=alpha('blue', 0)))
 ```
 
+Scotland shelf sea should be patterned: green and purple
+Southeast US should be patterned: orange and purple
+Pull each out separately
+```{r}
+scotland <- all_survey_units_polygons.names[15,]
+southeast_us <- all_survey_units_polygons.names[37,]
+#remove these from full 
+all_survey_units_polygons.names <- all_survey_units_polygons.names[c(1:13,16:35,39:42),]
+
+
+```
+
 
 Instead color by change experienced
-```{r combine basemap and survey regions}
+```{r color map by change experienced}
 #merge polygons with stats
-all_survey_units_polygons_stats <- left_join(all_survey_units_polygons.names, region_stats, on = "survey_unit")
+all_survey_units_polygons_stats <- left_join(all_survey_units_polygons.names, bray_curtis_total_coefs.r, by = "survey_unit")
 
 #merge points with stats
-all_survey_units_centroid_points_stats <- left_join(all_survey_units_centroid_points, region_stats, on = "survey_unit")
+all_survey_units_centroid_points_stats <- left_join(all_survey_units_centroid_points, bray_curtis_total_coefs.r, by = "survey_unit")
 
 #focal regions
 centroids_focal <- all_survey_units_centroid_points_stats %>%
@@ -376,9 +242,13 @@ map_bray_coef_trend <- ggplot() +
     #world map
   geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey", color="white", lwd=0.1) +
   #polygons
-  geom_sf(data = all_survey_units_polygons_stats, aes(fill = `Significant Trends`), alpha = 0.7) +
+  geom_sf(data = all_survey_units_polygons_stats, aes(fill = `Significant Trends`, color = `Significant Trends`), alpha = 0.7, lwd = 0.1) +
+  #add scotland alone
+  geom_sf(data = scotland, fill = "#cbbfde", color = "#73BA4D") +
+  #add southeast US alone
+  geom_sf(data = southeast_us, fill = "#cbbfde", color = "#E0962C", lwd = 0.05) +
   #polygon outlines
-  geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
+#  geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
   #colored points with trend assocaited with each survey
   geom_sf(all_survey_units_centroid_points_stats, mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
  # geom_sf_text(data = all_survey_units_centroid_points_stats, aes(label = survey_unit), size = 0.5) +
@@ -407,6 +277,7 @@ map_bray_coef_trend <- ggplot() +
 map_bray_coef_trend
 
 ggsave(map_bray_coef_trend, path = here::here("figures"), filename = "map_bray_coef_trend.pdf", height = 4, width = 8, unit = "in")
+ggsave(map_bray_coef_trend, path = here::here("figures"), filename = "map_bray_coef_trend.jpg", height = 4, width = 8, unit = "in")
 ```
 
 Merge completed map with visualizations of NMDS
