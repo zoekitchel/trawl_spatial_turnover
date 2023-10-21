@@ -23,17 +23,17 @@ FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 Loop through all regions (takes  a few hours to run)
 
 ```{r list of all survey season combinations}
-all_survey_units <- unique(FishGlob_clean.noNA[, survey_unit])
+all_survey_units <- unique(FishGlob_clean[, survey_unit])
 ```
 
 Delete 15% of least abundant species by biomass (across whole time series)
 ```{r}
 #add new columns that sum biomass for each individual species per survey, and 
-FishGlob_clean.noNA[survey_unit != "MEDITS",abundance_spp_sum := sum(wgt_cpue),.(accepted_name, survey_unit)][survey_unit != "MEDITS",abundance_sum := sum(wgt_cpue),survey_unit][survey_unit == "MEDITS",abundance_spp_sum := sum(num_cpue),.(accepted_name, survey_unit)][survey_unit == "MEDITS",abundance_sum := sum(num_cpue),survey_unit]
+FishGlob_clean[survey_unit != "MEDITS",abundance_spp_sum := sum(wgt_cpue),.(accepted_name, survey_unit)][survey_unit != "MEDITS",abundance_sum := sum(wgt_cpue),survey_unit][survey_unit == "MEDITS",abundance_spp_sum := sum(num_cpue),.(accepted_name, survey_unit)][survey_unit == "MEDITS",abundance_sum := sum(num_cpue),survey_unit]
 
 
 
-FishGlob_abundance_survey <- unique(FishGlob_clean.noNA[,.(survey_unit, accepted_name, abundance_spp_sum, abundance_sum)])
+FishGlob_abundance_survey <- unique(FishGlob_clean[,.(survey_unit, accepted_name, abundance_spp_sum, abundance_sum)])
 
 FishGlob_abundance_survey[,perc_spp_total_abundance := abundance_spp_sum/abundance_sum][,spp_count := uniqueN(accepted_name),survey_unit][,spp_count15_percent := round(0.15*spp_count,0)]
 
@@ -49,80 +49,72 @@ FishGlob_abundance_survey[, exclude_spp := ifelse(rank_abundance_bysurvey <= spp
 #spp and survey key
 spp_survey_keep_key <- unique(FishGlob_abundance_survey[,.(survey_unit, accepted_name, exclude_spp)])
 
-FishGlob_clean.noNA_15perc <- spp_survey_keep_key[FishGlob_clean.noNA, on = .(survey_unit, accepted_name)]
+FishGlob_clean_15perc <- spp_survey_keep_key[FishGlob_clean, on = .(survey_unit, accepted_name)]
 
-FishGlob_clean.noNA_15perc_excluded <- FishGlob_clean.noNA_15perc[exclude_spp == F,]
+FishGlob_clean_15perc_excluded <- FishGlob_clean_15perc[exclude_spp == F,]
 
 #drops 
-nrow(FishGlob_clean.noNA)-nrow(FishGlob_clean.noNA_15perc_excluded)
-#4530/2759954 rows (0.2% of observations)
+nrow(FishGlob_clean)-nrow(FishGlob_clean_15perc_excluded)
+#4528/2727007 rows (0.2% of observations)
+
+saveRDS(FishGlob_clean_15perc_excluded, here::here("output","FishGlob_clean_15perc_excluded.Rds"))
 ```
 
-Calculate Beta Dissimilarity between all sampling sites within every survey unit
-```{r loop through all regions and years}
-survey_stats <- data.table(survey = character() ,  survey_unit = character(),  spp_num = numeric(),  study_period = numeric(),  study_duration = numeric(),  lat_range = numeric(),  mid_lat = numeric(),  lon_range = numeric(),  area = numeric(),  depth_range = numeric(),   mid_depth = numeric())
+Delete any tows without any observations
+```{r}
+FishGlob_clean_15perc_excluded[,tow_abundance_sum := ifelse(survey == "MEDITS", sum(num_cpue),sum(wgt_cpue)),.(haul_id)]
+summary(FishGlob_clean_15perc_excluded$tow_abundance_sum)
 
-distances_dissimilarities_allyears_15perc_excluded_15perc_excluded <- data.table("haul_id1" = integer(), 
-                                                 "haul_id2" = integer(), 
-                                                 "distance" = numeric(), 
-                                                 "bray_curtis_dissimilarity_balanced" = numeric(), 
-                                                 year = integer(), 
-                                                 abund_biomass  =  character(), 
-                                                 "jaccard_dissimilarity_turnover" = numeric(), 
-                                                 "jaccard_dissimilarity_nestedness" =  numeric(), 
-                                                 "bray_curtis_dissimilarity_gradient" = as.numeric(), 
-                                                 "jaccard_dissimilarity_total" = numeric(), 
-                                                 "bray_curtis_dissimilarity_total" = numeric(), 
-                                                 survey = character(), 
-                                                 survey_unit = character())
+tows_by_abundance <- unique(FishGlob_clean_15perc_excluded[,.(haul_id, tow_abundance_sum)])
+tows_noabundance <- unique(FishGlob_clean_15perc_excluded[tow_abundance_sum == 0,.(haul_id, tow_abundance_sum, survey_unit, year)])
+
+length(unique(FishGlob_clean_15perc_excluded[tow_abundance_sum == 0,haul_id])) 
+
+FishGlob_clean_15perc_excluded <- FishGlob_clean_15perc_excluded[!(haul_id %in% tows_noabundance$haul_id)]
+```
+
+##Calculate Beta Dissimilarity between all sampling sites within every survey unit
+
+
+```{r loop through all regions and years}
+
+distances_dissimilarities_allyears_15perc_excluded <- data.table("bray_curtis_dissimilarity_balanced_mean" = numeric(),
+                                                 "jaccard_dissimilarity_turnover_mean" = numeric(), 
+                                                 "jaccard_dissimilarity_nestedness_mean" =  numeric(), 
+                                                 "bray_curtis_dissimilarity_gradient_mean" = as.numeric(), 
+                                                 "jaccard_dissimilarity_total_mean" = numeric(), 
+                                                 "bray_curtis_dissimilarity_total_mean" = numeric(), 
+                                                 "survey" = character(), 
+                                                 "survey_unit" = character(),
+                                                "year" = integer(), 
+                                                 "abund_biomass"  =  character())
 
 for (i in 1:length(all_survey_units)) {
   
-  FishGlob_clean_subset <- FishGlob_clean.noNA_15perc_excluded[survey_unit == all_survey_units[i], ]
+  FishGlob_clean_15perc_excluded_subset <- FishGlob_clean_15perc_excluded[survey_unit == all_survey_units[i], ]
   
   #map
   ####unique lat lon
   #add column with adjusted longitude for few surveys that cross dateline (NZ-CHAT and AI)
-  FishGlob_clean_subset[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
+  FishGlob_clean_15perc_excluded_subset[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
 
-    lat_lon <- unique(FishGlob_clean_subset[, .(latitude,  longitude_adj)])
+    lat_lon <- unique(FishGlob_clean_15perc_excluded_subset[, .(latitude,  longitude_adj)])
 
-  pts <- st_as_sf(lat_lon,  coords=c('longitude_adj', 'latitude'),  crs=4326 )
-
-  conc <- concaveman(pts,  concavity = 5)
-  sf::sf_use_s2(FALSE) #turn off the s2 processing; GEOS treats projected coordinates as planar (i.e. two points lie on a line of infinite max lenght) while s2 is more "correct" (two points lie on a great circle of circumference of 40 075 kilometers)
-  area <- st_area(conc) #m2,  check this later
-
-  #fill row
- row <- data.table(FishGlob_clean_subset[1, survey], 
-                        FishGlob_clean_subset[1, as.character(survey_unit)], 
-                        as.numeric(length(unique(FishGlob_clean_subset[, accepted_name]))), 
-                        as.numeric(max(FishGlob_clean_subset[, year])-min(FishGlob_clean_subset[, year])), 
-                        as.numeric(length(unique(FishGlob_clean_subset[, year]))), 
-                        as.numeric(max(FishGlob_clean_subset[, latitude])-min(FishGlob_clean_subset[, latitude])), 
-                        as.numeric(mean(FishGlob_clean_subset[, latitude])), 
-                        as.numeric(max(FishGlob_clean_subset[, longitude_adj])-min(FishGlob_clean_subset[, longitude_adj])), 
-                        as.numeric(area), 
-                        as.numeric(max(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)-min(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)), 
-                   as.numeric(mean(FishGlob_clean_subset[, as.numeric(depth)],  na.rm = T)))
- 
-   survey_stats <- rbind(survey_stats,  row,  use.names = F)
-   
    #list years
-  FishGlob_clean_subset[, year:= as.numeric(year)] #make numeric
-  setorder(FishGlob_clean_subset,  year)
-  years <- unique(FishGlob_clean_subset[, year])
+  FishGlob_clean_15perc_excluded_subset[, year:= as.numeric(year)] #make numeric
+  setorder(FishGlob_clean_15perc_excluded_subset,  year)
+  years <- unique(FishGlob_clean_15perc_excluded_subset[, year])
   
   #haul id keys
-  haul_ids <- unique(FishGlob_clean_subset[, haul_id])
+  haul_ids <- unique(FishGlob_clean_15perc_excluded_subset[, haul_id])
   haul_ids_key <- data.table(haul_id = haul_ids,  key_ID = seq(1, length(haul_ids),  by = 1))
   
   
   #convert haul_ids to numeric key_ids
-  FishGlob_clean_subset <- FishGlob_clean_subset[haul_ids_key,  on = "haul_id"]
+  FishGlob_clean_15perc_excluded_subset <- FishGlob_clean_15perc_excluded_subset[haul_ids_key,  on = "haul_id"]
 
           for (j in 1:length(years)) {
-            reduced_year <- FishGlob_clean_subset[year == years[j], ]
+            reduced_year <- FishGlob_clean_15perc_excluded_subset[year == years[j], ]
             
             #distances among cells
             setorder(reduced_year,  key_ID)
@@ -141,7 +133,7 @@ for (i in 1:length(all_survey_units)) {
           
           if(!(reduced_year[1, survey] == "MEDITS")) {
             
-            #if some rows have wgt_cpue missing,  get rid of these rows
+            #if some rows have wgt_cpue missing,  get rid of these rows (shouldn't from previous processing)
             reduced_year <- reduced_year[complete.cases(reduced_year[, wgt_cpue]), ]
             
               reduced_year_wide <- dcast(reduced_year,  key_ID + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
@@ -191,49 +183,44 @@ for (i in 1:length(all_survey_units)) {
               dissimilarities_occurrence_nestedness.l <- data.table(dissimilarities_occurrence_nestedness.l)
               dissimilarities_occurrence_total.l <- data.table(dissimilarities_occurrence_total.l)
             
-              #add year for these values
-              dissimilarities_abundance_balanced.l[,  "year" := years[j]]
-              dissimilarities_occurrence_turnover.l[,  "year" := years[j]]
-              
-              
-              dissimilarities_abundance_gradient.l[,  "year" := years[j]]
-              dissimilarities_occurrence_nestedness.l[,  "year" := years[j]]
-              
-              dissimilarities_abundance_total.l[,  "year" := years[j]]
-              dissimilarities_occurrence_total.l[,  "year" := years[j]]
-              
-              #what type of metric?
-              dissimilarities_abundance_balanced.l[, "abund_biomass" := "biomass"]
-              dissimilarities_occurrence_turnover.l[, "abund_biomass" := "biomass"]
-              
-              dissimilarities_abundance_gradient.l[, "abund_biomass" := "biomass"]
-              dissimilarities_occurrence_nestedness.l[, "abund_biomass" := "biomass"]
-              
-              dissimilarities_abundance_total.l[, "abund_biomass" := "biomass"]
-              dissimilarities_occurrence_total.l[, "abund_biomass" := "biomass"]
-            
               #merge distance with dissimilarity for this year with both metrics of dissimilarity
               dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance_balanced.l,  on = c("haul_id1",  "haul_id2")]
-              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_turnover.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_turnover.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_total.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_total.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_nestedness.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_nestedness.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_gradient.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_gradient.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_total.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
-              
-              #add survey survey unit
-              dissimilarities_full[, "survey" := FishGlob_clean_subset[1, survey]]
-              dissimilarities_full[, "survey_unit" := all_survey_units[i]]
-              
-                            #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2<haul_id1]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_total.l,  on = c("haul_id1",  "haul_id2")]
             
-              #add to data table
-              distances_dissimilarities_allyears_15perc_excluded <- rbind(distances_dissimilarities_allyears_15perc_excluded,  dissimilarities_full)
               
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
+            
+              #take averages
+              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
+                dissimilarities_full[, bray_curtis_dissimilarity_balanced_mean := mean(bray_curtis_dissimilarity_balanced)][, bray_curtis_dissimilarity_gradient_mean := mean(bray_curtis_dissimilarity_gradient)][, bray_curtis_dissimilarity_total_mean := mean(bray_curtis_dissimilarity_total)][, jaccard_dissimilarity_turnover_mean := mean(jaccard_dissimilarity_turnover)][, jaccard_dissimilarity_nestedness_mean := mean(jaccard_dissimilarity_nestedness)][, jaccard_dissimilarity_total_mean := mean(jaccard_dissimilarity_total)]
+
+                  #unique rows
+                  dissimilarities_full.r <- unique(dissimilarities_full[,.(bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
+
+              #add survey survey unit
+              dissimilarities_full.r[, "survey" := FishGlob_clean_15perc_excluded_subset[1, survey]]
+              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
+              #add year for these values
+              dissimilarities_full.r[,  "year" := years[j]]
+              
+              #what type of metric?
+              dissimilarities_full.r[, "abund_biomass" := "biomass"]
+              
+              #remove full dataset
+              rm(dissimilarities_full)
+              
+              #bind with full
+              distances_dissimilarities_allyears_15perc_excluded <- rbind(distances_dissimilarities_allyears_15perc_excluded, dissimilarities_full.r)
+      
               print(paste0(j, "/", length(years)))
             
           } else { #if we do using abundance instead
@@ -288,48 +275,44 @@ for (i in 1:length(all_survey_units)) {
               dissimilarities_occurrence_nestedness.l <- data.table(dissimilarities_occurrence_nestedness.l)
               dissimilarities_occurrence_total.l <- data.table(dissimilarities_occurrence_total.l)
             
-              #add year for these values
-              dissimilarities_abundance_balanced.l[,  "year" := years[j]]
-              dissimilarities_occurrence_turnover.l[,  "year" := years[j]]
-              
-              
-              dissimilarities_abundance_gradient.l[,  "year" := years[j]]
-              dissimilarities_occurrence_nestedness.l[,  "year" := years[j]]
-              
-              dissimilarities_abundance_total.l[,  "year" := years[j]]
-              dissimilarities_occurrence_total.l[,  "year" := years[j]]
-              
-              #what type of metric?
-              dissimilarities_abundance_balanced.l[, "abund_biomass" := "abund"]
-              dissimilarities_occurrence_turnover.l[, "abund_biomass" := "abund"]
-              
-              dissimilarities_abundance_gradient.l[, "abund_biomass" := "abund"]
-              dissimilarities_occurrence_nestedness.l[, "abund_biomass" := "abund"]
-              
-              dissimilarities_abundance_total.l[, "abund_biomass" := "abund"]
-              dissimilarities_occurrence_total.l[, "abund_biomass" := "abund"]
             
               #merge distance with dissimilarity for this year with both metrics of dissimilarity
               dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance_balanced.l,  on = c("haul_id1",  "haul_id2")]
-              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_turnover.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_turnover.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_total.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_total.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_nestedness.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_occurrence_nestedness.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_gradient.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_gradient.l,  on = c("haul_id1",  "haul_id2")]
               
-              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_total.l,  on = c("haul_id1",  "haul_id2",  "year",  "abund_biomass")]
+              dissimilarities_full <- dissimilarities_full[dissimilarities_abundance_total.l,  on = c("haul_id1",  "haul_id2")]
               
-              #add survey survey unit
-              dissimilarities_full[, "survey" := FishGlob_clean_subset[1, survey]]
-              dissimilarities_full[, "survey_unit" := all_survey_units[i]]
-            
-              #add to data table
-              distances_dissimilarities_allyears_15perc_excluded <- rbind(distances_dissimilarities_allyears_15perc_excluded,  dissimilarities_full)
               
-                            #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
               dissimilarities_full <- dissimilarities_full[haul_id2<haul_id1]
+            
+              #take averages
+              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
+                dissimilarities_full[, bray_curtis_dissimilarity_balanced_mean := mean(bray_curtis_dissimilarity_balanced)][, bray_curtis_dissimilarity_gradient_mean := mean(bray_curtis_dissimilarity_gradient)][, bray_curtis_dissimilarity_total_mean := mean(bray_curtis_dissimilarity_total)][, jaccard_dissimilarity_turnover_mean := mean(jaccard_dissimilarity_turnover)][, jaccard_dissimilarity_nestedness_mean := mean(jaccard_dissimilarity_nestedness)][, jaccard_dissimilarity_total_mean := mean(jaccard_dissimilarity_total)]
+
+                  #unique rows
+                  dissimilarities_full.r <- unique(dissimilarities_full[,.(bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
+
+              #add survey survey unit
+              dissimilarities_full.r[, "survey" := FishGlob_clean_15perc_excluded_subset[1, survey]]
+              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
+              #add year for these values
+              dissimilarities_full.r[,  "year" := years[j]]
+              
+              #what type of metric?
+              dissimilarities_full.r[, "abund_biomass" := "abund"]
+              
+              #remove full dataset
+              rm(dissimilarities_full)
+              
+              #bind with full
+              distances_dissimilarities_allyears_15perc_excluded <- rbind(distances_dissimilarities_allyears_15perc_excluded, dissimilarities_full.r)
               
               print(paste0(j, "/", length(years)))
           
@@ -342,49 +325,11 @@ for (i in 1:length(all_survey_units)) {
   
   } #closes survey/region
 
+#Be sure to check which one of these you actually want to un-hash!
 
-#saveRDS(distances_dissimilarities_allyears_15perc_excluded,  here::here("output", "distance_decay", "distances_dissimilarities_allyears_15perc_excluded.rds"))
+saveRDS(distances_dissimilarities_allyears_15perc_excluded,  here::here("output","dissimilarities", "distances_dissimilarities_allyears_15perc_excluded.rds"))
 
-distances_dissimilarities_allyears_15perc_excluded <- readRDS(here::here("output", "distance_decay", "distances_dissimilarities_allyears_15perc_excluded.rds"))
+distances_dissimilarities_allyears_15perc_excluded <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears_15perc_excluded.rds"))
 ```
+ 
 
-
-Some NAs in multiple years for NEUS spring and fall, spring scotian shelf, Queen Charlotte Sound (2013 only).
-
-```{r}
-missing_values <- distances_dissimilarities_allyears[!complete.cases(distances_dissimilarities_allyears),] #rows with missing values
-
-View(missing_values)
-
-missing_values[,count_NA := .N,.(survey_unit, year)]
-
-#issues in 
-View(unique(missing_values[,.(survey_unit,year, count_NA)]))
-
-#NEUS Fall
-#This occurred for haul 109-110 because neither had any species (will manually change dissimilarity to 0)
-
-#SCS Spring
-#Same issue, neither observation had any species
-
-#total percent missing?
-nrow(missing_values)/nrow(distances_dissimilarities_allyears)*100
-
-#We will keep balanced/gradient as NA, but will change totals to 0
-
-distances_dissimilarities_allyears[,jaccard_dissimilarity_total := ifelse(is.na(jaccard_dissimilarity_total),0,jaccard_dissimilarity_total)][,bray_curtis_dissimilarity_total := ifelse(is.na(bray_curtis_dissimilarity_total),0,bray_curtis_dissimilarity_total)] #NB: does not change distribution at all
-
-```
-
-
-```{r yearly means}
-
-distances_dissimilarities_allyears_15perc_excluded[, bray_curtis_dissimilarity_balanced_mean := mean(bray_curtis_dissimilarity_balanced, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_gradient_mean := mean(bray_curtis_dissimilarity_gradient, na.rm = T),.(survey_unit,year)][, bray_curtis_dissimilarity_total_mean := mean(bray_curtis_dissimilarity_total, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_turnover_mean := mean(jaccard_dissimilarity_turnover, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_nestedness_mean := mean(jaccard_dissimilarity_nestedness, na.rm = T),.(survey_unit,year)][, jaccard_dissimilarity_total_mean := mean(jaccard_dissimilarity_total, na.rm = T),.(survey_unit,year)]
-
-distances_dissimilarities_allyears_15perc_excluded.r <- unique(distances_dissimilarities_allyears_15perc_excluded[,.(survey, survey_unit, year,abund_biomass, bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
-
-rm(distances_dissimilarities_allyears_15perc_excluded)
-
-
-saveRDS(distances_dissimilarities_allyears_15perc_excluded.r,  here::here("output", "distance_decay", "distances_dissimilarities_allyears_15perc_excluded.r.rds"))
-```

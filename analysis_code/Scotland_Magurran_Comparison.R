@@ -1,7 +1,6 @@
 
 ###########################
-#This script calculates annual average pairwise dissimilarity
-#Specifically, it calculates Bray Curtis Balanced Variation (metric of dissimilarity)
+#This scripts explores why our patterns for Scotland Sea do not match Magurran et al. 2015. Turns out, DATRAS updated data soon after publcation of Magurran et al, and that has led to the changes.
 #######################
 ##VERSIONS##
 #######################

@@ -1,0 +1,513 @@
+---
+title: "Annual Gradient Dissimilarity vs. Temperature for all Survey Units"
+output: html_notebook
+---
+
+This code is Script X for Kitchel et al. TITLE manuscript.
+
+- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
+
+- Code by Zoë J. Kitchel
+
+SESSION INFO TO DO
+
+##Here, we try to use temperature to predict annual dissimilarity for all survey units
+
+```{r setup}
+
+library(data.table)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+library(MuMIn)
+
+
+OISST_data_temp_avgs_full <- readRDS(here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
+
+OISST_data_temp_avgs_full[,year := year_for_avg]
+
+#pull in average distance decay values
+distances_dissimilarities_allyears.r <- readRDS(here::here("output","distance_decay","distances_dissimilarities_allyears.r.rds"))
+
+```
+
+Put into one data table
+```{r link temp to avg values}
+dissimilarities_temp <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears.r, on = c("year","survey_unit")]
+```
+
+Color pallete for survey units
+```{r}
+pal_37 <- c(
+  "#5A5156", #AI
+  "#F6222E", #CHL
+  "#F8A19F", #DFO-NF
+  "#16FF32", #DFO-QCS
+  "#DF00DB", #BITS-1
+  "#DB8EDA", #BITS-4
+  "#325A9B", #EBS
+  "#3283FE", #EVHOE
+  "#FEAF16", #FR-CGFS
+  "#1C8356", #GMEX-Summer
+  "#C4451C", #GOA
+  "#85660D", #GRL-DE
+  "#B0009F", #GSL-N
+  "#BF79B8", #GSL-S
+  "#1CBE4F", #ICE-GFS
+  "#782AB6", #IE-IGFS
+  "#90AD1C", #MEDITS
+  "#6B003A", #NAM
+  "#A75B00", #NEUS-Fall
+  "#E3B072", #NEUS-Spring
+  "#02E8B6", #NIGFS-1
+  "#97E7D5", #NIGFS-4
+  "#B00068", #Nor-BTS-3
+  "#00B9E3", #NS-IBTS-1
+  "#95E2F4", #NS-IBTS-3
+  "#B3CE73", #NZ-CHAT
+  "#689500", #NZ-ECSI
+  "#AAF400", #NZ-WCSI
+  "#AA0DFE", #PT-IBTS
+  "#FA0087", #S-GEORG
+  "#DEA0FD", #SCS-Summer
+  "#FCEF88", #SEUS-fall
+  "#A59405", #SEUS-spring
+  "#FCE100", #SEUS-summer
+  "#C075A6", #WCANN
+  "#BDCDFF", #ZAF-ATL
+  "#003EFF")  #ZAF-IND
+```
+
+How does this trend hold up for all regions?
+###UNSCALED
+###Avg of grid cells
+####Mean temperature
+```{r mean sst}
+#for all regions
+dissimilarity_BC_gradient_sst_mean <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Mean surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_mean, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_mean.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_mean_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Mean surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_mean_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_mean_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_mean_facet.jpg", height = 10, width = 11, unit = "in")
+
+dissimilarity_BC_gradient_sst_mean_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_mean_bypoint_avg + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_mean_mod) #significant relationship
+```
+
+####Min temperature
+```{r min sst}
+#for all regions
+dissimilarity_BC_gradient_sst_min <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Min surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_min, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_min.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_min_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Min surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_min_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_min_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_min_facet.jpg", height = 10, width = 11, unit = "in")
+
+dissimilarity_BC_gradient_sst_min_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_min_bypoint_avg + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_min_mod) #nearly significant relationship (0.1)
+```
+
+####Max sst
+```{r max sst}
+#for all regions
+dissimilarity_BC_gradient_sst_max <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Max surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_max, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_max.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_max_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Max surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_max_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_max_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_max_facet.jpg", height = 10, width = 11, unit = "in")
+
+dissimilarity_BC_gradient_sst_max_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_max_bypoint_avg + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_max_mod) #significant relationship (0.04)
+
+```
+
+####Seas sst
+```{r seas sst}
+#for all regions
+dissimilarity_BC_gradient_sst_seas <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Seasonality of surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_seas, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_seas.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_seas_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Seasonality of surface temperature (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_seas_bypoint_avg, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_seas_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_seas_facet.jpg", height = 10, width = 11, unit = "in")
+
+
+dissimilarity_BC_gradient_sst_seas_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_seas_bypoint_avg + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_seas_mod) #in significant relationship (0.55)
+
+```
+
+###Standard deviation of grid cells
+####Mean temperature SD
+```{r mean sst SD}
+#for all regions
+dissimilarity_BC_gradient_sst_meanSD <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Mean surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_meanSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_meanSD.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_meanSD_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Mean surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_mean_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_meanSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_meanSD_facet.jpg", height = 10, width = 11, unit = "in")
+
+dissimilarity_BC_gradient_sst_meanSD_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_mean_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_meanSD_mod) #significant relationship 
+```
+
+####Min temperature SD
+```{r min sst SD}
+#for all regions
+dissimilarity_BC_gradient_sst_minSD <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Min surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_minSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_minSD.jpg", height = 4, width = 9, unit = "in") 
+
+#faceted
+dissimilarity_BC_gradient_sst_minSD_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Min surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_min_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_minSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_minSD_facet.jpg", height = 10, width = 11, unit = "in")
+
+
+dissimilarity_BC_gradient_sst_minSD_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_min_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_minSD_mod) #nearly significant relationship (0.06)
+```
+
+####Max sst SD
+```{r max sst SD}
+#for all regions
+dissimilarity_BC_gradient_sst_maxSD <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Max surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_maxSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_maxSD.jpg", height = 4, width = 9, unit = "in") 
+
+#faceted
+dissimilarity_BC_gradient_sst_maxSD_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Max surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_max_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_maxSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_maxSD_facet.jpg", height = 10, width = 11, unit = "in")
+
+dissimilarity_BC_gradient_sst_maxSD_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_max_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_maxSD_mod) #significant relationship (0.01)
+
+```
+
+####Seas sst SD
+```{r seas sst SD}
+#for all regions
+dissimilarity_BC_gradient_sst_seasSD <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Seasonality of surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_seasSD, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_seasSD.jpg", height = 4, width = 9, unit = "in") 
+
+#faceted
+dissimilarity_BC_gradient_sst_seasSD_facet <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Seasonality of surface temperature SD (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), alpha = 0.3) +
+  geom_smooth(aes(x = yearly_seas_bypoint_SD, y = bray_curtis_dissimilarity_gradient_mean), method = "lm") +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_seasSD_facet, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_seasSD_facet.jpg", height = 10, width = 11, unit = "in")
+
+dissimilarity_BC_gradient_sst_seasSD_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_seas_bypoint_SD + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_seasSD_mod) #insignificant relationship
+
+```
+
+
+###Raw temp values: Comparing temperature predictors for raw
+```{r compare raw temp predictors}
+
+raw_mods_AICc <- AICc(dissimilarity_BC_gradient_sst_maxSD_mod , dissimilarity_BC_gradient_sst_meanSD_mod,
+dissimilarity_BC_gradient_sst_max_mod  ,  dissimilarity_BC_gradient_sst_minSD_mod, 
+dissimilarity_BC_gradient_sst_seas_mod ,  dissimilarity_BC_gradient_sst_seasSD_mod,
+dissimilarity_BC_gradient_sst_min_mod  ,  dissimilarity_BC_gradient_sst_mean_mod) #compare all_mods
+
+#best mods: 
+r.squaredGLMM(dissimilarity_BC_gradient_sst_meanSD_mod) #best (delta), p = 0.01
+summary(dissimilarity_BC_gradient_sst_meanSD_mod)
+r.squaredGLMM(dissimilarity_BC_gradient_sst_maxSD_mod) # p = 0.01, delta = 0.2
+summary(dissimilarity_BC_gradient_sst_maxSD_mod)
+r.squaredGLMM(dissimilarity_BC_gradient_sst_mean_mod)# p = 0.03, delta = 4
+summary(dissimilarity_BC_gradient_sst_mean_mod)
+
+#for all temp mods, almost nothing is described by temp (best model, 7% of variation), most described by survey unit (85%)
+```
+The raw spatial variability in mean temperature in the 12 months before a survey is the best predictor.
+
+As the raw spatial variability in max temp 12 months before a survey increases, the dissimilarity decreases. Ecosystems with higher spatial variability in temp are more homogenous in community structure. (This is opposite pattern as balanced variation)
+
+---
+##SCALED
+###Avg of grid cells
+####Mean temperature scaled
+```{r mean sst scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_mean_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Mean surface temperature scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_mean_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_mean_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_mean_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_mean_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_mean_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_mean_scaled_mod) #insignificant relationship
+```
+
+####Min temperature scaled
+```{r min sst scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_min_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Min surface temperature scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_min_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_min_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_min_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_min_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_min_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_min_scaled_mod) #insignificant relationship
+```
+
+####Max sst scaled
+```{r max sst scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_max_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Max surface temperature scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_max_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_max_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_max_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_max_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_max_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_max_scaled_mod) #insignificant relationship
+
+```
+
+####Seas sst scaled
+```{r seas sst scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_seas_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Seasonality of surface temperature scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_seas_bypoint_avg.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_seas_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_seas_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_seas_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_seas_bypoint_avg.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_seas_scaled_mod) #insignificant relationship
+
+```
+###Standard deviation of grid cells
+####Mean temperature SD scaled
+```{r mean sst SD scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_meanSD_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Mean surface temperature SD scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_mean_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_meanSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_meanSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_meanSD_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_mean_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_meanSD_scaled_mod) #insignificant relationship
+```
+
+####Min temperature SD scaled
+```{r min sst SD scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_minSD_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Min surface temperature SD scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_min_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_minSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_minSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_minSD_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_min_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_minSD_scaled_mod) #insignificant relationship
+```
+
+####Max sst SD scaled
+```{r max sst SD scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_maxSD_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Max surface temperature SD scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_max_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_maxSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_maxSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_maxSD_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_max_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_maxSD_scaled_mod) #insignificant relationship
+
+```
+
+####Seas sst SD scaled
+```{r seas sst SD scaled}
+#for all regions
+dissimilarity_BC_gradient_sst_seasSD_scaled <- ggplot(data = dissimilarities_temp) +
+  labs(x = "Seasonality of surface temperature SD scaled (˚C)",  y = "Bray Curtis gradient dissimilarity") +
+  geom_point(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), alpha = 0.3) +
+  geom_line(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean, color = survey_unit), stat="smooth", method = "lm") +
+  scale_color_manual(values = c(pal_37)) +
+  geom_smooth(aes(x = yearly_seas_bypoint_SD.s, y = bray_curtis_dissimilarity_gradient_mean), method = "lm", se = F, color  = "black") +
+  theme_classic()
+
+ggsave(dissimilarity_BC_gradient_sst_seasSD_scaled, path  = here::here("figures","distance_decay"), filename = "dissimilarity_BC_gradient_sst_seasSD_scaled.jpg", height = 4, width = 9, unit = "in") 
+
+dissimilarity_BC_gradient_sst_seasSD_scaled_mod <- lmer(bray_curtis_dissimilarity_gradient_mean ~ yearly_seas_bypoint_SD.s + (1|survey_unit), data = dissimilarities_temp)
+
+summary(dissimilarity_BC_gradient_sst_seasSD_scaled_mod) #insignificant relationship
+
+```
+
+
+
+###Comparing scaled temperature predictors
+```{r compare scaled temp predictors}
+
+#list of models
+list_scaled_mods <- grep("*_scaled_mod",names(.GlobalEnv),value=TRUE)
+
+scaled_mods_AICc <- AICc(dissimilarity_BC_gradient_sst_maxSD_scaled_mod , dissimilarity_BC_gradient_sst_meanSD_scaled_mod,
+dissimilarity_BC_gradient_sst_max_scaled_mod  ,  dissimilarity_BC_gradient_sst_minSD_scaled_mod, 
+dissimilarity_BC_gradient_sst_seas_scaled_mod ,  dissimilarity_BC_gradient_sst_seasSD_scaled_mod,
+dissimilarity_BC_gradient_sst_min_scaled_mod  ,  dissimilarity_BC_gradient_sst_mean_scaled_mod) #compare all scaled_mods
+
+#best mods (all models are within 2 AICc; no best mod): 
+r.squaredGLMM(dissimilarity_BC_gradient_sst_minSD_scaled_mod)
+summary(dissimilarity_BC_gradient_sst_minSD_scaled_mod) #p = 0.116
+
+#for all temp mods, almost nothing is described by scaled temp in region (0.05% of variation), most described by survey unit (90% of variation)
+```
+The relative spatial variability (standard deviation) in min temperature in the 12 months before a survey is the best predictor of gradient dissimilarity, but it doesn't actually perform very well at all.
+
+####What to carry forward:
+
+For raw temp (indicative of survey vs. survey):
+-dissimilarity_BC_gradient_sst_meanSD_mod (Temp heterogeneity)
+-dissimilarity_BC_gradient_sst_maxSD_mod (Temp heterogeneity)
+-dissimilarity_BC_gradient_sst_mean_mod (Mean temperature)
+
+For scaled temp (indicative of within survey: cool or warm year? heterogenous or homogenous year)
+-No significant model
