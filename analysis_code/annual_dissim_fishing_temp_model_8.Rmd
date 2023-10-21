@@ -7,14 +7,24 @@ date: October 11, 2023
 
 Script 8 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
-###Predicts annual dissimilarity with annual characteristics, temperature and fishing values
 
+```{r setup}
+library(data.table)
+library(MuMIn)
+library(ggplot2)
+library(cowplot)
+library(lme4)
+```
+
+###Predicts annual dissimilarity with annual characteristics, temperature and fishing values
 
 Pull in
 - region areas (if not already loaded)
 - region characteristics (if not already loaded); saveRDS(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richness_year_survey.Rds"))
 - fishing (if not already loaded)
 - temp (if not already loaded)
+
+
 
 ```{r}
 #physical area by year
@@ -23,14 +33,71 @@ region_area_byyear <- fread(here::here("output","region_area_byyear.csv"))
 #merged fishing, temp, dissimilarities
 dissimilarities_temp_fishing <- fread(here::here("output","dissimilarities_temp_fishing.csv"))
 
+#combine
+dissimilarities_temp_fishing_area <- dissimilarities_temp_fishing[region_area_byyear, on = c("survey_unit","year")]
 ```
 
-Pull in color, name, helper
+ 
+Pull in palette and name helper
 ```{r}
-color_link (fread, here::here("output","color_link.csv"))
+source(here::here("analysis_code","color_links.R"))
 ```
 
-Dredge
+
+Plot fishing and temperature vs. dissimilarity for all regions
+```{r}
+
+#set order by survey unit for plotting
+all_surveys <- levels(as.factor(dissimilarities_temp_fishing_area$survey_unit))
+setorder(dissimilarities_temp_fishing_area, survey_unit)
+
+dissimilarities_temp_fishing_area[,Survey_Name_Season:=factor(Survey_Name_Season, levels = unique(dissimilarities_temp_fishing_area$Survey_Name_Season), ordered = T)]
+
+(preds_sbt_mean_temp_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[1:24]]) +
+  labs(x = "Mean bottom temperature (˚C)",  y = "β-diversity") +
+  geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
+  theme_classic())
+
+ggsave(preds_sbt_mean_temp_survey_facet_1_24, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_1_24.jpg", height = 12, width =9)
+
+(preds_sbt_mean_temp_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[25:42]]) +
+  labs(x = "Mean bottom temperature (˚C)",  y = "β-diversity") +
+  geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
+  theme_classic())
+
+ggsave(preds_sbt_mean_temp_survey_facet_25_42, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_25_42.jpg", height = 12, width =9)
+
+#######FISHING
+
+dissimilarities_temp_fishing_area.cc <- dissimilarities_temp_fishing_area[complete.cases(dissimilarities_temp_fishing_area[,summed_tonnes_scaled_byreg]),]
+
+(preds_sbt_mean_fishing_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[1:24]]) +
+  labs(x = "Relative fishing catch",  y = "β-diversity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
+  theme_classic())
+
+ggsave(preds_sbt_mean_fishing_survey_facet_1_24, path = here::here("figures"), filename = "preds_sbt_mean_fishing_survey_facet_1_24.jpg", height = 12, width =9)
+
+(preds_sbt_mean_fishing_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[c(25:42)]]) +
+  labs(x = "Relative fishing catch",  y = "β-diversity") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
+  theme_classic())
+
+ggsave(preds_sbt_mean_fishing_survey_facet_25_42, path = here::here("figures"), filename = "preds_sbt_mean_fishing_survey_facet_25_42.jpg", height = 12, width =9)
+
+
+```
+
+
+###Set up dredge to identify best performing models
 ```{r}
 
 options(na.action = "na.fail")
@@ -63,7 +130,7 @@ dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := 
 
 ```
 
-Full model
+###Full model
 ~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls
 
 For temperature, we will look at:
@@ -72,6 +139,8 @@ For temperature, we will look at:
 -min (scaled across all regions)
 -seas  (scaled across all regions)
 -SD
+
+Comparing temp variables
 ```{r fit global mod}
 
 global_mod_mean_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
@@ -456,7 +525,7 @@ predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates
   ggtitle("Average model predictions with mean\novereall temperature and fishing pressure")
 
 #merge plots
-predicted_values_temp_fishing_merge <- plot_grid(predicted_values_temp_fishing,
+predicted_values_temp_fishing_merge <- cowplot::plot_grid(predicted_values_temp_fishing,
                                                  predicted_values_temp_fishing_meantempfishinginsurvey,
                                                  predicted_values_temp_fishing_meantempfishing,
                                                  ncol = 1)
@@ -726,42 +795,42 @@ Plotting observed vs predicted
 bray_curtis_fishing_temp_model_observed_predicted_dt <- data.table(obs_dissim = model_coefs_reduced$year_adj, pred_dissim = model_coefs_reduced_predictions$year_adj, pred_dissim_tempfishconstantinsurvey = model_coefs_reduced_predictions_tempfishingmaintainedinreg$year_adj, pred_dissim_tempconstantinsurvey =model_coefs_reduced_predictions_tempmaintainedinreg$year_adj, pred_dissim_fishconstantinsurvey =model_coefs_reduced_predictions_fishingmaintainedinreg$year_adj)
 
 bray_curtis_fishing_temp_model_observed_predicted_lm <- lm(pred_dissim ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+summary(bray_curtis_fishing_temp_model_observed_predicted_lm) #R^2 0.52
 
 (bray_curtis_fishing_temp_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
   geom_point(aes(y = obs_dissim, x = pred_dissim)) +
   geom_abline(aes(slope = 1, intercept = 0)) +
   labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n") +
- # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_lm)[[1]],2))) +
   theme_classic()
 )
 
-#fishing constant
+#fishing constant (fishign constant; temperature only)
 bray_curtis_fishing_maintained_model_observed_predicted_lm <- lm(pred_dissim_fishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+summary(bray_curtis_fishing_maintained_model_observed_predicted_lm) #R^2 = 0.08
 
 (bray_curtis_fishing_maintained_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
-  geom_point(aes(y = obs_dissim, x = pred_dissim_tempfishconstantinsurvey)) +
+  geom_point(aes(y = obs_dissim, x = pred_dissim_fishconstantinsurvey)) +
   geom_abline(aes(slope = 1, intercept = 0)) +
   labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(temperature only)") +
- # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_maintained_model_observed_predicted_lm)[[1]],2))) +
   theme_classic()
 )
-#temp constant
+#temp constant (fishing only; temperature constant)
 bray_curtis_temp_maintained_model_observed_predicted_lm <- lm(pred_dissim_tempconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+summary(bray_curtis_temp_maintained_model_observed_predicted_lm) #0.52
 
 (bray_curtis_temp_maintained_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
   geom_point(aes(y = obs_dissim, x = pred_dissim_tempconstantinsurvey)) +
   geom_abline(aes(slope = 1, intercept = 0)) +
   labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(fishing only)") +
- # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_temp_maintained_model_observed_predicted_lm)[[1]],2))) +
   theme_classic()
 )
 
-#fishing and temp constant
+
 bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(pred_dissim_tempfishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
+summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #%12
 
 (bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
   geom_point(aes(y = obs_dissim, x = pred_dissim_tempfishconstantinsurvey)) +
- # annotate(geom = "text",x = -0.001, y = 0.003, label = paste0("R^2 = ", round(r.squaredGLMM(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm)[[1]],2))) +
   geom_abline(aes(slope = 1, intercept = 0)) +
   labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(excludes temperature and fishing)") +
   theme_classic()
@@ -769,7 +838,7 @@ bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <-
 
 bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(pred_dissim_tempfishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
 
-summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm)
+summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #12%
 
 #merge
 bray_curtis_fishing_temp_model_observed_predicted_merge <- plot_grid(bray_curtis_fishing_temp_model_observed_predicted,

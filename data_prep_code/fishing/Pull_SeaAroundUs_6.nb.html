@@ -1511,7 +1511,7 @@ window.initializeCodeFolding = function(show) {
     $(this).detach().appendTo(div);
 
     // add a show code button right above
-    var showCodeText = $('<span>' + (showThis ? 'Hide' : 'Code') + '</span>');
+    var showCodeText = $('<span>' + (showThis ? 'Hide' : 'Show') + '</span>');
     var showCodeButton = $('<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm code-folding-btn pull-right float-right"></button>');
     showCodeButton.append(showCodeText);
     showCodeButton
@@ -1537,7 +1537,7 @@ window.initializeCodeFolding = function(show) {
     //   * Change text
     //   * add a class for intermediate states styling
     div.on('hide.bs.collapse', function () {
-      showCodeText.text('Code');
+      showCodeText.text('Show');
       showCodeButton.addClass('btn-collapsing');
     });
     div.on('hidden.bs.collapse', function () {
@@ -1753,14 +1753,8 @@ display: none;
 
 <!-- rnb-text-begin -->
 <p>Pull together sea around us data from the web by closest EEZ</p>
-<p>This code is Script 6 for Kitchel et al. TITLE manuscript.</p>
-<ul>
-<li><p>This project is a collaborative effort to describe changes in
-taxonomic composition of fish communities around the world–as sampled by
-bottom trawl surveys.</p></li>
-<li><p>Code by Zoë J. Kitchel</p></li>
-</ul>
-<p>SESSION INFO TO DO</p>
+<p>Script 6 for Kitchel et al. 2023 in prep taxonomic diversity
+manuscript.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
 <!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkYXRhLnRhYmxlKVxubGlicmFyeShnZ3Bsb3QyKVxubGlicmFyeShoZXJlKVxuXG4ja2V5XG5TQVVfc3VydmV5X2tleSA8LSBmcmVhZChoZXJlOjpoZXJlKFwiZGF0YV9wcmVwX2NvZGVcIixcImZpc2hpbmdcIixcIlN1cnZleV9TT1VfS2V5LmNzdlwiKSlcblxuI2RlbGV0ZSByb2NrYWxsXG5TQVVfc3VydmV5X2tleSA8LSBTQVVfc3VydmV5X2tleVtzdXJ2ZXlfdW5pdCAhPSBcIlJPQ0tBTExcIixdXG5gYGAifQ== -->
@@ -1779,23 +1773,72 @@ SAU_survey_key &lt;- SAU_survey_key[survey_unit != &quot;ROCKALL&quot;,]</code><
 <p>Use the key to pull in all the csvs</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuU0FVX25hbWVzIDwtIFNBVV9zdXJ2ZXlfa2V5Wywgc3VydmV5X3VuaXRdXG5TQVVfZmlsZXMgPC0gU0FVX3N1cnZleV9rZXlbLCBGaWxlTmFtZV1cblxuU0FVX2Z1bGwgPC0gZGF0YS50YWJsZSgpXG5cbmZvciAoaSBpbiAxOmxlbmd0aChTQVVfbmFtZXMpKSB7XG4gIFNBVV9kYXRhIDwtIGZyZWFkKFNBVV9maWxlc1tpXSkgI3B1bGwgaW4gZGF0YSBmb3IgcmVnaW9uW2ldXG4gIFNBVV9kYXRhLnIgPC0gU0FVX2RhdGFbLC4oYXJlYV9uYW1lLCBhcmVhX3R5cGUsIHllYXIsIHNjaWVudGlmaWNfbmFtZSwgY29tbW9uX25hbWUsIGZ1bmN0aW9uYWxfZ3JvdXAsIGNvbW1lcmNpYWxfZ3JvdXAsIGZpc2hpbmdfZW50aXR5LCBmaXNoaW5nX3NlY3RvciwgY2F0Y2hfdHlwZSwgcmVwb3J0aW5nX3N0YXR1cywgZ2Vhcl90eXBlLCBlbmRfdXNlX3R5cGUsIHRvbm5lcywgbGFuZGVkX3ZhbHVlKV1cbiAgI2xpbmsgYmFjayB0byBzdXJ2ZXlcbiAgU0FVX2RhdGEuclssc3VydmV5X3VuaXQgOj0gU0FVX25hbWVzW2ldXVxuICBcbiAgU0FVX2Z1bGwgPC0gcmJpbmQoU0FVX2Z1bGwsIFNBVV9kYXRhLnIpICNiaW5kIGFsbCByZWdpb25zIHRvZ2V0aGVyXG4gIHByaW50KHBhc3RlMChpLFwiOlwiLFNBVV9uYW1lc1tpXSxcIiwgTnVtYmVyIG9mIENvbHVtbnM6IFwiLG5jb2woU0FVX2RhdGEpKSlcbn1cblxuXG5cbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuU0FVX25hbWVzIDwtIFNBVV9zdXJ2ZXlfa2V5Wywgc3VydmV5X3VuaXRdXG5TQVVfZmlsZXMgPC0gU0FVX3N1cnZleV9rZXlbLCBGaWxlTmFtZV1cblxuU0FVX2Z1bGwgPC0gZGF0YS50YWJsZSgpXG5cbmZvciAoaSBpbiAxOmxlbmd0aChTQVVfbmFtZXMpKSB7XG4gIFNBVV9kYXRhIDwtIGZyZWFkKGhlcmU6OmhlcmUoU0FVX2ZpbGVzW2ldKSkgI3B1bGwgaW4gZGF0YSBmb3IgcmVnaW9uW2ldXG4gIFNBVV9kYXRhLnIgPC0gU0FVX2RhdGFbLC4oYXJlYV9uYW1lLCBhcmVhX3R5cGUsIHllYXIsIHNjaWVudGlmaWNfbmFtZSwgY29tbW9uX25hbWUsIGZ1bmN0aW9uYWxfZ3JvdXAsIGNvbW1lcmNpYWxfZ3JvdXAsIGZpc2hpbmdfZW50aXR5LCBmaXNoaW5nX3NlY3RvciwgY2F0Y2hfdHlwZSwgcmVwb3J0aW5nX3N0YXR1cywgZ2Vhcl90eXBlLCBlbmRfdXNlX3R5cGUsIHRvbm5lcywgbGFuZGVkX3ZhbHVlKV1cbiAgI2xpbmsgYmFjayB0byBzdXJ2ZXlcbiAgU0FVX2RhdGEuclssc3VydmV5X3VuaXQgOj0gU0FVX25hbWVzW2ldXVxuICBcbiAgU0FVX2Z1bGwgPC0gcmJpbmQoU0FVX2Z1bGwsIFNBVV9kYXRhLnIpICNiaW5kIGFsbCByZWdpb25zIHRvZ2V0aGVyXG4gIHByaW50KHBhc3RlMChpLFwiOlwiLFNBVV9uYW1lc1tpXSxcIiwgTnVtYmVyIG9mIENvbHVtbnM6IFwiLG5jb2woU0FVX2RhdGEpKSlcbn1cbmBgYCJ9 -->
 <pre class="r"><code>SAU_names &lt;- SAU_survey_key[, survey_unit]
 SAU_files &lt;- SAU_survey_key[, FileName]
 
 SAU_full &lt;- data.table()
 
 for (i in 1:length(SAU_names)) {
-  SAU_data &lt;- fread(SAU_files[i]) #pull in data for region[i]
+  SAU_data &lt;- fread(here::here(SAU_files[i])) #pull in data for region[i]
   SAU_data.r &lt;- SAU_data[,.(area_name, area_type, year, scientific_name, common_name, functional_group, commercial_group, fishing_entity, fishing_sector, catch_type, reporting_status, gear_type, end_use_type, tonnes, landed_value)]
   #link back to survey
   SAU_data.r[,survey_unit := SAU_names[i]]
   
   SAU_full &lt;- rbind(SAU_full, SAU_data.r) #bind all regions together
   print(paste0(i,&quot;:&quot;,SAU_names[i],&quot;, Number of Columns: &quot;,ncol(SAU_data)))
-}
-</code></pre>
+}</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiMTpBSSwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjI6Q0hMLCBOdW1iZXIgb2YgQ29sdW1uczogMTdcIlxuWzFdIFwiMzpCSVRTLTEsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCI0OkJJVFMtNCwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjU6RVZIT0UsIE51bWJlciBvZiBDb2x1bW5zOiAxN1wiXG5bMV0gXCI2OkZSLUNHRlMsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCI3OklFLUlHRlMsIE51bWJlciBvZiBDb2x1bW5zOiAxN1wiXG5bMV0gXCI4Ok5JR0ZTLTEsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCI5Ok5JR0ZTLTQsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIxMDpOUy1JQlRTLTEsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIxMTpOUy1JQlRTLTMsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIxMjpQVC1JQlRTLCBOdW1iZXIgb2YgQ29sdW1uczogMTdcIlxuIn0= -->
+<pre><code>[1] &quot;1:AI, Number of Columns: 15&quot;
+[1] &quot;2:CHL, Number of Columns: 17&quot;
+[1] &quot;3:BITS-1, Number of Columns: 15&quot;
+[1] &quot;4:BITS-4, Number of Columns: 15&quot;
+[1] &quot;5:EVHOE, Number of Columns: 17&quot;
+[1] &quot;6:FR-CGFS, Number of Columns: 15&quot;
+[1] &quot;7:IE-IGFS, Number of Columns: 17&quot;
+[1] &quot;8:NIGFS-1, Number of Columns: 15&quot;
+[1] &quot;9:NIGFS-4, Number of Columns: 15&quot;
+[1] &quot;10:NS-IBTS-1, Number of Columns: 15&quot;
+[1] &quot;11:NS-IBTS-3, Number of Columns: 15&quot;
+[1] &quot;12:PT-IBTS, Number of Columns: 17&quot;</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiV2FybmluZzogRGV0ZWN0ZWQgMTUgY29sdW1uIG5hbWVzIGJ1dCB0aGUgZGF0YSBoYXMgMTQgY29sdW1ucy4gRmlsbGluZyByb3dzIGF1dG9tYXRpY2FsbHkuIFNldCBmaWxsPVRSVUUgZXhwbGljaXRseSB0byBhdm9pZCB0aGlzIHdhcm5pbmcuXG4ifQ== -->
+<pre><code>Warning: Detected 15 column names but the data has 14 columns. Filling rows automatically. Set fill=TRUE explicitly to avoid this warning.</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiMTM6U1dDLUlCVFMtMSwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcbiJ9 -->
+<pre><code>[1] &quot;13:SWC-IBTS-1, Number of Columns: 15&quot;</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiV2FybmluZzogRGV0ZWN0ZWQgMTUgY29sdW1uIG5hbWVzIGJ1dCB0aGUgZGF0YSBoYXMgMTQgY29sdW1ucy4gRmlsbGluZyByb3dzIGF1dG9tYXRpY2FsbHkuIFNldCBmaWxsPVRSVUUgZXhwbGljaXRseSB0byBhdm9pZCB0aGlzIHdhcm5pbmcuXG4ifQ== -->
+<pre><code>Warning: Detected 15 column names but the data has 14 columns. Filling rows automatically. Set fill=TRUE explicitly to avoid this warning.</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiMTQ6U1dDLUlCVFMtNCwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjE1OkRGTy1ORiwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjE2OkVCUywgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjE3OkdNRVgtRmFsbCwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjE4OkdNRVgtU3VtbWVyLCBOdW1iZXIgb2YgQ29sdW1uczogMTVcIlxuWzFdIFwiMTk6R09BLCBOdW1iZXIgb2YgQ29sdW1uczogMTVcIlxuWzFdIFwiMjA6R1JMLURFLCBOdW1iZXIgb2YgQ29sdW1uczogMTVcIlxuWzFdIFwiMjE6R1NMLU4sIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIyMjpHU0wtUywgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjIzOklDRS1HRlMsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIyNDpNRURJVFMsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIyNTpOQU0sIE51bWJlciBvZiBDb2x1bW5zOiAxN1wiXG5bMV0gXCIyNjpORVVTLUZhbGwsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIyNzpORVVTLVNwcmluZywgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjI4Ok5vci1CVFMtMSwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjI5Ok5vci1CVFMtMywgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjMwOk5aLVdDU0ksIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIzMTpOWi1FQ1NJLCBOdW1iZXIgb2YgQ29sdW1uczogMTVcIlxuWzFdIFwiMzI6TlotU1VCQSwgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjMzOk5aLUNIQVQsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIzNDpERk8tUUNTLCBOdW1iZXIgb2YgQ29sdW1uczogMTdcIlxuWzFdIFwiMzU6Uy1HRU9SRywgTnVtYmVyIG9mIENvbHVtbnM6IDE3XCJcblsxXSBcIjM2OlNDUy1TVU1NRVIsIE51bWJlciBvZiBDb2x1bW5zOiAxNVwiXG5bMV0gXCIzNzpTRVVTLXNwcmluZywgTnVtYmVyIG9mIENvbHVtbnM6IDE1XCJcblsxXSBcIjM4OlNFVVMtc3VtbWVyLCBOdW1iZXIgb2YgQ29sdW1uczogMTVcIlxuIn0= -->
+<pre><code>[1] &quot;14:SWC-IBTS-4, Number of Columns: 15&quot;
+[1] &quot;15:DFO-NF, Number of Columns: 15&quot;
+[1] &quot;16:EBS, Number of Columns: 15&quot;
+[1] &quot;17:GMEX-Fall, Number of Columns: 15&quot;
+[1] &quot;18:GMEX-Summer, Number of Columns: 15&quot;
+[1] &quot;19:GOA, Number of Columns: 15&quot;
+[1] &quot;20:GRL-DE, Number of Columns: 15&quot;
+[1] &quot;21:GSL-N, Number of Columns: 15&quot;
+[1] &quot;22:GSL-S, Number of Columns: 15&quot;
+[1] &quot;23:ICE-GFS, Number of Columns: 15&quot;
+[1] &quot;24:MEDITS, Number of Columns: 15&quot;
+[1] &quot;25:NAM, Number of Columns: 17&quot;
+[1] &quot;26:NEUS-Fall, Number of Columns: 15&quot;
+[1] &quot;27:NEUS-Spring, Number of Columns: 15&quot;
+[1] &quot;28:Nor-BTS-1, Number of Columns: 15&quot;
+[1] &quot;29:Nor-BTS-3, Number of Columns: 15&quot;
+[1] &quot;30:NZ-WCSI, Number of Columns: 15&quot;
+[1] &quot;31:NZ-ECSI, Number of Columns: 15&quot;
+[1] &quot;32:NZ-SUBA, Number of Columns: 15&quot;
+[1] &quot;33:NZ-CHAT, Number of Columns: 15&quot;
+[1] &quot;34:DFO-QCS, Number of Columns: 17&quot;
+[1] &quot;35:S-GEORG, Number of Columns: 17&quot;
+[1] &quot;36:SCS-SUMMER, Number of Columns: 15&quot;
+[1] &quot;37:SEUS-spring, Number of Columns: 15&quot;
+[1] &quot;38:SEUS-summer, Number of Columns: 15&quot;</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Cleaning SAU data</p>
@@ -1805,18 +1848,13 @@ with functional_group</li>
 </ol>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI3doYXQgZnVuY3Rpb25hbCBncm91cHMgYXJlIGluIHRoaXMgZGF0YXNldFxubGV2ZWxzKGFzLmZhY3RvcihTQVVfZnVsbFssZnVuY3Rpb25hbF9ncm91cF0pKVxuXG4jZ2V0IHJpZCBvZiBcbmZ1bmN0aW9uX2dyb3Vwc19leGNsdWRlIDwtIGMoXCJDZXBoYWxvcG9kc1wiLFwiS3JpbGxcIixcIkxvYnN0ZXJzLCBjcmFic1wiLFwiU2hyaW1wc1wiLFwiSmVsbHlmaXNoXCIsXCJPdGhlciBkZW1lcnNhbCBpbnZlcnRlYnJhdGVzXCIpXG5cblNBVV9mdWxsLnIgPC0gU0FVX2Z1bGxbIShmdW5jdGlvbmFsX2dyb3VwICVpbiUgZnVuY3Rpb25fZ3JvdXBzX2V4Y2x1ZGUpXVxuXG4jY2hlY2sgaWYgaXQgd29ya2VkXG5sZXZlbHMoYXMuZmFjdG9yKFNBVV9mdWxsLnJbLGNvbW1vbl9uYW1lXSkpICNsb29rcyBnb29kXG5cbmBgYCJ9 -->
-<pre class="r"><code>#what functional groups are in this dataset
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxuI3doYXQgZnVuY3Rpb25hbCBncm91cHMgYXJlIGluIHRoaXMgZGF0YXNldFxubGV2ZWxzKGFzLmZhY3RvcihTQVVfZnVsbFssZnVuY3Rpb25hbF9ncm91cF0pKVxuXG4jZ2V0IHJpZCBvZiBcbmZ1bmN0aW9uX2dyb3Vwc19leGNsdWRlIDwtIGMoXFxDZXBoYWxvcG9kc1xcLFxcS3JpbGxcXCxcXExvYnN0ZXJzXG5gYGAifQ== -->
+<pre class="r"><code>```r
+#what functional groups are in this dataset
 levels(as.factor(SAU_full[,functional_group]))
 
 #get rid of 
-function_groups_exclude &lt;- c(&quot;Cephalopods&quot;,&quot;Krill&quot;,&quot;Lobsters, crabs&quot;,&quot;Shrimps&quot;,&quot;Jellyfish&quot;,&quot;Other demersal invertebrates&quot;)
-
-SAU_full.r &lt;- SAU_full[!(functional_group %in% function_groups_exclude)]
-
-#check if it worked
-levels(as.factor(SAU_full.r[,common_name])) #looks good
-</code></pre>
+function_groups_exclude &lt;- c(\Cephalopods\,\Krill\,\Lobsters</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
@@ -1825,40 +1863,68 @@ levels(as.factor(SAU_full.r[,common_name])) #looks good
 </ol>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI3doYXQgY2F0Y2ggdHlwZXNcbmxldmVscyhhcy5mYWN0b3IoU0FVX2Z1bGwuclssY2F0Y2hfdHlwZV0pKVxuXG4jXG5TQVVfZnVsbC5sYW5kaW5ncyA8LSBTQVVfZnVsbC5yW2NhdGNoX3R5cGUgPT0gXCJMYW5kaW5nc1wiXVxuXG4jY2hlY2sgaWYgaXQgd29ya2VkXG5sZXZlbHMoYXMuZmFjdG9yKFNBVV9mdWxsLnJbLGNvbW1vbl9uYW1lXSkpICNsb29rcyBnb29kXG5cbmBgYCJ9 -->
-<pre class="r"><code>#what catch types
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxuI3doYXQgY2F0Y2ggdHlwZXNcbmxldmVscyhhcy5mYWN0b3IoU0FVX2Z1bGwuclssY2F0Y2hfdHlwZV0pKVxuXG4jXG5TQVVfZnVsbC5sYW5kaW5ncyA8LSBTQVVfZnVsbC5yW2NhdGNoX3R5cGUgPT0gXFxMYW5kaW5nc1xcXVxuXG4jY2hlY2sgaWYgaXQgd29ya2VkXG5sZXZlbHMoYXMuZmFjdG9yKFNBVV9mdWxsLnJbLGNvbW1vbl9uYW1lXSkpICNsb29rcyBnb29kXG5cbmBgYFxuYGBgIn0= -->
+<pre class="r"><code>```r
+#what catch types
 levels(as.factor(SAU_full.r[,catch_type]))
 
 #
-SAU_full.landings &lt;- SAU_full.r[catch_type == &quot;Landings&quot;]
+SAU_full.landings &lt;- SAU_full.r[catch_type == \Landings\]
 
 #check if it worked
 levels(as.factor(SAU_full.r[,common_name])) #looks good
 </code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<ol start="3" style="list-style-type: decimal">
-<li>Limit to identified fish</li>
-</ol>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI3doYXQgZnVuY3Rpb25hbCBncm91cHMgYXJlIGluIHRoaXMgZGF0YXNldFxubGV2ZWxzKGFzLmZhY3RvcihTQVVfZnVsbC5sYW5kaW5nc1ssc2NpZW50aWZpY19uYW1lXSkpXG5cbiNkZWxldGUgYW55IG9ic2VydmF0aW9ucyBub3QgSUQnZFxuU0FVX2Z1bGwubGFuZGluZ3MuaWRlZCA8LSBTQVVfZnVsbC5sYW5kaW5nc1tzY2llbnRpZmljX25hbWUgIT0gXCJNYXJpbmUgZmlzaGVzIG5vdCBpZGVudGlmaWVkXCJdXG5cblxuYGBgIn0= -->
-<pre class="r"><code>#what functional groups are in this dataset
+<pre><code>
+&lt;!-- rnb-source-end --&gt;
+
+&lt;!-- rnb-chunk-end --&gt;
+
+
+&lt;!-- rnb-text-begin --&gt;
+
+
+3. Limit to identified fish
+
+
+&lt;!-- rnb-text-end --&gt;
+
+
+&lt;!-- rnb-chunk-begin --&gt;
+
+
+&lt;!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxuI3doYXQgZnVuY3Rpb25hbCBncm91cHMgYXJlIGluIHRoaXMgZGF0YXNldFxubGV2ZWxzKGFzLmZhY3RvcihTQVVfZnVsbC5sYW5kaW5nc1ssc2NpZW50aWZpY19uYW1lXSkpXG5cbiNkZWxldGUgYW55IG9ic2VydmF0aW9ucyBub3QgSUQnZFxuU0FVX2Z1bGwubGFuZGluZ3MuaWRlZCA8LSBTQVVfZnVsbC5sYW5kaW5nc1tzY2llbnRpZmljX25hbWUgIT0gXFxNYXJpbmUgZmlzaGVzIG5vdCBpZGVudGlmaWVkXFxdXG5cblxuYGBgXG5gYGAifQ== --&gt;
+
+```r
+```r
+#what functional groups are in this dataset
 levels(as.factor(SAU_full.landings[,scientific_name]))
 
 #delete any observations not ID&#39;d
-SAU_full.landings.ided &lt;- SAU_full.landings[scientific_name != &quot;Marine fishes not identified&quot;]
+SAU_full.landings.ided &lt;- SAU_full.landings[scientific_name != \Marine fishes not identified\]
 </code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>Now, we will sum tonnes across each year for each region Moving
-forward, will use year <em>before</em> as the predictor</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuU0FVX3N1bW1lZF90b25uZXMgPC0gU0FVX2Z1bGwubGFuZGluZ3MuaWRlZFssc3VtbWVkX3Rvbm5lcyA6PSBzdW0odG9ubmVzLCBuYS5ybSA9IFQpLC4oeWVhciwgYXJlYV9uYW1lLCBhcmVhX3R5cGUsIHN1cnZleV91bml0KV1bICNrZXkgdG8gaW5jbHVkZSBzdXJ2ZXlfdW5pdCBiZWNhdXNlIGEgZmV3IFNBVSBkYXRhIHNldHMgYXJlIGluIGhlcmUgbXVsdGlwbGUgdGltZXNcbiAgICAsIHN1bW1lZF90b25uZXNfc2NhbGVkX2J5cmVnIDo9IHNjYWxlKHN1bW1lZF90b25uZXMpLC4oc3VydmV5X3VuaXQpXVsjc2NhbGUgYnkgcmVnaW9uIChpZSBoaWdoIHJlbGF0aXZlIHRvIGdpdmVuIHJlZ2lvbiksIHRoaXMgaXMgd2hhdCBJIHBsYW4gdG8gdXNlXG4gICAgICAsIHN1bW1lZF90b25uZXNfc2NhbGVkIDo9IHNjYWxlKHN1bW1lZF90b25uZXMpXSAjc2NhbGUgYWNyb3NzIGFsbCB2YWx1ZXMgKGllIGhpZ2ggcmVsYXRpdmUgdG8gYWxsIHJlZ2lvbnMpXG5cbiNyZWR1Y2UgdG8gdW5pcXVlIHZhbHVlcyB3ZSBuZWVkXG5TQVVfc3VtbWVkX3Rvbm5lcy5yIDwtIHVuaXF1ZShTQVVfc3VtbWVkX3Rvbm5lc1ssLih5ZWFyLCBzdXJ2ZXlfdW5pdCwgc3VtbWVkX3Rvbm5lcywgc3VtbWVkX3Rvbm5lc19zY2FsZWQsIHN1bW1lZF90b25uZXNfc2NhbGVkX2J5cmVnKV0pXG5cblxuI3Bsb3QgdG8gdmlzdWFsaXplXG5nZ3Bsb3QoU0FVX3N1bW1lZF90b25uZXMucikgK1xuICBnZW9tX2xpbmUoYWVzKHggPSB5ZWFyLCB5ID0gc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcpKSArXG4gIGZhY2V0X3dyYXAofnN1cnZleV91bml0KSArXG4gIHRoZW1lX2NsYXNzaWMoKVxuXG5nZ3Bsb3QoU0FVX3N1bW1lZF90b25uZXMucikgK1xuICBnZW9tX2xpbmUoYWVzKHggPSB5ZWFyLCB5ID0gc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcsIGNvbG9yID0gc3VydmV5X3VuaXQpKSArXG4gIHRoZW1lX2NsYXNzaWMoKVxuXG4jc2F2ZVxuc2F2ZVJEUyhTQVVfc3VtbWVkX3Rvbm5lcy5yLCBoZXJlOjpoZXJlKFwiZGF0YVwiLFwic2VhX2Fyb3VuZF91c1wiLFwiU0FVX3N1bW1lZF90b25uZXMucmRzXCIpKVxuYGBgIn0= -->
-<pre class="r"><code>SAU_summed_tonnes &lt;- SAU_full.landings.ided[,summed_tonnes := sum(tonnes, na.rm = T),.(year, area_name, area_type, survey_unit)][ #key to include survey_unit because a few SAU data sets are in here multiple times
+<pre><code>
+&lt;!-- rnb-source-end --&gt;
+
+&lt;!-- rnb-chunk-end --&gt;
+
+
+&lt;!-- rnb-text-begin --&gt;
+
+
+Now, we will sum tonnes across each year for each region
+Moving forward, will use year *before* as the predictor
+
+&lt;!-- rnb-text-end --&gt;
+
+
+&lt;!-- rnb-chunk-begin --&gt;
+
+
+&lt;!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuYGBgclxuU0FVX3N1bW1lZF90b25uZXMgPC0gU0FVX2Z1bGwubGFuZGluZ3MuaWRlZFssc3VtbWVkX3Rvbm5lcyA6PSBzdW0odG9ubmVzLCBuYS5ybSA9IFQpLC4oeWVhciwgYXJlYV9uYW1lLCBhcmVhX3R5cGUsIHN1cnZleV91bml0KV1bICNrZXkgdG8gaW5jbHVkZSBzdXJ2ZXlfdW5pdCBiZWNhdXNlIGEgZmV3IFNBVSBkYXRhIHNldHMgYXJlIGluIGhlcmUgbXVsdGlwbGUgdGltZXNcbiAgICAsIHN1bW1lZF90b25uZXNfc2NhbGVkX2J5cmVnIDo9IHNjYWxlKHN1bW1lZF90b25uZXMpLC4oc3VydmV5X3VuaXQpXVsjc2NhbGUgYnkgcmVnaW9uIChpZSBoaWdoIHJlbGF0aXZlIHRvIGdpdmVuIHJlZ2lvbiksIHRoaXMgaXMgd2hhdCBJIHBsYW4gdG8gdXNlXG4gICAgICAsIHN1bW1lZF90b25uZXNfc2NhbGVkIDo9IHNjYWxlKHN1bW1lZF90b25uZXMpXSAjc2NhbGUgYWNyb3NzIGFsbCB2YWx1ZXMgKGllIGhpZ2ggcmVsYXRpdmUgdG8gYWxsIHJlZ2lvbnMpXG5cbiNyZWR1Y2UgdG8gdW5pcXVlIHZhbHVlcyB3ZSBuZWVkXG5TQVVfc3VtbWVkX3Rvbm5lcy5yIDwtIHVuaXF1ZShTQVVfc3VtbWVkX3Rvbm5lc1ssLih5ZWFyLCBzdXJ2ZXlfdW5pdCwgc3VtbWVkX3Rvbm5lcywgc3VtbWVkX3Rvbm5lc19zY2FsZWQsIHN1bW1lZF90b25uZXNfc2NhbGVkX2J5cmVnKV0pXG5cblxuI3Bsb3QgdG8gdmlzdWFsaXplXG5nZ3Bsb3QoU0FVX3N1bW1lZF90b25uZXMucikgK1xuICBnZW9tX2xpbmUoYWVzKHggPSB5ZWFyLCB5ID0gc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcpKSArXG4gIGZhY2V0X3dyYXAofnN1cnZleV91bml0KSArXG4gIHRoZW1lX2NsYXNzaWMoKVxuXG5nZ3Bsb3QoU0FVX3N1bW1lZF90b25uZXMucikgK1xuICBnZW9tX2xpbmUoYWVzKHggPSB5ZWFyLCB5ID0gc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcsIGNvbG9yID0gc3VydmV5X3VuaXQpKSArXG4gIHRoZW1lX2NsYXNzaWMoKVxuXG4jc2F2ZVxuc2F2ZVJEUyhTQVVfc3VtbWVkX3Rvbm5lcy5yLCBoZXJlOjpoZXJlKFxcZGF0YVxcLFxcc2VhX2Fyb3VuZF91c1xcLFxcU0FVX3N1bW1lZF90b25uZXMucmRzXFwpKVxuYGBgXG5gYGAifQ== --&gt;
+
+```r
+```r
+SAU_summed_tonnes &lt;- SAU_full.landings.ided[,summed_tonnes := sum(tonnes, na.rm = T),.(year, area_name, area_type, survey_unit)][ #key to include survey_unit because a few SAU data sets are in here multiple times
     , summed_tonnes_scaled_byreg := scale(summed_tonnes),.(survey_unit)][#scale by region (ie high relative to given region), this is what I plan to use
       , summed_tonnes_scaled := scale(summed_tonnes)] #scale across all values (ie high relative to all regions)
 
@@ -1877,13 +1943,14 @@ ggplot(SAU_summed_tonnes.r) +
   theme_classic()
 
 #save
-saveRDS(SAU_summed_tonnes.r, here::here(&quot;data&quot;,&quot;sea_around_us&quot;,&quot;SAU_summed_tonnes.rds&quot;))</code></pre>
+saveRDS(SAU_summed_tonnes.r, here::here(\data\,\sea_around_us\,\SAU_summed_tonnes.rds\))</code></pre>
+<p>```</p>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUHVsbCB0b2dldGhlciBzZWEgYXJvdW5kIHVzIGRhdGEiCm91dHB1dDogaHRtbF9ub3RlYm9vawotLS0KClB1bGwgdG9nZXRoZXIgc2VhIGFyb3VuZCB1cyBkYXRhIGZyb20gdGhlIHdlYiBieSBjbG9zZXN0IEVFWgoKVGhpcyBjb2RlIGlzIFNjcmlwdCA2IGZvciBLaXRjaGVsIGV0IGFsLiBUSVRMRSBtYW51c2NyaXB0LgoKLSBUaGlzIHByb2plY3QgaXMgYSBjb2xsYWJvcmF0aXZlIGVmZm9ydCB0byBkZXNjcmliZSBjaGFuZ2VzIGluIHRheG9ub21pYyBjb21wb3NpdGlvbiAgb2YgZmlzaCBjb21tdW5pdGllcyBhcm91bmQgdGhlIHdvcmxkLS1hcyBzYW1wbGVkIGJ5IGJvdHRvbSB0cmF3bCBzdXJ2ZXlzLgoKLSBDb2RlIGJ5IFpvw6sgSi4gS2l0Y2hlbAoKU0VTU0lPTiBJTkZPClRPIERPCgpgYGB7ciBzZXR1cH0KbGlicmFyeShkYXRhLnRhYmxlKQpsaWJyYXJ5KGdncGxvdDIpCmxpYnJhcnkoaGVyZSkKCiNrZXkKU0FVX3N1cnZleV9rZXkgPC0gZnJlYWQoaGVyZTo6aGVyZSgiZGF0YV9wcmVwX2NvZGUiLCJmaXNoaW5nIiwiU3VydmV5X1NPVV9LZXkuY3N2IikpCgojZGVsZXRlIHJvY2thbGwKU0FVX3N1cnZleV9rZXkgPC0gU0FVX3N1cnZleV9rZXlbc3VydmV5X3VuaXQgIT0gIlJPQ0tBTEwiLF0KYGBgCgpVc2UgdGhlIGtleSB0byBwdWxsIGluIGFsbCB0aGUgY3N2cwpgYGB7ciBwdWxsIGluIENTVnMgb2YgY2F0Y2ggZGF0YX0KU0FVX25hbWVzIDwtIFNBVV9zdXJ2ZXlfa2V5Wywgc3VydmV5X3VuaXRdClNBVV9maWxlcyA8LSBTQVVfc3VydmV5X2tleVssIEZpbGVOYW1lXQoKU0FVX2Z1bGwgPC0gZGF0YS50YWJsZSgpCgpmb3IgKGkgaW4gMTpsZW5ndGgoU0FVX25hbWVzKSkgewogIFNBVV9kYXRhIDwtIGZyZWFkKFNBVV9maWxlc1tpXSkgI3B1bGwgaW4gZGF0YSBmb3IgcmVnaW9uW2ldCiAgU0FVX2RhdGEuciA8LSBTQVVfZGF0YVssLihhcmVhX25hbWUsIGFyZWFfdHlwZSwgeWVhciwgc2NpZW50aWZpY19uYW1lLCBjb21tb25fbmFtZSwgZnVuY3Rpb25hbF9ncm91cCwgY29tbWVyY2lhbF9ncm91cCwgZmlzaGluZ19lbnRpdHksIGZpc2hpbmdfc2VjdG9yLCBjYXRjaF90eXBlLCByZXBvcnRpbmdfc3RhdHVzLCBnZWFyX3R5cGUsIGVuZF91c2VfdHlwZSwgdG9ubmVzLCBsYW5kZWRfdmFsdWUpXQogICNsaW5rIGJhY2sgdG8gc3VydmV5CiAgU0FVX2RhdGEuclssc3VydmV5X3VuaXQgOj0gU0FVX25hbWVzW2ldXQogIAogIFNBVV9mdWxsIDwtIHJiaW5kKFNBVV9mdWxsLCBTQVVfZGF0YS5yKSAjYmluZCBhbGwgcmVnaW9ucyB0b2dldGhlcgogIHByaW50KHBhc3RlMChpLCI6IixTQVVfbmFtZXNbaV0sIiwgTnVtYmVyIG9mIENvbHVtbnM6ICIsbmNvbChTQVVfZGF0YSkpKQp9CgoKCmBgYApDbGVhbmluZyBTQVUgZGF0YQoKMS4gTGltaXQgdG8gc2NpZW50aWZpYyBuYW1lcyB0aGF0IGFyZSBhc3NvY2lhdGVkIHdpdGggZmlzaCBieSBsaW1pdGluZyB3aXRoIGZ1bmN0aW9uYWxfZ3JvdXAKCmBgYHtyIGNsZWFuaW5nIFNBVSBkYXRhIGZpc2ggb25seX0KI3doYXQgZnVuY3Rpb25hbCBncm91cHMgYXJlIGluIHRoaXMgZGF0YXNldApsZXZlbHMoYXMuZmFjdG9yKFNBVV9mdWxsWyxmdW5jdGlvbmFsX2dyb3VwXSkpCgojZ2V0IHJpZCBvZiAKZnVuY3Rpb25fZ3JvdXBzX2V4Y2x1ZGUgPC0gYygiQ2VwaGFsb3BvZHMiLCJLcmlsbCIsIkxvYnN0ZXJzLCBjcmFicyIsIlNocmltcHMiLCJKZWxseWZpc2giLCJPdGhlciBkZW1lcnNhbCBpbnZlcnRlYnJhdGVzIikKClNBVV9mdWxsLnIgPC0gU0FVX2Z1bGxbIShmdW5jdGlvbmFsX2dyb3VwICVpbiUgZnVuY3Rpb25fZ3JvdXBzX2V4Y2x1ZGUpXQoKI2NoZWNrIGlmIGl0IHdvcmtlZApsZXZlbHMoYXMuZmFjdG9yKFNBVV9mdWxsLnJbLGNvbW1vbl9uYW1lXSkpICNsb29rcyBnb29kCgpgYGAKCjIuIExpbWl0IHRvIGxhbmRpbmdzIChleGNsdWRlIGRpc2NhcmRzKQoKYGBge3IgY2xlYW5pbmcgU0FVIGRhdGEgbm8gZGlzY2FyZHN9CiN3aGF0IGNhdGNoIHR5cGVzCmxldmVscyhhcy5mYWN0b3IoU0FVX2Z1bGwuclssY2F0Y2hfdHlwZV0pKQoKIwpTQVVfZnVsbC5sYW5kaW5ncyA8LSBTQVVfZnVsbC5yW2NhdGNoX3R5cGUgPT0gIkxhbmRpbmdzIl0KCiNjaGVjayBpZiBpdCB3b3JrZWQKbGV2ZWxzKGFzLmZhY3RvcihTQVVfZnVsbC5yWyxjb21tb25fbmFtZV0pKSAjbG9va3MgZ29vZAoKYGBgCgozLiBMaW1pdCB0byBpZGVudGlmaWVkIGZpc2gKCmBgYHtyIGNsZWFuaW5nIFNBVSBkYXRhIGZpc2ggaGF2ZSB0byBiZSBJRGVkfQojd2hhdCBmdW5jdGlvbmFsIGdyb3VwcyBhcmUgaW4gdGhpcyBkYXRhc2V0CmxldmVscyhhcy5mYWN0b3IoU0FVX2Z1bGwubGFuZGluZ3NbLHNjaWVudGlmaWNfbmFtZV0pKQoKI2RlbGV0ZSBhbnkgb2JzZXJ2YXRpb25zIG5vdCBJRCdkClNBVV9mdWxsLmxhbmRpbmdzLmlkZWQgPC0gU0FVX2Z1bGwubGFuZGluZ3Nbc2NpZW50aWZpY19uYW1lICE9ICJNYXJpbmUgZmlzaGVzIG5vdCBpZGVudGlmaWVkIl0KCgpgYGAKCk5vdywgd2Ugd2lsbCBzdW0gdG9ubmVzIGFjcm9zcyBlYWNoIHllYXIgZm9yIGVhY2ggcmVnaW9uCk1vdmluZyBmb3J3YXJkLCB3aWxsIHVzZSB5ZWFyICpiZWZvcmUqIGFzIHRoZSBwcmVkaWN0b3IKYGBge3Igc3VtIHRvbm5lc30KU0FVX3N1bW1lZF90b25uZXMgPC0gU0FVX2Z1bGwubGFuZGluZ3MuaWRlZFssc3VtbWVkX3Rvbm5lcyA6PSBzdW0odG9ubmVzLCBuYS5ybSA9IFQpLC4oeWVhciwgYXJlYV9uYW1lLCBhcmVhX3R5cGUsIHN1cnZleV91bml0KV1bICNrZXkgdG8gaW5jbHVkZSBzdXJ2ZXlfdW5pdCBiZWNhdXNlIGEgZmV3IFNBVSBkYXRhIHNldHMgYXJlIGluIGhlcmUgbXVsdGlwbGUgdGltZXMKICAgICwgc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcgOj0gc2NhbGUoc3VtbWVkX3Rvbm5lcyksLihzdXJ2ZXlfdW5pdCldWyNzY2FsZSBieSByZWdpb24gKGllIGhpZ2ggcmVsYXRpdmUgdG8gZ2l2ZW4gcmVnaW9uKSwgdGhpcyBpcyB3aGF0IEkgcGxhbiB0byB1c2UKICAgICAgLCBzdW1tZWRfdG9ubmVzX3NjYWxlZCA6PSBzY2FsZShzdW1tZWRfdG9ubmVzKV0gI3NjYWxlIGFjcm9zcyBhbGwgdmFsdWVzIChpZSBoaWdoIHJlbGF0aXZlIHRvIGFsbCByZWdpb25zKQoKI3JlZHVjZSB0byB1bmlxdWUgdmFsdWVzIHdlIG5lZWQKU0FVX3N1bW1lZF90b25uZXMuciA8LSB1bmlxdWUoU0FVX3N1bW1lZF90b25uZXNbLC4oeWVhciwgc3VydmV5X3VuaXQsIHN1bW1lZF90b25uZXMsIHN1bW1lZF90b25uZXNfc2NhbGVkLCBzdW1tZWRfdG9ubmVzX3NjYWxlZF9ieXJlZyldKQoKCiNwbG90IHRvIHZpc3VhbGl6ZQpnZ3Bsb3QoU0FVX3N1bW1lZF90b25uZXMucikgKwogIGdlb21fbGluZShhZXMoeCA9IHllYXIsIHkgPSBzdW1tZWRfdG9ubmVzX3NjYWxlZF9ieXJlZykpICsKICBmYWNldF93cmFwKH5zdXJ2ZXlfdW5pdCkgKwogIHRoZW1lX2NsYXNzaWMoKQoKZ2dwbG90KFNBVV9zdW1tZWRfdG9ubmVzLnIpICsKICBnZW9tX2xpbmUoYWVzKHggPSB5ZWFyLCB5ID0gc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcsIGNvbG9yID0gc3VydmV5X3VuaXQpKSArCiAgdGhlbWVfY2xhc3NpYygpCgojc2F2ZQpzYXZlUkRTKFNBVV9zdW1tZWRfdG9ubmVzLnIsIGhlcmU6OmhlcmUoImRhdGEiLCJzZWFfYXJvdW5kX3VzIiwiU0FVX3N1bW1lZF90b25uZXMucmRzIikpCmBgYAoK</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUHVsbCB0b2dldGhlciBzZWEgYXJvdW5kIHVzIGRhdGEiCm91dHB1dDogaHRtbF9ub3RlYm9vawotLS0KClB1bGwgdG9nZXRoZXIgc2VhIGFyb3VuZCB1cyBkYXRhIGZyb20gdGhlIHdlYiBieSBjbG9zZXN0IEVFWgoKU2NyaXB0IDYgZm9yIEtpdGNoZWwgZXQgYWwuIDIwMjMgaW4gcHJlcCB0YXhvbm9taWMgZGl2ZXJzaXR5IG1hbnVzY3JpcHQuCgoKYGBge3Igc2V0dXB9CmxpYnJhcnkoZGF0YS50YWJsZSkKbGlicmFyeShnZ3Bsb3QyKQpsaWJyYXJ5KGhlcmUpCgoja2V5ClNBVV9zdXJ2ZXlfa2V5IDwtIGZyZWFkKGhlcmU6OmhlcmUoImRhdGFfcHJlcF9jb2RlIiwiZmlzaGluZyIsIlN1cnZleV9TT1VfS2V5LmNzdiIpKQoKI2RlbGV0ZSByb2NrYWxsClNBVV9zdXJ2ZXlfa2V5IDwtIFNBVV9zdXJ2ZXlfa2V5W3N1cnZleV91bml0ICE9ICJST0NLQUxMIixdCmBgYAoKVXNlIHRoZSBrZXkgdG8gcHVsbCBpbiBhbGwgdGhlIGNzdnMKYGBge3IgcHVsbCBpbiBDU1ZzIG9mIGNhdGNoIGRhdGF9ClNBVV9uYW1lcyA8LSBTQVVfc3VydmV5X2tleVssIHN1cnZleV91bml0XQpTQVVfZmlsZXMgPC0gU0FVX3N1cnZleV9rZXlbLCBGaWxlTmFtZV0KClNBVV9mdWxsIDwtIGRhdGEudGFibGUoKQoKZm9yIChpIGluIDE6bGVuZ3RoKFNBVV9uYW1lcykpIHsKICBTQVVfZGF0YSA8LSBmcmVhZChoZXJlOjpoZXJlKFNBVV9maWxlc1tpXSkpICNwdWxsIGluIGRhdGEgZm9yIHJlZ2lvbltpXQogIFNBVV9kYXRhLnIgPC0gU0FVX2RhdGFbLC4oYXJlYV9uYW1lLCBhcmVhX3R5cGUsIHllYXIsIHNjaWVudGlmaWNfbmFtZSwgY29tbW9uX25hbWUsIGZ1bmN0aW9uYWxfZ3JvdXAsIGNvbW1lcmNpYWxfZ3JvdXAsIGZpc2hpbmdfZW50aXR5LCBmaXNoaW5nX3NlY3RvciwgY2F0Y2hfdHlwZSwgcmVwb3J0aW5nX3N0YXR1cywgZ2Vhcl90eXBlLCBlbmRfdXNlX3R5cGUsIHRvbm5lcywgbGFuZGVkX3ZhbHVlKV0KICAjbGluayBiYWNrIHRvIHN1cnZleQogIFNBVV9kYXRhLnJbLHN1cnZleV91bml0IDo9IFNBVV9uYW1lc1tpXV0KICAKICBTQVVfZnVsbCA8LSByYmluZChTQVVfZnVsbCwgU0FVX2RhdGEucikgI2JpbmQgYWxsIHJlZ2lvbnMgdG9nZXRoZXIKICBwcmludChwYXN0ZTAoaSwiOiIsU0FVX25hbWVzW2ldLCIsIE51bWJlciBvZiBDb2x1bW5zOiAiLG5jb2woU0FVX2RhdGEpKSkKfQoKCgpgYGAKQ2xlYW5pbmcgU0FVIGRhdGEKCjEuIExpbWl0IHRvIHNjaWVudGlmaWMgbmFtZXMgdGhhdCBhcmUgYXNzb2NpYXRlZCB3aXRoIGZpc2ggYnkgbGltaXRpbmcgd2l0aCBmdW5jdGlvbmFsX2dyb3VwCgpgYGB7ciBjbGVhbmluZyBTQVUgZGF0YSBmaXNoIG9ubHl9CiN3aGF0IGZ1bmN0aW9uYWwgZ3JvdXBzIGFyZSBpbiB0aGlzIGRhdGFzZXQKbGV2ZWxzKGFzLmZhY3RvcihTQVVfZnVsbFssZnVuY3Rpb25hbF9ncm91cF0pKQoKI2dldCByaWQgb2YgCmZ1bmN0aW9uX2dyb3Vwc19leGNsdWRlIDwtIGMoIkNlcGhhbG9wb2RzIiwiS3JpbGwiLCJMb2JzdGVycywgY3JhYnMiLCJTaHJpbXBzIiwiSmVsbHlmaXNoIiwiT3RoZXIgZGVtZXJzYWwgaW52ZXJ0ZWJyYXRlcyIpCgpTQVVfZnVsbC5yIDwtIFNBVV9mdWxsWyEoZnVuY3Rpb25hbF9ncm91cCAlaW4lIGZ1bmN0aW9uX2dyb3Vwc19leGNsdWRlKV0KCiNjaGVjayBpZiBpdCB3b3JrZWQKbGV2ZWxzKGFzLmZhY3RvcihTQVVfZnVsbC5yWyxjb21tb25fbmFtZV0pKSAjbG9va3MgZ29vZAoKYGBgCgoyLiBMaW1pdCB0byBsYW5kaW5ncyAoZXhjbHVkZSBkaXNjYXJkcykKCmBgYHtyIGNsZWFuaW5nIFNBVSBkYXRhIG5vIGRpc2NhcmRzfQojd2hhdCBjYXRjaCB0eXBlcwpsZXZlbHMoYXMuZmFjdG9yKFNBVV9mdWxsLnJbLGNhdGNoX3R5cGVdKSkKCiMKU0FVX2Z1bGwubGFuZGluZ3MgPC0gU0FVX2Z1bGwucltjYXRjaF90eXBlID09ICJMYW5kaW5ncyJdCgojY2hlY2sgaWYgaXQgd29ya2VkCmxldmVscyhhcy5mYWN0b3IoU0FVX2Z1bGwuclssY29tbW9uX25hbWVdKSkgI2xvb2tzIGdvb2QKCmBgYAoKMy4gTGltaXQgdG8gaWRlbnRpZmllZCBmaXNoCgpgYGB7ciBjbGVhbmluZyBTQVUgZGF0YSBmaXNoIGhhdmUgdG8gYmUgSURlZH0KI3doYXQgZnVuY3Rpb25hbCBncm91cHMgYXJlIGluIHRoaXMgZGF0YXNldApsZXZlbHMoYXMuZmFjdG9yKFNBVV9mdWxsLmxhbmRpbmdzWyxzY2llbnRpZmljX25hbWVdKSkKCiNkZWxldGUgYW55IG9ic2VydmF0aW9ucyBub3QgSUQnZApTQVVfZnVsbC5sYW5kaW5ncy5pZGVkIDwtIFNBVV9mdWxsLmxhbmRpbmdzW3NjaWVudGlmaWNfbmFtZSAhPSAiTWFyaW5lIGZpc2hlcyBub3QgaWRlbnRpZmllZCJdCgoKYGBgCgpOb3csIHdlIHdpbGwgc3VtIHRvbm5lcyBhY3Jvc3MgZWFjaCB5ZWFyIGZvciBlYWNoIHJlZ2lvbgpNb3ZpbmcgZm9yd2FyZCwgd2lsbCB1c2UgeWVhciAqYmVmb3JlKiBhcyB0aGUgcHJlZGljdG9yCmBgYHtyIHN1bSB0b25uZXN9ClNBVV9zdW1tZWRfdG9ubmVzIDwtIFNBVV9mdWxsLmxhbmRpbmdzLmlkZWRbLHN1bW1lZF90b25uZXMgOj0gc3VtKHRvbm5lcywgbmEucm0gPSBUKSwuKHllYXIsIGFyZWFfbmFtZSwgYXJlYV90eXBlLCBzdXJ2ZXlfdW5pdCldWyAja2V5IHRvIGluY2x1ZGUgc3VydmV5X3VuaXQgYmVjYXVzZSBhIGZldyBTQVUgZGF0YSBzZXRzIGFyZSBpbiBoZXJlIG11bHRpcGxlIHRpbWVzCiAgICAsIHN1bW1lZF90b25uZXNfc2NhbGVkX2J5cmVnIDo9IHNjYWxlKHN1bW1lZF90b25uZXMpLC4oc3VydmV5X3VuaXQpXVsjc2NhbGUgYnkgcmVnaW9uIChpZSBoaWdoIHJlbGF0aXZlIHRvIGdpdmVuIHJlZ2lvbiksIHRoaXMgaXMgd2hhdCBJIHBsYW4gdG8gdXNlCiAgICAgICwgc3VtbWVkX3Rvbm5lc19zY2FsZWQgOj0gc2NhbGUoc3VtbWVkX3Rvbm5lcyldICNzY2FsZSBhY3Jvc3MgYWxsIHZhbHVlcyAoaWUgaGlnaCByZWxhdGl2ZSB0byBhbGwgcmVnaW9ucykKCiNyZWR1Y2UgdG8gdW5pcXVlIHZhbHVlcyB3ZSBuZWVkClNBVV9zdW1tZWRfdG9ubmVzLnIgPC0gdW5pcXVlKFNBVV9zdW1tZWRfdG9ubmVzWywuKHllYXIsIHN1cnZleV91bml0LCBzdW1tZWRfdG9ubmVzLCBzdW1tZWRfdG9ubmVzX3NjYWxlZCwgc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcpXSkKCgojcGxvdCB0byB2aXN1YWxpemUKZ2dwbG90KFNBVV9zdW1tZWRfdG9ubmVzLnIpICsKICBnZW9tX2xpbmUoYWVzKHggPSB5ZWFyLCB5ID0gc3VtbWVkX3Rvbm5lc19zY2FsZWRfYnlyZWcpKSArCiAgZmFjZXRfd3JhcCh+c3VydmV5X3VuaXQpICsKICB0aGVtZV9jbGFzc2ljKCkKCmdncGxvdChTQVVfc3VtbWVkX3Rvbm5lcy5yKSArCiAgZ2VvbV9saW5lKGFlcyh4ID0geWVhciwgeSA9IHN1bW1lZF90b25uZXNfc2NhbGVkX2J5cmVnLCBjb2xvciA9IHN1cnZleV91bml0KSkgKwogIHRoZW1lX2NsYXNzaWMoKQoKI3NhdmUKc2F2ZVJEUyhTQVVfc3VtbWVkX3Rvbm5lcy5yLCBoZXJlOjpoZXJlKCJkYXRhIiwic2VhX2Fyb3VuZF91cyIsIlNBVV9zdW1tZWRfdG9ubmVzLnJkcyIpKQpgYGAKCg==</div>
 
 
 

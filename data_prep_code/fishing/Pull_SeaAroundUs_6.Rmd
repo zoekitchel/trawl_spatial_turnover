@@ -5,14 +5,8 @@ output: html_notebook
 
 Pull together sea around us data from the web by closest EEZ
 
-This code is Script 6 for Kitchel et al. TITLE manuscript.
+Script 6 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
 
-- This project is a collaborative effort to describe changes in taxonomic composition  of fish communities around the world--as sampled by bottom trawl surveys.
-
-- Code by Zoë J. Kitchel
-
-SESSION INFO
-TO DO
 
 ```{r setup}
 library(data.table)
@@ -34,7 +28,7 @@ SAU_files <- SAU_survey_key[, FileName]
 SAU_full <- data.table()
 
 for (i in 1:length(SAU_names)) {
-  SAU_data <- fread(SAU_files[i]) #pull in data for region[i]
+  SAU_data <- fread(here::here(SAU_files[i])) #pull in data for region[i]
   SAU_data.r <- SAU_data[,.(area_name, area_type, year, scientific_name, common_name, functional_group, commercial_group, fishing_entity, fishing_sector, catch_type, reporting_status, gear_type, end_use_type, tonnes, landed_value)]
   #link back to survey
   SAU_data.r[,survey_unit := SAU_names[i]]

@@ -182,9 +182,19 @@ SODA_data_temp_avgs_full <- SODA_data_temp_avgs_full[year_for_avg >= 1980,]
 
 SODA_data_temp_avgs_full[,year := year_for_avg]
 
+#pull in surface temp data
+OISST_data_temp_avgs_full <- readRDS(here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
+#don't feel confident about OISST temp before 1980 right now, start then
+
+OISST_data_temp_avgs_full <- OISST_data_temp_avgs_full[year_for_avg >= 1980,]
+
+OISST_data_temp_avgs_full[,year := year_for_avg]
+
 
 #pull in fishing data
 SAU_summed_tonnes.r <- readRDS(here::here("data","sea_around_us","SAU_summed_tonnes.rds"))
+
+
 
 ```
 
@@ -193,9 +203,11 @@ Merge with temp and fishing values
 ```{r}
 #temp
 distances_dissimilarities_allyears.temp <- SODA_data_temp_avgs_full[distances_dissimilarities_allyears, on = c("year","survey_unit")]
+distances_dissimilarities_allyears.SST.temp <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears, on = c("year","survey_unit")]
 
 #fishing
 dissimilarities_temp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.temp, on = c("year", "survey_unit")]
+dissimilarities_SSTtemp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.SST.temp, on = c("year", "survey_unit")]
 
 ```
 
@@ -204,12 +216,16 @@ Merge with temp and fishing
 ```{r merge with avg temp and fishing values}
 
 dissimilarities_temp_fishing[,mean_reg_temp_allyears := mean(yearly_mean_bypoint_avg, na.rm = T),.(survey_unit)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey_unit)]
+dissimilarities_SSTtemp_fishing[,mean_reg_temp_allyears := mean(yearly_mean_bypoint_avg, na.rm = T),.(survey_unit)][,mean_reg_fishing_allyears := mean(summed_tonnes, na.rm = T),.(survey_unit)]
 
 #merge dissimilarities with spp counts
 
 dissimilarities_temp_fishing <- dissimilarities_temp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit")]
+dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit")]
 
 fwrite(dissimilarities_temp_fishing, here::here("output","dissimilarities_temp_fishing.csv"))
+
+fwrite(dissimilarities_SSTtemp_fishing, here::here("output","dissimilarities_SSTtemp_fishing.csv"))
 
 avg_temp_avg_fishing <- unique(dissimilarities_temp_fishing[,.(survey_unit,mean_reg_fishing_allyears, mean_reg_temp_allyears)]) 
 
@@ -406,7 +422,7 @@ region_stats.format <- copy(region_stats)
 
 region_stats.format <- region_stats[color_link, on = "survey_unit", nomatch = F]
 
-region_stats.format[,`Mean annual CPUE (kg/km^2)`:=mean_annual_cpue][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,2)][,`Longitude range (˚)`:=round(lon_range,2)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,2)][,`Depth range (m)`:= round(depth_range,2)][,`Mid-latitude (˚N)`:= round(mid_lat,2)][,`Mean bottom temperature (˚C)`:= round(mean_temp,2)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
+region_stats.format[,`Mean annual CPUE (kg/km^2)`:=mean_annual_cpue][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Latitude range (˚)`:= round(lat_range,0)][,`Longitude range (˚)`:=round(lon_range,0)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,0)][,`Depth range (m)`:= round(depth_range,0)][,`Mid-latitude (˚N)`:= round(mid_lat,0)][,`Mean bottom temperature (˚C)`:= round(mean_temp,1)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
 
 setorder(region_stats.format, survey_unit)
 
