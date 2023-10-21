@@ -4,13 +4,13 @@ Currently in preparation for PNAS.
 
 *Zoë J. Kitchel, Aurore M. Maureaud, Alexa Fredston, Nancy Shackell, Bastien Mérigot, James T. Thorson, Laurène Pécuchet, Juliano Palacios-Abrantes, Deng M. L. Palomares, Antonio Esteban Acón, Mark Belchier, Gioacchino Bono, Pierluigi Carbonara, Martin A. Collins, Luis A. Cubillos, Tracey P. Fairweather, Maria Cristina Follesa, Cristina Garciá Ruiz, Germana Garofalo, Beatriz Guijarro, Igor Isajlović, Johannes N. Kathena, Mariono Koen-Alonso, Porzia Maiorano, Chiara Manfredi, Jurgen Mifsud, Richard L. O’Driscoll, Mario Sbrana, Jón Sólmundsson, Maria Teresa Spedicato, Fabrice Stephenson, Karl-Michael Werner, Daniela V. Yepsen, Walter Zupa, Malin L. Pinsky*
 
-Please contact [Z.J. Kitchel](https://www.zoekitchel.com/) with questions about this project. The results are partially reproducible from the scripts and data files that can be shared are either in this GitHub repository or (if they are too large) hosted on [OSF](https://osf.io/) (as described below). 
+Please contact [Z.J. Kitchel](https://www.zoekitchel.com/) with questions about this project. The results are partially reproducible from the scripts and data files that can be shared are either in this GitHub repository or (if they are too large) will be hosted on [OSF](https://osf.io/) (as described below). 
 
 ## Where do data come from?
 
 We used of a number of datasets that are already publicly available and/or published with this project, in addition to some regional datasets that may be available upon request from data providers. These are fully described and cited in the manuscript, but we also list them here for ease of download, access, and attribution. 
 
-* Publicly available trawl data from [FISHGLOB](https://github.com/AquaAuma/FishGlob_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. The raw data files from FISHGLOB are too big to host on GitHub but they are available on [OSF](https://osf.io/). FISHGLOB has observations for 55 surveys, and 42 of these were appropriate for use in our biodiversity x time analyses.
+* Publicly available trawl data from [FISHGLOB](https://github.com/AquaAuma/FishGlob_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. The raw data files from FISHGLOB are too big to host on GitHub but they will be available on [OSF](https://osf.io/). FISHGLOB has observations for 55 surveys, and 42 of these were appropriate for use in our biodiversity x time analyses.
 * Some regions are unable to share trawl data publically. Data may be available on request from data provider. See Table S1 for contact information.
 * Sea bottom temperature data from [SODA 3.3.2](http://www.soda.umd.edu/), an ocean reanalysis data product by the University of Maryland available beginning in 1980. 
 * Sea surface temperature data from [OISST](https://www.ncei.noaa.gov/products/optimum-interpolation-sst), a historical satellite temperature record from the U.S. National Oceanic and Atmospheric Administration beginning in 1982.
