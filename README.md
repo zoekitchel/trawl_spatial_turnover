@@ -145,6 +145,5 @@ Supplemental Tables
 
 
 ## Notes
-UNDER CONSTRUCTION
-* Package versions used in this analysis are captured by `renv` and listed [in the lockfile](....renv.lock). Here is [a summary of how renv works](https://rstudio.github.io/renv/articles/renv.html). 
+* Upon publication, package versions used in this analysis will be captured by `renv` and listed [in the lockfile](....renv.lock). Here is [a summary of how renv works](https://rstudio.github.io/renv/articles/renv.html). 
 * Most of these analyses were run on a personal computer using R 4.2.1, and should be easy to reproduce for public data. The exception is the temperature extraction and averaging, as these require averaging of extremely large source files. Therefore, we recommend users to start with averaged temperature files, `SODA_data_temp_avgs_full.rds` & `OISST_data_temp_avgs_full.rds`.
