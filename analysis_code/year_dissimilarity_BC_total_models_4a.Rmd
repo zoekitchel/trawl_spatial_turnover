@@ -19,6 +19,7 @@ library(mgcv) #to make gam
 library(cowplot)
 library(lme4)
 library(stringr)
+library(MuMIn)
 ```
 
 Pull dissimilarity table
@@ -628,7 +629,7 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend
 ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend.jpg", height = 6, width = 11, unit = "in")
 
 
-points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly <- ggplot() +
+points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly <- ggplot() +
   #points by trend
   geom_point(data = distances_dissimilarities_allyears, cols = "year_adj",
              aes(x = year,
@@ -652,9 +653,9 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly <- ggplo
 ylab("β-diversity") +
   theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
 
-points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly
+points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly
 
-ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly.jpg", height = 6, width = 11, unit = "in")
+ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly.jpg", height = 6, width = 11, unit = "in")
 ```
 
 ##Color GAMs by trend (year vs dissimilarity)
@@ -775,7 +776,7 @@ ggsave(points_wavylines_bray_curtis_gradient_year_reduced_gam_colorbytrend, path
 ######################################################
 ##################BCTOTAL
 BC_total_GAM_LM_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
-    draw_plot(points_wavylines_bray_total_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 8)),
+    draw_plot(points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend + theme(axis.text = element_text(size = 8)),
                                          x = 1, y = 1, width = 20, height = 20) +
     draw_plot(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL +
         theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
@@ -925,7 +926,7 @@ distances_dissimilarities_allyears[,year:=as.integer(year)]
 
 #split into 2 and use facet
 #first 24
-points_wavylines_bray_total_year_reduced_gam_individual_facet_1_24 <- ggplot() +
+points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_1_24 <- ggplot() +
   geom_point(data = distances_dissimilarities_allyears[survey_unit  %in% all_survey_names[c(1:24)]],
              aes(x = as.integer(year),
                  y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
@@ -946,10 +947,10 @@ ylab("β-diversity") +
   facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
   theme(axis.text = element_text(size = 8), axis.title = element_text(size = 12), legend.position = "null")
 
-ggsave(points_wavylines_bray_total_year_reduced_gam_individual_facet_1_24, path =  here::here("figures"), filename = "points_wavylines_bray_total_year_reduced_gam_individual_facet_1_24.png", height = 12, width = 9.5)
+ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_1_24, path =  here::here("figures"), filename = "points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_1_24.png", height = 12, width = 9.5)
 
 #second portion
-points_wavylines_bray_total_year_reduced_gam_individual_facet_25_42 <- ggplot() +
+points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_25_42 <- ggplot() +
   geom_point(data = distances_dissimilarities_allyears[survey_unit  %in% all_survey_names[c(25:42)]],
              aes(x = as.integer(year),
                  y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
@@ -970,7 +971,7 @@ ylab("β-diversity") +
   facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
   theme(axis.text = element_text(size = 8), axis.title = element_text(size = 12), legend.position = "null")
 
-ggsave(points_wavylines_bray_total_year_reduced_gam_individual_facet_25_42, path =  here::here("figures"), filename = "points_wavylines_bray_total_year_reduced_gam_individual_facet_25_42.png", height = 12, width = 9.5)
+ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_25_42, path =  here::here("figures"), filename = "points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_25_42.png", height = 12, width = 9.5)
 
 
 ```
@@ -1134,14 +1135,13 @@ directional_change_legend_plot_colorbytrend <- BC_total_Dissimilarity_Coef_error
   guides(colour = guide_legend(override.aes = list(size=6)), size = "none")
 ```
 
-```
 
 Merge BC versus Year plot with GAMS and Region vs. coefficient plot for LMs
 
 ```{r}
 
 BC_total_GAM_LMER_merge_legend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
-    draw_plot(points_wavylines_bray_total_year_reduced_gam,
+    draw_plot(points_wavylines_bray_total_year_reduced_gam_colorbytrend,
                                          x = 1, y = 1, width = 20, height = 20) +
     draw_plot(BC_total_Dissimilarity_Coef_errorbar_reduced +
         theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
@@ -1161,7 +1161,7 @@ ggsave(BC_total_GAM_LMER_merge_legend, path = here::here("figures"), filename = 
 
 #ALT GREY SCALE
 BC_total_GAM_LMER_merge_legend_greyscale <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
-    draw_plot(points_wavylines_bray_total_year_reduced_gam_greyscale,
+    draw_plot(points_wavylines_bray_total_year_reduced_gam_colorbytrend_greyscale,
                                          x = 1, y = 1, width = 20, height = 20) +
     draw_plot(BC_total_Dissimilarity_Coef_errorbar_reduced_greyscale +
         theme(legend.key.size = unit(0.5, 'cm'), #change legend key size

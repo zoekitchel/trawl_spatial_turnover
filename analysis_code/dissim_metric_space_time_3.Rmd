@@ -60,7 +60,7 @@ summary(FishGlob_clean$tow_abundance_sum)
 tows_by_abundance <- unique(FishGlob_clean[,.(haul_id, tow_abundance_sum)])
 tows_noabundance <- unique(FishGlob_clean[tow_abundance_sum == 0,.(haul_id, tow_abundance_sum, survey_unit, year)])
 
-length(unique(FishGlob_clean[tow_abundance_sum == 0,haul_id])) #75 tows out of 216022 have no recorded observations (o for all), 0.03%
+length(unique(FishGlob_clean[tow_abundance_sum == 0,haul_id])) #73 tows out of 216295 have no recorded observations (o for all), 0.03%
 
 FishGlob_clean <- FishGlob_clean[!(haul_id %in% tows_noabundance$haul_id)]
 ```

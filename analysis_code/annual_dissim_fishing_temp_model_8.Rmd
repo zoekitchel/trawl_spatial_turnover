@@ -806,7 +806,7 @@ summary(bray_curtis_fishing_temp_model_observed_predicted_lm) #R^2 0.52
 
 #fishing constant (fishign constant; temperature only)
 bray_curtis_fishing_maintained_model_observed_predicted_lm <- lm(pred_dissim_fishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
-summary(bray_curtis_fishing_maintained_model_observed_predicted_lm) #R^2 = 0.08
+summary(bray_curtis_fishing_maintained_model_observed_predicted_lm) #R^2 = 0.06
 
 (bray_curtis_fishing_maintained_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
   geom_point(aes(y = obs_dissim, x = pred_dissim_fishconstantinsurvey)) +
@@ -827,7 +827,7 @@ summary(bray_curtis_temp_maintained_model_observed_predicted_lm) #0.52
 
 
 bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(pred_dissim_tempfishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
-summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #%12
+summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #%09
 
 (bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt) +
   geom_point(aes(y = obs_dissim, x = pred_dissim_tempfishconstantinsurvey)) +
@@ -838,7 +838,7 @@ summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurv
 
 bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(pred_dissim_tempfishconstantinsurvey ~ obs_dissim, data = bray_curtis_fishing_temp_model_observed_predicted_dt)
 
-summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #12%
+summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #09%
 
 #merge
 bray_curtis_fishing_temp_model_observed_predicted_merge <- plot_grid(bray_curtis_fishing_temp_model_observed_predicted,

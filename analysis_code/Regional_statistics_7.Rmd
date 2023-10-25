@@ -459,12 +459,12 @@ A:  The alternative is that this proportion is different in at
 
                 #N, S
 homogenizers <- c(7,0)
-differentiators <- c(8,6)
+differentiators <- c(9,6)
 total_surveys <- c(33,9)
 
 
 prop.test(homogenizers,total_surveys) #p value >> 0.05, so groups are not differennt
-prop.test(differentiators,total_surveys) #p value < 0.05, so groups are significantly different
+prop.test(differentiators,total_surveys) #p value >> 0.07, so groups are significantly different
 
 ```
 

@@ -26,7 +26,7 @@ FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 Loop through all regions (takes  a few hours to run)
 
 ```{r list of all survey season combinations}
-all_survey_unit <- unique(FishGlob_clean[, survey_unit])
+all_survey_units <- unique(FishGlob_clean[, survey_unit])
 ```
 
 Delete any species that are not present in at least 1/3 of years in time series.
@@ -35,17 +35,19 @@ Delete any species that are not present in at least 1/3 of years in time series.
 #unique year, survey, species combinations to identify total # of years for each survey, and total # of years a given species appears
 unique_year_survey_spp <- unique(FishGlob_clean[,.(accepted_name, year, survey_unit)])
 
-unique_year_survey_spp[,years_sampled_survey := uniqueN(year),survey_unit][,years_spp_occurs := .N,.(accepted_name, survey_unit)][,perc_occurence := round(years_spp_occurs/years_sampled_survey,2)][,keep_drop := ifelse(perc_occurence>=0.3333,T,F)]
+unique_year_survey_spp[,years_sampled_survey := uniqueN(year),survey_unit][,years_spp_occurs := .N,.(accepted_name, survey_unit)][,perc_occurence := round(years_spp_occurs/years_sampled_survey,2)][,keep_drop := ifelse(perc_occurence>=0.3333,T,F)] #keep_drop = TRUE if above 0.33 presence, FALSE if below 0.33 presence
 
 keep_drop_key <- unique(unique_year_survey_spp[,.(accepted_name, survey_unit,keep_drop)])
 
 FishGlob_clean_onethird <- keep_drop_key[FishGlob_clean, on = .(survey_unit, accepted_name)]
 
-FishGlob_clean_onethird_excluded <- FishGlob_clean_onethird[keep_drop == T,]
+FishGlob_clean_twothirdsthird_included <- FishGlob_clean_onethird[keep_drop == T,]
+
+FishGlob_clean_onethird_excluded <- FishGlob_clean_onethird[keep_drop == F,]
 
 #drops 
-nrow(FishGlob_clean)-nrow(FishGlob_clean_onethird_excluded)
-#14155/2731535 rows (0.4% of observations)
+nrow(FishGlob_clean_onethird_excluded)
+#14511/2731535 rows (0.5% of observations)
 ```
 
 Table listing species included in each region and then those excluded for 15% least common species analyses.
@@ -59,28 +61,25 @@ for (i in 1:length(all_survey_units)) {
 
 names(survey_unit_spp_list) <- paste0(all_survey_units, " full species list")
 
-#spp excluded for 15%
-survey_unit_spp_list_excluded_15perc <- list()
+#spp included for 85%
+survey_unit_spp_list_included_85perc <- list()
 for (i in 1:length(all_survey_units)) {
-  full_spp <- unique(FishGlob_clean[survey_unit == all_survey_units[i],]$accepted_name)
-  spp_15perc <- unique(FishGlob_clean_15perc_excluded[survey_unit == all_survey_units[i],]$accepted_name)
-  survey_unit_spp_list_excluded_15perc[i] <- list(sort(setdiff(full_spp, spp_15perc)))
+  survey_unit_spp_list_included_85perc[i] <- list(sort(unique(FishGlob_clean_15perc_excluded[survey_unit == all_survey_units[i],]$accepted_name)))
 }
 
-names(survey_unit_spp_list_excluded_15perc) <- paste0(all_survey_units,", exclude lowest 15% abundance")
+names(survey_unit_spp_list_included_85perc) <- paste0(all_survey_units,", include 85% of species with highest biomass")
 
-#spp excluded for 1/3 occurence
+#spp included for 2/3 occurence
 
-survey_unit_spp_list_excluded_onethird <- list()
+survey_unit_spp_list_included_twothirds <- list()
 for (i in 1:length(all_survey_units)) {
   full_spp <- unique(FishGlob_clean[survey_unit == all_survey_units[i],]$accepted_name)
-  spp_onethirdexclude <- unique(FishGlob_clean_onethird_excluded[survey_unit == all_survey_units[i],]$accepted_name)
-  survey_unit_spp_list_excluded_onethird[i] <- list(sort(setdiff(full_spp, spp_onethirdexclude)))
+  survey_unit_spp_list_included_twothirds[i] <- list(sort(unique(FishGlob_clean_twothirdsthird_included[survey_unit == all_survey_units[i],]$accepted_name)))
 }
 
-names(survey_unit_spp_list_excluded_onethird) <- paste0(all_survey_units,", exclude if present in less than 1/3 of years")
+names(survey_unit_spp_list_included_twothirds) <- paste0(all_survey_units,", include because present for more than 2/3 of years")
 
-survey_unit_spp_list_all <- c(survey_unit_spp_list,survey_unit_spp_list_excluded_15perc, survey_unit_spp_list_excluded_onethird)
+survey_unit_spp_list_all <- c(survey_unit_spp_list,survey_unit_spp_list_included_85perc , survey_unit_spp_list_included_twothirds)
 
 survey_unit_spp_list_all <- survey_unit_spp_list_all[order(names(survey_unit_spp_list_all))]
 
@@ -90,6 +89,7 @@ names(survey_unit_spp_list_all)
 sink(here::here("output","spp_list.txt"))
 print(survey_unit_spp_list_all)
 sink()
+
 ```
 
 Delete any tows without any observations
