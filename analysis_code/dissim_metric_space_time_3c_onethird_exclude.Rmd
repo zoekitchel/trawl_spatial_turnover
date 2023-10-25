@@ -94,15 +94,15 @@ sink()
 
 Delete any tows without any observations
 ```{r}
-FishGlob_clean_onethird_excluded[,tow_abundance_sum := ifelse(survey == "MEDITS", sum(num_cpue),sum(wgt_cpue)),.(haul_id)]
-summary(FishGlob_clean_onethird_excluded$tow_abundance_sum)
+FishGlob_clean_twothirdsthird_included[,tow_abundance_sum := ifelse(survey == "MEDITS", sum(num_cpue),sum(wgt_cpue)),.(haul_id)]
+summary(FishGlob_clean_twothirdsthird_included$tow_abundance_sum)
 
-tows_by_abundance <- unique(FishGlob_clean_onethird_excluded[,.(haul_id, tow_abundance_sum)])
-tows_noabundance <- unique(FishGlob_clean_onethird_excluded[tow_abundance_sum == 0,.(haul_id, tow_abundance_sum, survey_unit, year)])
+tows_by_abundance <- unique(FishGlob_clean_twothirdsthird_included[,.(haul_id, tow_abundance_sum)])
+tows_noabundance <- unique(FishGlob_clean_twothirdsthird_included[tow_abundance_sum == 0,.(haul_id, tow_abundance_sum, survey_unit, year)])
 
-length(unique(FishGlob_clean_onethird_excluded[tow_abundance_sum == 0,haul_id])) 
+length(unique(FishGlob_clean_twothirdsthird_included[tow_abundance_sum == 0,haul_id])) 
 
-FishGlob_clean_onethird_excluded <- FishGlob_clean_onethird_excluded[!(haul_id %in% tows_noabundance$haul_id)]
+FishGlob_clean_twothirdsthird_included <- FishGlob_clean_twothirdsthird_included[!(haul_id %in% tows_noabundance$haul_id)]
 ```
 
 ##Calculate Beta Dissimilarity between all sampling sites within every survey unit
@@ -123,30 +123,30 @@ distances_dissimilarities_allyears_onethirdyears_excluded <- data.table("bray_cu
 
 for (i in 1:length(all_survey_units)) {
   
-  FishGlob_clean_onethird_excluded_subset <- FishGlob_clean_onethird_excluded[survey_unit == all_survey_units[i], ]
+  FishGlob_clean_twothirdsthird_included_subset <- FishGlob_clean_twothirdsthird_included[survey_unit == all_survey_units[i], ]
   
   #map
   ####unique lat lon
   #add column with adjusted longitude for few surveys that cross dateline (NZ-CHAT and AI)
-  FishGlob_clean_onethird_excluded_subset[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
+  FishGlob_clean_twothirdsthird_included_subset[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
 
-    lat_lon <- unique(FishGlob_clean_onethird_excluded_subset[, .(latitude,  longitude_adj)])
+    lat_lon <- unique(FishGlob_clean_twothirdsthird_included_subset[, .(latitude,  longitude_adj)])
 
    #list years
-  FishGlob_clean_onethird_excluded_subset[, year:= as.numeric(year)] #make numeric
-  setorder(FishGlob_clean_onethird_excluded_subset,  year)
-  years <- unique(FishGlob_clean_onethird_excluded_subset[, year])
+  FishGlob_clean_twothirdsthird_included_subset[, year:= as.numeric(year)] #make numeric
+  setorder(FishGlob_clean_twothirdsthird_included_subset,  year)
+  years <- unique(FishGlob_clean_twothirdsthird_included_subset[, year])
   
   #haul id keys
-  haul_ids <- unique(FishGlob_clean_onethird_excluded_subset[, haul_id])
+  haul_ids <- unique(FishGlob_clean_twothirdsthird_included_subset[, haul_id])
   haul_ids_key <- data.table(haul_id = haul_ids,  key_ID = seq(1, length(haul_ids),  by = 1))
   
   
   #convert haul_ids to numeric key_ids
-  FishGlob_clean_onethird_excluded_subset <- FishGlob_clean_onethird_excluded_subset[haul_ids_key,  on = "haul_id"]
+  FishGlob_clean_twothirdsthird_included_subset <- FishGlob_clean_twothirdsthird_included_subset[haul_ids_key,  on = "haul_id"]
 
           for (j in 1:length(years)) {
-            reduced_year <- FishGlob_clean_onethird_excluded_subset[year == years[j], ]
+            reduced_year <- FishGlob_clean_twothirdsthird_included_subset[year == years[j], ]
             
             #distances among cells
             setorder(reduced_year,  key_ID)
@@ -239,7 +239,7 @@ for (i in 1:length(all_survey_units)) {
                   dissimilarities_full.r <- unique(dissimilarities_full[,.(bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
 
               #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean_onethird_excluded_subset[1, survey]]
+              dissimilarities_full.r[, "survey" := FishGlob_clean_twothirdsthird_included_subset[1, survey]]
               dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
               #add year for these values
               dissimilarities_full.r[,  "year" := years[j]]
@@ -332,7 +332,7 @@ for (i in 1:length(all_survey_units)) {
                   dissimilarities_full.r <- unique(dissimilarities_full[,.(bray_curtis_dissimilarity_balanced_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_total_mean, jaccard_dissimilarity_turnover_mean, jaccard_dissimilarity_nestedness_mean, jaccard_dissimilarity_total_mean)])
 
               #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean_onethird_excluded_subset[1, survey]]
+              dissimilarities_full.r[, "survey" := FishGlob_clean_twothirdsthird_included_subset[1, survey]]
               dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
               #add year for these values
               dissimilarities_full.r[,  "year" := years[j]]
