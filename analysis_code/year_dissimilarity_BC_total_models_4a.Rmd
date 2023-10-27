@@ -359,12 +359,12 @@ ggplot(distances_dissimilarities_allyears) +
 distances_dissimilarities_allyears.r <- distances_dissimilarities_allyears[,.(year, bray_curtis_dissimilarity_total_mean, bray_curtis_dissimilarity_gradient_mean, bray_curtis_dissimilarity_balanced_mean, jaccard_dissimilarity_total_mean)]
 
 #wide to long
-dissim_long <- melt(distances_dissimilarities_allyears.r, id.vars = c("year"), variable.name = "Dissimilarity metric")
+dissim_long <- melt(distances_dissimilarities_allyears.r, id.vars = c("year"), variable.name = "β-diversity metric")
 
-dissim_long[,`Dissimilarity metric` := factor(`Dissimilarity metric`, levels = c( "bray_curtis_dissimilarity_total_mean","bray_curtis_dissimilarity_balanced_mean","bray_curtis_dissimilarity_gradient_mean", "jaccard_dissimilarity_total_mean"))]
+dissim_long[,`β-diversity metric` := factor(`β-diversity metric`, levels = c( "bray_curtis_dissimilarity_total_mean","bray_curtis_dissimilarity_balanced_mean","bray_curtis_dissimilarity_gradient_mean", "jaccard_dissimilarity_total_mean"))]
 
 BC_dissimilarity_components <- ggplot() +
-  geom_point(data = dissim_long[`Dissimilarity metric` != "jaccard_dissimilarity_total_mean",], aes(x = year, y = value, color = `Dissimilarity metric`), alpha = 0.2, size = 1) +
+  geom_point(data = dissim_long[`β-diversity metric` != "jaccard_dissimilarity_total_mean",], aes(x = year, y = value, color = `β-diversity metric`), alpha = 0.2, size = 1) +
   geom_ribbon(data = lmer_bray_total_predictions, aes(x = year, ymin = bray_curtis_lmer_preds_lowerCI, ymax = bray_curtis_lmer_preds_upperCI), fill = "black", alpha = 0.3) +
   geom_line(data = lmer_bray_total_predictions, aes(x = year, y = bray_curtis_lmer_preds), color = "black") +
   #balanced
@@ -384,7 +384,7 @@ ggsave(BC_dissimilarity_components, path = here::here("figures"), filename=("BC_
 
 #Jaccard
 Jaccard_dissimilarity <- ggplot() +
-  geom_point(data = dissim_long[`Dissimilarity metric` == "jaccard_dissimilarity_total_mean"], aes(x = year, y = value), alpha = 0.2, size = 1) +
+  geom_point(data = dissim_long[`β-diversity metric` == "jaccard_dissimilarity_total_mean"], aes(x = year, y = value), alpha = 0.2, size = 1) +
   geom_ribbon(data = lmer_jaccard_total_predictions, aes(x = year, ymin = jaccard_lmer_preds_lowerCI, ymax = jaccard_lmer_preds_upperCI), fill = "black", alpha = 0.3) +
   geom_line(data = lmer_jaccard_total_predictions, aes(x = year, y = jaccard_lmer_preds), color = "black") +
   labs(x = "Year", y = "Total Jaccard dissimilarity") +

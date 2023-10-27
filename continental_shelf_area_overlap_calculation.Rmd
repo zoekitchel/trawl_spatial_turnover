@@ -1,0 +1,71 @@
+---
+title: "Quantify shelf habitat contained in surveys"
+output: html_notebook
+author: Zoë Kitchel
+date: October 27, 2020
+---
+
+```{r setup}
+library(sf)
+library(ggplot2)
+library(data.table)
+library(purrr)
+library(concaveman)
+```
+
+### Read in Continental Shelf Data (accessed 2021)
+Source:https://www.bluehabitats.org/?page_id=58
+```{r shelf}
+shelf <- st_read(file.path("data","Shelf_BlueHabitats","Shelf.shp")) %>% st_make_valid()
+#readOGR: rgdal: reads OGR vector maps into spatial objects
+
+#what area covered?
+shelf_area <- sum(st_area(shelf))/1000^2 #area in km^2, 32,247,955
+
+```
+
+Pull in data
+```{r pull in data}
+#raw data
+FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
+
+
+```
+
+Unique lat lon values
+```{r unique lat lon}
+unique_lat_lon_survey_units <- unique(FishGlob_clean[,.(survey_unit, survey, latitude, longitude)])
+#shift longitude for mapping
+unique_lat_lon_survey_units[,longitude_s := ifelse(longitude >160, longitude - 360, longitude)]
+
+rm(FishGlob_clean)
+
+```
+
+Convert to sf
+```{r}
+all_survey_units_sf <- unique_lat_lon_survey_units %>%
+          st_as_sf(coords = c("longitude_s","latitude"), crs=crs(shelf) )
+```
+
+Concaveman
+
+```{r concaveman to make polygons}
+#maybe consider changing #concavity and length threshold
+all_survey_units_polygons <- purrr::map(unique(all_survey_units_sf$survey_unit),
+                       ~ concaveman(all_survey_units_sf[all_survey_units_sf$survey_unit %in% .,], concavity = 1, length_threshold = 2)
+                       ) %>%
+  map2(unique(all_survey_units_sf$survey_unit), ~ mutate(.x, survey_unit = .y)) %>%
+  reduce(rbind)
+
+#project
+
+
+#merge polygons
+all_survey_units_polygons.single <- st_union(all_survey_units_polygons)
+
+#area
+survey_area <- st_area(all_survey_units_polygons.single)/1000^2
+
+survey_area/shelf_area
+```
