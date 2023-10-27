@@ -41,11 +41,15 @@ distances_dissimilarities_allyears[,last_year := max(year),.(survey_unit)]
 
 distances_dissimilarities_allyears[,years_sampled := last_year-first_year+1]
 
-#list of surveys
-survey_unit.list <- levels(factor(distances_dissimilarities_allyears$survey_unit))
-
 
 ```
+ 
+ List of surveys
+```{r}
+#list of surveys
+survey_unit.list <- levels(factor(distances_dissimilarities_allyears$survey_unit))
+```
+
  
  Pull in palette and name helper
 ```{r}
@@ -403,6 +407,7 @@ ggsave(all_dissimilarities_over_time, filename = "all_dissimilarities_over_time.
 
   
 ```
+
 
 ##Lollipop SE plot by linear trend experienced
 
@@ -857,13 +862,20 @@ ggsave(jaccard_total_GAM_LM_merge_legend_colorbytrend, path = here::here("figure
 ```
 
 
-Is each survey better described by LM or by GAM?
+###Is each survey better described by LM or by GAM?
+####Also, compile predicted values from GAM
 ```{r compare lms to gams for each region}
+
+#list of surveys
+survey_unit.list <- levels(factor(distances_dissimilarities_allyears$survey_unit))
 
 # Function to compare GAM and linear model fits
 compare_models <- function(subset_data) {
   # Fit GAM model with "fs" basis and single smooth term
   gam_model <- gam(bray_curtis_dissimilarity_total_mean ~ s(year, bs = "fs", m = 1), data = subset_data)
+  
+  pred_values <- predict(gam_model)
+  pred_table <- data.table(year = subset_data$year, predicted_dissimilarity = )
   
   # Fit linear model
   lm_model <- lm(bray_curtis_dissimilarity_total_mean ~ year, data = subset_data)
@@ -883,6 +895,15 @@ compare_models <- function(subset_data) {
 }
 
 GAM_LM_model_comparisons <- data.table()
+predicted_values <- data.table(survey_unit = survey_unit.list, SD_pred_dissim = )
+
+GAM_outputs <- function(subset.data) {
+# Fit GAM model with "fs" basis and single smooth term
+  gam_model <- gam(bray_curtis_dissimilarity_total_mean ~ s(year, bs = "fs", m = 1), data = subset_data)
+  
+  pred_values <- predict(gam_model)
+  pred_table <- data.table(year = subset_data$year, predicted_dissimilarity = pred_values)
+}
 
 # Compare models for each survey name and bind the results
 for (i in 1:length(survey_unit.list)) {
