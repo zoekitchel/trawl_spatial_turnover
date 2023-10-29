@@ -874,9 +874,6 @@ compare_models <- function(subset_data) {
   # Fit GAM model with "fs" basis and single smooth term
   gam_model <- gam(bray_curtis_dissimilarity_total_mean ~ s(year, bs = "fs", m = 1), data = subset_data)
   
-  pred_values <- predict(gam_model)
-  pred_table <- data.table(year = subset_data$year, predicted_dissimilarity = )
-  
   # Fit linear model
   lm_model <- lm(bray_curtis_dissimilarity_total_mean ~ year, data = subset_data)
   
@@ -889,23 +886,16 @@ compare_models <- function(subset_data) {
                               ifelse(((abs(aicc_gam-aicc_lm) > 2 & (aicc_gam > aicc_lm))), "Linear",NA)))
   
    return(data.table(Survey = unique(subset_data$Survey_Name_Season)[1],
+                     survey_unit = unique(subset_data$survey_unit),
                     comparison = comparison,
                     aicc_gam = aicc_gam,
                     aicc_lm = aicc_lm))
 }
 
+
+############## Compare models for each survey name and bind the results
 GAM_LM_model_comparisons <- data.table()
-predicted_values <- data.table(survey_unit = survey_unit.list, SD_pred_dissim = )
 
-GAM_outputs <- function(subset.data) {
-# Fit GAM model with "fs" basis and single smooth term
-  gam_model <- gam(bray_curtis_dissimilarity_total_mean ~ s(year, bs = "fs", m = 1), data = subset_data)
-  
-  pred_values <- predict(gam_model)
-  pred_table <- data.table(year = subset_data$year, predicted_dissimilarity = pred_values)
-}
-
-# Compare models for each survey name and bind the results
 for (i in 1:length(survey_unit.list)) {
   GAM_LM_model_comparisons_single <- compare_models(distances_dissimilarities_allyears[survey_unit == survey_unit.list[i]])
   GAM_LM_model_comparisons <- rbind(GAM_LM_model_comparisons, GAM_LM_model_comparisons_single)
@@ -924,9 +914,42 @@ GAM_LM_model_comparisons[, (numeric_cols) := lapply(.SD, function(x) if (is.nume
 
 View(GAM_LM_model_comparisons)
 
-colnames(GAM_LM_model_comparisons) <- c("Survey","Model comparison", "GAM AICc","LM AICc")
+GAM_LM_model_comparisons.f <- GAM_LM_model_comparisons[,c(1,3:5)]
 
-fwrite(GAM_LM_model_comparisons, here::here("output","GAM_LM_model_comparisons.csv"))
+colnames(GAM_LM_model_comparisons.f) <- c("Survey","Model comparison", "GAM AICc","LM AICc")
+
+fwrite(GAM_LM_model_comparisons.f, here::here("output","GAM_LM_model_comparisons.csv"))
+
+
+##################generate predicted GAM values
+GAM_outputs <- function(subset.data) {
+# Fit GAM model with "fs" basis and single smooth term
+  gam_model <- gam(bray_curtis_dissimilarity_total_mean ~ s(year, bs = "fs", m = 1), data = subset.data)
+  
+  pred_values <- predict(gam_model, se.fit = T)
+  pred_table <- data.table(year = subset.data$year, predicted_dissimilarity = as.numeric(pred_values$fit), predicted_lwr = as.numeric(pred_values$fit)-as.numeric(pred_values$se.fit), predicted_upr = as.numeric(pred_values$fit)+as.numeric(pred_values$se.fit))
+  
+  st_dev_pred_dissim <- sd(pred_table$predicted_dissimilarity)
+  return(round(st_dev_pred_dissim,4))
+}
+
+predicted_values <- data.table(survey_unit = survey_unit.list, SD_pred_dissim = as.numeric())
+
+for (i in 1:length(survey_unit.list)) {
+  st_dev_pred_dissim <- GAM_outputs(distances_dissimilarities_allyears[survey_unit == survey_unit.list[i]])
+  predicted_values[i,"SD_pred_dissim"] <- st_dev_pred_dissim
+}
+
+#merge witih GAM vs LM
+
+GAM_lm_SD <- predicted_values[GAM_LM_model_comparisons, on = "survey_unit"]
+
+GAM_lm_SD
+
+View(GAM_lm_SD)
+
+fwrite(GAM_lm_SD, here::here("output","GAM_lm_SD.csv"))
+
 ```
 
 
