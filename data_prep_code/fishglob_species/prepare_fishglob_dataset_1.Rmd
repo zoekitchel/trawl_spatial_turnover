@@ -1,6 +1,5 @@
 ---
 title: "Prepare FishGlob Dataset"
-output: html_notebook
 author: Zoë J. Kitchel
 date: October 11, 2023
 ---

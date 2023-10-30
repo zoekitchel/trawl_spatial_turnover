@@ -1,6 +1,5 @@
 ---
 title: "Apply Temporal and Spatial Standardization (70/70)"
-output: html_notebook
 author: Zoë J. Kitchel
 date: October 11, 2023
 ---

@@ -42,3 +42,5 @@ data/cleaned/FishGlob.wellsampledyearscells_complete.final.rds
 GRL-DE_Sep2023/
 FishGlob.wellsampledyearscells_complete.final.rds
 data/Shelf_BlueHabitats
+figures/view_data
+Greenland_examination.R
