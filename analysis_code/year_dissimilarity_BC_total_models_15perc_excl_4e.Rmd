@@ -124,7 +124,7 @@ bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients
   bray_curtis_total_coefs_sum <- data.table(differentiating = sum(  bray_curtis_total_coefs_15perc_exclude.r$differentiating), homogenizing = sum(  bray_curtis_total_coefs_15perc_exclude.r$homogenizing))
   
   #hex by trend
-  bray_curtis_total_coefs_15perc_exclude.r[,trend_color := ifelse(homogenizing == 1, "#e7ac5b", ifelse(differentiating == 1,"#91c874","#cbbfde"))]
+  bray_curtis_total_coefs_15perc_exclude.r[,trend_color := ifelse(homogenizing == 1, "#e7ac5b", ifelse(differentiating == 1,"#91c874","#75608a"))]
   
   #link to color link
   bray_curtis_total_coefs_15perc_exclude.r <- color_link[bray_curtis_total_coefs_15perc_exclude.r, on = "survey_unit"]
@@ -169,7 +169,7 @@ bray_curtis_total_coefs_15perc_exclude.r <- bray_curtis_total_coefs_15perc_exclu
 (BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_15perc_exclude <- ggplot(data = bray_curtis_total_coefs_15perc_exclude.r, aes(x = reorder(Survey_Name_Season, survey_unit_coefficient) , y = survey_unit_coefficient), label = Survey_Name_Season) +
     geom_errorbar(aes(ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
   geom_point(aes(size = years_sampled, color = Directional_Change_sig), stat = 'identity') +
-  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"), name = "Dissimilarity trend", guide="none") +
+  scale_color_manual(values = c("#73BA4D","#E0962C","#75608a"), name = "Dissimilarity trend", guide="none") +
   scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
   geom_hline(yintercept = 0) +
   #scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +

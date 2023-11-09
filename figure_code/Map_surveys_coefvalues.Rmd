@@ -25,6 +25,8 @@ library(concaveman)
 library(dplyr)
 library(purrr)
 library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 
 ```
@@ -70,6 +72,55 @@ t <- map_data("world2",wrap=c(-200,160), ylim=c(-60,90))
 
 ggplot(t) + geom_polygon(aes(x = long, y = lat, group = group)) + coord_map()
 
+
+```
+
+NEW basemap
+```{r}
+
+#alt
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+robin_proj <-  "+proj=robin +lon_0=-45 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+
+#See here for fixing lines (https://stackoverflow.com/questions/56146735/visual-bug-when-changing-robinson-projections-central-meridian-with-ggplot2)
+# define a long & slim polygon that overlaps the meridian line & set its CRS to match
+# that of world
+polygon <- st_polygon(x = list(rbind(c(134, 90),
+                                     c(135, 90),
+                                     c(135, -90),
+                                     c(134, -90),
+                                     c(134, 90)))) %>%
+  st_sfc() %>%
+  st_set_crs(4326)
+
+# modify world dataset to remove overlapping portions with world's polygons
+world2 <- world %>% st_difference(polygon)
+
+# perform transformation on modified version of world dataset
+world_robinson <- st_transform(world2, 
+                               crs = '+proj=robin +lon_0=315 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
+
+# plot
+ggplot() +
+  geom_sf(data = world_robinson)
+
+bbox = st_bbox(world_robinson)
+bbox[c(1,3)] = c(-1e-5,1e-5)
+polygon2 <- st_as_sfc(bbox)
+
+crosses = world_robinson %>%
+  st_intersects(polygon2) %>%
+  sapply(length) %>%
+  as.logical %>%
+  which
+
+library(magrittr)
+world_robinson[crosses,] %<>%
+  st_buffer(0) 
+
+ggplot(world_robinson) + geom_sf() 
+
 ```
 
 Points and basemap
@@ -96,7 +147,7 @@ all_survey_units_sf <- unique_lat_lon_survey_units %>%
 
 
 ```{r concaveman to make polygons}
-#maybe consider changing #concavity and length threshold
+
 all_survey_units_polygons <- purrr::map(unique(all_survey_units_sf$survey_unit),
                        ~ concaveman(all_survey_units_sf[all_survey_units_sf$survey_unit %in% .,], concavity = 1, length_threshold = 2)
                        ) %>%
@@ -109,9 +160,10 @@ world <- rnaturalearth::ne_countries(type = "countries", scale="large", returncl
 #delete areas where this polygon overlaps with land
 all_survey_units_polygons.clean <- rmapshaper::ms_erase(all_survey_units_polygons,world[1])
 
+sf::sf_use_s2(FALSE) #polygons that cover more than half of the globe are inverted
+
 #find polygon centroid
 all_survey_units_centroid_points <- sf::st_centroid(all_survey_units_polygons.clean)
-
 
 #for all NZ points, convert longitudes
 all_survey_units_centroid_points$geometry[all_survey_units_centroid_points$survey_unit %in% c("NZ-WCSI")]=st_point(c(171.4543-360, -41.7294))
@@ -237,34 +289,50 @@ centroids_focal$geometry[centroids_focal$survey_unit == "NZ-WCSI"]=st_point(c(-1
 centroids_focal$geometry[centroids_focal$survey_unit == "SEUS-summer"]=st_point(c(-73, 33))
 centroids_focal$geometry[centroids_focal$survey_unit == "SCS-SUMMER"]=st_point(c(-60, 42))
 
+```
+
+Change all projections to robin
+```{r proj to robin}
+all_survey_units_polygons_stats.robin <- st_transform(all_survey_units_polygons_stats, crs = robin_proj)
+scotland.robin <- st_transform(scotland, crs = robin_proj)
+southeast_us.robin <- st_transform(southeast_us, crs = robin_proj)
+all_survey_units_centroid_points_stats.robin <- st_transform(all_survey_units_centroid_points_stats, crs = robin_proj)
+centroids_focal.robin <- st_transform(centroids_focal, crs = robin_proj)
+```
+
+
+
+
+
+```{r figure 1 map}
 
 map_bray_coef_trend <- ggplot() +
     #world map
-  geom_polygon(data = t, aes(x = long, y = lat, group = group), fill = "lightgrey", color="white", lwd=0.1) +
+  geom_sf(data = world_robinson, fill = "lightgrey", color="white", lwd=0.1) +
   #polygons
-  geom_sf(data = all_survey_units_polygons_stats, aes(fill = `Significant Trends`, color = `Significant Trends`), alpha = 0.7, lwd = 0.1) +
+  geom_sf(data = all_survey_units_polygons_stats.robin, aes(fill = `Significant Trends`, color = `Significant Trends`), alpha = 0.7, lwd = 0.1) +
   #add scotland alone
-  geom_sf(data = scotland, fill = "#cbbfde", color = "#73BA4D") +
+  geom_sf(data = scotland.robin, fill = "#75608a", color = "#73BA4D") +
   #add southeast US alone
-  geom_sf(data = southeast_us, fill = "#cbbfde", color = "#E0962C", lwd = 0.001) +
+  geom_sf(data = southeast_us.robin, fill = "#75608a", color = "#E0962C", lwd = 0.001) +
   #polygon outlines
 #  geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
   #colored points with trend assocaited with each survey
-  geom_sf(all_survey_units_centroid_points_stats, mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
+  geom_sf(all_survey_units_centroid_points_stats.robin, mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
  # geom_sf_text(data = all_survey_units_centroid_points_stats, aes(label = survey_unit), size = 0.5) +
-  scale_fill_manual(values = c("#73BA4D","#E0962C","#cbbfde"),
+  scale_fill_manual(values = c("#73BA4D","#E0962C","#75608a"),
                     labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
-  scale_color_manual(values = c("#73BA4D","#E0962C","#cbbfde"),
+  scale_color_manual(values = c("#73BA4D","#E0962C","#75608a"),
                      labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
     # Labels
   scale_x_continuous(breaks=seq(-180, 50, 30)) +
   scale_y_continuous(breaks=seq(-90, 90, 30)) +
   labs(x = "Longitude",y = "Latitude") +
   #Annotate b,c,d from lower panel (b = W coast south island NZ, c = Southeast US Summer, d = Scotian Shelf Canada)
-  geom_sf_text(centroids_focal, mapping = aes(label = labels, fontface = "bold"), size = 3) +
+  geom_sf_text(centroids_focal.robin, mapping = aes(label = labels, fontface = "bold"), size = 3) +
   # Crop
-  coord_sf(y=c(-60,85), x=c(-200,40), expand = F) +
-  lims(x = c(-200,60)) +
+  coord_sf(y=c(-6625125,8340316), x=c(-14994440,8000000), expand = F) +
+ # lims(x = c(-200,60)) +
   guides(fill = guide_legend(title = "Dissimilarity trend"),
          color = guide_legend(title = "Dissimilarity trend")) +
   theme_bw() +

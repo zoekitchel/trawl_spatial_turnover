@@ -165,7 +165,7 @@ scs_summer_2019_mds.dt[,survey_unit := "SCS-SUMMER"][,year := 2019]
 scs_summer_full_mds.dt <- rbind(scs_summer_1988_mds.dt, scs_summer_2019_mds.dt)
 
 scs_summer_mds_contrast <- ggplot(data = scs_summer_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#cbbfde") +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#75608a") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -191,7 +191,7 @@ mds_contrast_noannotate <- ggplot(data = full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2, fill = `Survey Unit`, color = factor(`Time period`)), size = 2, shape = 21) +
   stat_ellipse(aes(x = NMDS1, y = NMDS2,linetype=`Time period`)) +
   facet_wrap(vars(`Survey Unit`), nrow = 1) +
-  scale_fill_manual(values = c("#91c874","#e7ac5b", "#cbbfde")) +
+  scale_fill_manual(values = c("#91c874","#e7ac5b", "#75608a")) +
   scale_color_manual(values=c("white","black")) +
   scale_linetype_manual(values = c("dotted","solid")) +
   theme_classic() +
