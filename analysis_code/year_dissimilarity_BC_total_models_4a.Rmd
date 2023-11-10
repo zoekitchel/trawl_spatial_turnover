@@ -43,8 +43,8 @@ distances_dissimilarities_allyears[,years_sampled := last_year-first_year+1]
 
 
 ```
- 
- List of surveys
+
+List of surveys
 ```{r}
 #list of surveys
 survey_unit.list <- levels(factor(distances_dissimilarities_allyears$survey_unit))
@@ -616,6 +616,8 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend <- ggplot() +
              aes(x = year,
                  y = bray_glm_mod_fit,
                  color = survey_unit), alpha = 0.6) +
+  #add year breaks
+  scale_x_continuous(breaks = c(1968,1980,1990,2000,2010,2021), limits = c(1968,2024))+
   #confidence intervals for individual GAM
   geom_ribbon(data = year_survey_unit_expand.dt, cols = "year_adj", 
               aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill =  survey_unit), alpha=0.1) + #add standard error
@@ -623,18 +625,17 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend <- ggplot() +
     scale_color_manual(values = trend_colors.dt$trend_color, name = "Survey Unit") +
   scale_fill_manual(values =trend_colors.dt$trend_color, guide = "none") +
   theme_classic() +
-  lims(x = c(min(distances_dissimilarities_allyears[,year]),max(distances_dissimilarities_allyears[,year])),y = c(0.49,0.95)
-       ) +
   xlab("Year") +
 ylab("β-diversity") +
   theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
 
 points_wavylines_bray_total_year_reduced_gam_colorbytrend
 
 ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend.jpg", height = 6, width = 11, unit = "in")
 
 
-points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly <- ggplot() +
+points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly <- ggplot() +
   #points by trend
   geom_point(data = distances_dissimilarities_allyears, cols = "year_adj",
              aes(x = year,
@@ -645,6 +646,8 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squiggles
              aes(x = year,
                  y = bray_glm_mod_fit,
                  color = survey_unit), alpha = 0.6) +
+  #add year breaks
+  scale_x_continuous(breaks = c(1968,1980,1990,2000,2010,2021), limits = c(1968,2024))+
   #confidence intervals for individual GAM
   geom_ribbon(data = year_survey_unit_expand.dt, cols = "year_adj", 
               aes(x = year, ymin=bray_glm_mod_fit-bray_glm_mod_fit_SE, ymax=bray_glm_mod_fit+bray_glm_mod_fit_SE, fill =  survey_unit), alpha=0.1) + #add standard error
@@ -652,15 +655,13 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squiggles
     scale_color_manual(values = trend_colors.dt$trend_color, name = "Survey Unit") +
   scale_fill_manual(values =trend_colors.dt$trend_color, guide = "none") +
   theme_classic() +
-  lims(x = c(min(distances_dissimilarities_allyears[,year]),max(distances_dissimilarities_allyears[,year])),y = c(0.49,0.95)
-       ) +
   xlab("Year") +
 ylab("β-diversity") +
   theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
 
-points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly
+points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly
 
-ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend_squigglesonly.jpg", height = 6, width = 11, unit = "in")
+ggsave(points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly, path = here::here("figures"), filename ="points_wavylines_bray_total_year_reduced_gam_colorbytrend_squigglesonly.jpg", height = 6, width = 11, unit = "in")
 ```
 
 ##Color GAMs by trend (year vs dissimilarity)
@@ -781,7 +782,7 @@ ggsave(points_wavylines_bray_curtis_gradient_year_reduced_gam_colorbytrend, path
 ######################################################
 ##################BCTOTAL
 BC_total_GAM_LM_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
-    draw_plot(points_wavylines_bray_total_year_reduced_gam_colorbytrend_colorbytrend + theme(axis.text = element_text(size = 8)),
+    draw_plot(points_wavylines_bray_total_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 14)),
                                          x = 1, y = 1, width = 20, height = 20) +
     draw_plot(BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL +
         theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
@@ -802,7 +803,7 @@ ggsave(BC_total_GAM_LM_merge_legend_colorbytrend, path = here::here("figures"), 
 ######################################################
 ##################BC BALANCED
 BC_balanced_GAM_LM_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
-    draw_plot(points_wavylines_bray_curtis_balanced_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 8)),
+    draw_plot(points_wavylines_bray_curtis_balanced_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 14)),
                                          x = 1, y = 1, width = 20, height = 20) +
     draw_plot(BC_balanced_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL +
         theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
@@ -823,7 +824,7 @@ ggsave(BC_balanced_GAM_LM_merge_legend_colorbytrend, path = here::here("figures"
 ######################################################
 ##################BC GRADIENT
 BC_gradient_GAM_LM_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
-    draw_plot(points_wavylines_bray_curtis_gradient_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 8)),
+    draw_plot(points_wavylines_bray_curtis_gradient_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 14)),
                                          x = 1, y = 1, width = 20, height = 20) +
     draw_plot(BC_gradient_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL +
         theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
@@ -844,7 +845,7 @@ ggsave(BC_gradient_GAM_LM_merge_legend_colorbytrend, path = here::here("figures"
 ######################################################
 ##################JACCARDTOTAL
 jaccard_total_GAM_LM_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
-    draw_plot(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 8)),
+    draw_plot(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend + theme(axis.text = element_text(size = 14)),
                                          x = 1, y = 1, width = 20, height = 20) +
     draw_plot(jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL +
         theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
