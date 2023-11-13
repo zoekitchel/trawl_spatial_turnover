@@ -77,6 +77,7 @@ ggplot(t) + geom_polygon(aes(x = long, y = lat, group = group)) + coord_map()
 
 NEW basemap
 ```{r}
+sf::sf_use_s2(FALSE) #polygons that cover more than half of the globe are inverted
 
 #alt
 world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -159,8 +160,6 @@ world <- rnaturalearth::ne_countries(type = "countries", scale="large", returncl
 
 #delete areas where this polygon overlaps with land
 all_survey_units_polygons.clean <- rmapshaper::ms_erase(all_survey_units_polygons,world[1])
-
-sf::sf_use_s2(FALSE) #polygons that cover more than half of the globe are inverted
 
 #find polygon centroid
 all_survey_units_centroid_points <- sf::st_centroid(all_survey_units_polygons.clean)
@@ -281,13 +280,13 @@ all_survey_units_centroid_points_stats <- left_join(all_survey_units_centroid_po
 
 #focal regions
 centroids_focal <- all_survey_units_centroid_points_stats %>%
-  filter(survey_unit == "NZ-WCSI" |survey_unit == "SEUS-summer"|survey_unit == "SCS-SUMMER") %>%
-  mutate(labels = c("b.","d.","c.")) #add labels
+  filter(survey_unit == "NZ-WCSI" |survey_unit == "SEUS-summer"|survey_unit == "ICE-GFS") %>%
+  mutate(labels = c("d.","b.","c.")) #add labels
 
 #edit lat lon a bit to help with visualization
 centroids_focal$geometry[centroids_focal$survey_unit == "NZ-WCSI"]=st_point(c(-192, -41))
 centroids_focal$geometry[centroids_focal$survey_unit == "SEUS-summer"]=st_point(c(-73, 33))
-centroids_focal$geometry[centroids_focal$survey_unit == "SCS-SUMMER"]=st_point(c(-60, 42))
+centroids_focal$geometry[centroids_focal$survey_unit == "ICE-GFS"]=st_point(c(-27, 63))
 
 ```
 
@@ -318,7 +317,7 @@ map_bray_coef_trend <- ggplot() +
   #polygon outlines
 #  geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
   #colored points with trend assocaited with each survey
-  geom_sf(all_survey_units_centroid_points_stats.robin, mapping = aes(fill = `Significant Trends`), size=1, pch=21, color="black", lwd = 0.1) +
+  geom_sf(all_survey_units_centroid_points_stats.robin, mapping = aes(fill = `Significant Trends`), size=1.5, pch=21, color="black", lwd = 0.05) +
  # geom_sf_text(data = all_survey_units_centroid_points_stats, aes(label = survey_unit), size = 0.5) +
   scale_fill_manual(values = c("#73BA4D","#E0962C","#75608a"),
                     labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +

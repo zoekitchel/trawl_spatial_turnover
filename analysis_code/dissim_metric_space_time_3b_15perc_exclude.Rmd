@@ -43,7 +43,7 @@ setkey(FishGlob_abundance_survey, perc_spp_total_abundance)
 
 FishGlob_abundance_survey[, rank_abundance_bysurvey := frank(perc_spp_total_abundance), survey_unit]
 
-#code each spp as 90% most common by abundance or 15% lease common by abundance in a survey
+#code each spp as 85% most common by abundance or 15% least common by abundance in a survey
 FishGlob_abundance_survey[, exclude_spp := ifelse(rank_abundance_bysurvey <= spp_count15_percent, T,F)]
 
 #spp and survey key
@@ -55,7 +55,7 @@ FishGlob_clean_15perc_excluded <- FishGlob_clean_15perc[exclude_spp == F,]
 
 #drops 
 nrow(FishGlob_clean)-nrow(FishGlob_clean_15perc_excluded)
-#4528/2727007 rows (0.2% of observations)
+#4244/2733591 rows (0.2% of observations)
 
 saveRDS(FishGlob_clean_15perc_excluded, here::here("output","FishGlob_clean_15perc_excluded.Rds"))
 ```
