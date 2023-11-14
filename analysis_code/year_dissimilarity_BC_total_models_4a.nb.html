@@ -1760,74 +1760,19 @@ display: none;
 manuscript.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkYXRhLnRhYmxlKVxuYGBgIn0= -->
-<pre class="r"><code>library(data.table)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiUmVnaXN0ZXJlZCBTMyBtZXRob2Qgb3ZlcndyaXR0ZW4gYnkgJ2RhdGEudGFibGUnOlxuICBtZXRob2QgICAgICAgICAgIGZyb21cbiAgcHJpbnQuZGF0YS50YWJsZSAgICAgXG5kYXRhLnRhYmxlIDEuMTQuOCB1c2luZyAxIHRocmVhZHMgKHNlZSA/Z2V0RFR0aHJlYWRzKS4gIExhdGVzdCBuZXdzOiByLWRhdGF0YWJsZS5jb21cbioqKioqKioqKipcblRoaXMgaW5zdGFsbGF0aW9uIG9mIGRhdGEudGFibGUgaGFzIG5vdCBkZXRlY3RlZCBPcGVuTVAgc3VwcG9ydC4gSXQgc2hvdWxkIHN0aWxsIHdvcmsgYnV0IGluIHNpbmdsZS10aHJlYWRlZCBtb2RlLlxuVGhpcyBpcyBhIE1hYy4gUGxlYXNlIHJlYWQgaHR0cHM6Ly9tYWMuci1wcm9qZWN0Lm9yZy9vcGVubXAvLiBQbGVhc2UgZW5nYWdlIHdpdGggQXBwbGUgYW5kIGFzayB0aGVtIGZvciBzdXBwb3J0LiBDaGVjayByLWRhdGF0YWJsZS5jb20gZm9yIHVwZGF0ZXMsIGFuZCBvdXIgTWFjIGluc3RydWN0aW9ucyBoZXJlOiBodHRwczovL2dpdGh1Yi5jb20vUmRhdGF0YWJsZS9kYXRhLnRhYmxlL3dpa2kvSW5zdGFsbGF0aW9uLiBBZnRlciBzZXZlcmFsIHllYXJzIG9mIG1hbnkgcmVwb3J0cyBvZiBpbnN0YWxsYXRpb24gcHJvYmxlbXMgb24gTWFjLCBpdCdzIHRpbWUgdG8gZ2luZ2VybHkgcG9pbnQgb3V0IHRoYXQgdGhlcmUgaGF2ZSBiZWVuIG5vIHNpbWlsYXIgcHJvYmxlbXMgb24gV2luZG93cyBvciBMaW51eC5cbioqKioqKioqKipcbiJ9 -->
-<pre><code>Registered S3 method overwritten by &#39;data.table&#39;:
-  method           from
-  print.data.table     
-data.table 1.14.8 using 1 threads (see ?getDTthreads).  Latest news: r-datatable.com
-**********
-This installation of data.table has not detected OpenMP support. It should still work but in single-threaded mode.
-This is a Mac. Please read https://mac.r-project.org/openmp/. Please engage with Apple and ask them for support. Check r-datatable.com for updates, and our Mac instructions here: https://github.com/Rdatatable/data.table/wiki/Installation. After several years of many reports of installation problems on Mac, it&#39;s time to gingerly point out that there have been no similar problems on Windows or Linux.
-**********</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh2ZWdhbilcbmBgYCJ9 -->
-<pre class="r"><code>library(vegan)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBwZXJtdXRlXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IGxhdHRpY2VcblRoaXMgaXMgdmVnYW4gMi42LTRcbiJ9 -->
-<pre><code>Loading required package: permute
-Loading required package: lattice
-This is vegan 2.6-4</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShzZilcbmBgYCJ9 -->
-<pre class="r"><code>library(sf)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTGlua2luZyB0byBHRU9TIDMuMTAuMiwgR0RBTCAzLjQuMiwgUFJPSiA4LjIuMTsgc2ZfdXNlX3MyKCkgaXMgVFJVRVxuIn0= -->
-<pre><code>Linking to GEOS 3.10.2, GDAL 3.4.2, PROJ 8.2.1; sf_use_s2() is TRUE</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShjb25jYXZlbWFuKSAjcG9seWdvbiBhcm91bmQgcG9pbnRzXG5saWJyYXJ5KGJldGFwYXJ0KSAjYWxsb3dzIHVzIHRvIHBhcnRpdGlvbiBiZXRhIGRpdmVyc2l0eVxubGlicmFyeShnZW9zcGhlcmUpXG5saWJyYXJ5KGdncHVicikgI3N0YXRfcmVnbGluZV9lcXVhdGlvblxuYGBgIn0= -->
-<pre class="r"><code>library(concaveman) #polygon around points
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkYXRhLnRhYmxlKVxubGlicmFyeSh2ZWdhbilcbmxpYnJhcnkoc2YpXG5saWJyYXJ5KGNvbmNhdmVtYW4pICNwb2x5Z29uIGFyb3VuZCBwb2ludHNcbmxpYnJhcnkoYmV0YXBhcnQpICNhbGxvd3MgdXMgdG8gcGFydGl0aW9uIGJldGEgZGl2ZXJzaXR5XG5saWJyYXJ5KGdlb3NwaGVyZSlcbmxpYnJhcnkoZ2dwdWJyKSAjc3RhdF9yZWdsaW5lX2VxdWF0aW9uXG5saWJyYXJ5KG5sbWUpXG5saWJyYXJ5KG1nY3YpICN0byBtYWtlIGdhbVxubGlicmFyeShjb3dwbG90KVxubGlicmFyeShsbWU0KVxubGlicmFyeShzdHJpbmdyKVxubGlicmFyeShNdU1JbilcbmBgYCJ9 -->
+<pre class="r"><code>library(data.table)
+library(vegan)
+library(sf)
+library(concaveman) #polygon around points
 library(betapart) #allows us to partition beta diversity
 library(geosphere)
-library(ggpubr) #stat_regline_equation</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBnZ3Bsb3QyXG4ifQ== -->
-<pre><code>Loading required package: ggplot2</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShubG1lKVxubGlicmFyeShtZ2N2KSAjdG8gbWFrZSBnYW1cbmBgYCJ9 -->
-<pre class="r"><code>library(nlme)
-library(mgcv) #to make gam</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiVGhpcyBpcyBtZ2N2IDEuOC00MC4gRm9yIG92ZXJ2aWV3IHR5cGUgJ2hlbHAoXCJtZ2N2LXBhY2thZ2VcIiknLlxuIn0= -->
-<pre><code>This is mgcv 1.8-40. For overview type &#39;help(&quot;mgcv-package&quot;)&#39;.</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShjb3dwbG90KVxuYGBgIn0= -->
-<pre class="r"><code>library(cowplot)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYY293cGxvdOKAmVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmdncHVicuKAmTpcblxuICAgIGdldF9sZWdlbmRcbiJ9 -->
-<pre><code>
-Attaching package: ‘cowplot’
-
-The following object is masked from ‘package:ggpubr’:
-
-    get_legend</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShsbWU0KVxuYGBgIn0= -->
-<pre class="r"><code>library(lme4)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBNYXRyaXhcblxuQXR0YWNoaW5nIHBhY2thZ2U6IOKAmGxtZTTigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpubG1l4oCZOlxuXG4gICAgbG1MaXN0XG4ifQ== -->
-<pre><code>Loading required package: Matrix
-
-Attaching package: ‘lme4’
-
-The following object is masked from ‘package:nlme’:
-
-    lmList</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShzdHJpbmdyKVxubGlicmFyeShNdU1JbilcbmBgYCJ9 -->
-<pre class="r"><code>library(stringr)
+library(ggpubr) #stat_regline_equation
+library(nlme)
+library(mgcv) #to make gam
+library(cowplot)
+library(lme4)
+library(stringr)
 library(MuMIn)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->

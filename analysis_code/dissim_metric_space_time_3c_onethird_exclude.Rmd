@@ -47,7 +47,7 @@ FishGlob_clean_onethird_excluded <- FishGlob_clean_onethird[keep_drop == F,]
 
 #drops 
 nrow(FishGlob_clean_onethird_excluded)
-#14511/2731535 rows (0.5% of observations)
+#14511/2733591 rows (0.5% of observations)
 ```
 
 Table listing species included in each region and then those excluded for 15% least common species analyses.

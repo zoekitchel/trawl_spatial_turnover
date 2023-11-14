@@ -274,10 +274,8 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend_onethirdyears_exclude 
     scale_color_manual(values = trend_colors.dt$trend_color, name = "Survey Unit") +
   scale_fill_manual(values =trend_colors.dt$trend_color, guide = "none") +
   theme_classic() +
-  lims(x = c(min(distances_dissimilarities_allyears_onethirdyears_excluded[,year]),max(distances_dissimilarities_allyears_onethirdyears_excluded[,year])),y = c(0.49,0.95)
-       ) +
         #add year breaks
-  scale_x_continuous(breaks = seq(min(distances_dissimilarities_allyears$year),max(distances_dissimilarities_allyears$year), by = 10)) +
+  scale_x_continuous(breaks = c(1968,1980,1990,2000,2010,2022), limits = c(1968,2025)) +
   xlab("Year") +
 ylab("β-diversity") +
   theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))

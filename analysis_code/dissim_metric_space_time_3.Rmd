@@ -32,6 +32,19 @@ all_survey_units <- unique(FishGlob_clean[, survey_unit])
 
 ###Dataset statistics
 
+Delete any tows without any observations
+```{r}
+FishGlob_clean[,tow_abundance_sum := ifelse(survey == "MEDITS", sum(num_cpue),sum(wgt_cpue)),.(haul_id)]
+summary(FishGlob_clean$tow_abundance_sum)
+
+tows_by_abundance <- unique(FishGlob_clean[,.(haul_id, tow_abundance_sum)])
+tows_noabundance <- unique(FishGlob_clean[tow_abundance_sum == 0,.(haul_id, tow_abundance_sum, survey_unit, year)])
+
+length(unique(FishGlob_clean[tow_abundance_sum == 0,haul_id])) #73 tows out of 216295 have no recorded observations (o for all), 0.03%
+
+FishGlob_clean <- FishGlob_clean[!(haul_id %in% tows_noabundance$haul_id)]
+```
+
 Total observations? (spp x tows)
 ```{r}
 nrow(FishGlob_clean)
@@ -51,20 +64,6 @@ Total species?
 ```{r}
 length(unique(FishGlob_clean[,accepted_name]))
 ```
-
-Delete any tows without any observations
-```{r}
-FishGlob_clean[,tow_abundance_sum := ifelse(survey == "MEDITS", sum(num_cpue),sum(wgt_cpue)),.(haul_id)]
-summary(FishGlob_clean$tow_abundance_sum)
-
-tows_by_abundance <- unique(FishGlob_clean[,.(haul_id, tow_abundance_sum)])
-tows_noabundance <- unique(FishGlob_clean[tow_abundance_sum == 0,.(haul_id, tow_abundance_sum, survey_unit, year)])
-
-length(unique(FishGlob_clean[tow_abundance_sum == 0,haul_id])) #73 tows out of 216295 have no recorded observations (o for all), 0.03%
-
-FishGlob_clean <- FishGlob_clean[!(haul_id %in% tows_noabundance$haul_id)]
-```
-
 
 
 Survey Statistics for all regions in a table

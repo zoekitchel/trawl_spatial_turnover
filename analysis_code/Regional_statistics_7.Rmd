@@ -148,6 +148,9 @@ ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_
 
  #linear model?
 summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs))
+
+#and when rockall removed
+summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs[survey_unit != "ROCKALL",]))
 ```
 
 Beta vs. gamma raw
@@ -464,7 +467,7 @@ total_surveys <- c(33,9)
 
 
 prop.test(homogenizers,total_surveys) #p value >> 0.05, so groups are not differennt
-prop.test(differentiators,total_surveys) #p value >> 0.07, so groups are significantly different
+prop.test(differentiators,total_surveys) #p value >> 0.07, so groups are almost significantly different
 
 ```
 
