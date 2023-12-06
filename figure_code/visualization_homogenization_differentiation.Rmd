@@ -26,31 +26,29 @@ FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
 
 Examples:
 
-Homogenization: "SEUS-summer"
-Year 4 versus 6th to final 
+Homogenization: "SEUS-spring"
 ```{r seus summer contrast plot mds}
-seus_years <- unique(FishGlob_clean[survey_unit == "SEUS-summer",year])
-#year 4 = 1993,  final year = 2019
+seus_years <- unique(FishGlob_clean[survey_unit == "SEUS-spring",year])
 
-seus_summer <- FishGlob_clean[survey_unit == "SEUS-summer" & year %in% c(1993,2019),]
+seus_spring <- FishGlob_clean[survey_unit == "SEUS-spring" & year %in% c(1990,2019),]
 
-#1993
-seus_1993 <- dcast(seus_summer[year == 1993,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+#1990
+seus_1990 <- dcast(seus_spring[year == 1990,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
-seus_1993.communitymatrix <- seus_1993[, 3:ncol(seus_1993)] #community matrix
+seus_1990.communitymatrix <- seus_1990[, 3:ncol(seus_1990)] #community matrix
 
 #construct ordination
 
-seus_1993_mds <- metaMDS(seus_1993.communitymatrix)
+seus_1990_mds <- metaMDS(seus_1990.communitymatrix)
 
-seus_1993_mds_plot <- ordiplot(seus_1993_mds, choices=c(1,2))
+seus_1990_mds_plot <- ordiplot(seus_1990_mds, choices=c(1,2))
 
-seus_1993_mds.dt <- data.table(seus_1993_mds_plot$sites)
+seus_1990_mds.dt <- data.table(seus_1990_mds_plot$sites)
 
-seus_1993_mds.dt[,survey_unit := "SEUS-summer"][,year := 1993]
+seus_1990_mds.dt[,survey_unit := "SEUS-spring"][,year := 1990]
 
 #2019
-seus_2019 <- dcast(seus_summer[year == 2019,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+seus_2019 <- dcast(seus_spring[year == 2019,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
 seus_2019.communitymatrix <- seus_2019[, 3:ncol(seus_2019)] #community matrix
 
@@ -62,17 +60,17 @@ seus_2019_mds_plot <- ordiplot(seus_2019_mds, choices=c(1,2))
 
 seus_2019_mds.dt <- data.table(seus_2019_mds_plot$sites)
 
-seus_2019_mds.dt[,survey_unit := "SEUS-summer"][,year := 2019]
+seus_2019_mds.dt[,survey_unit := "SEUS-spring"][,year := 2019]
 
-seus_full_mds.dt <- rbind(seus_1993_mds.dt, seus_2019_mds.dt)
+seus_full_mds.dt <- rbind(seus_1990_mds.dt, seus_2019_mds.dt)
 
-seus_summer_mds_contrast <- ggplot(data = seus_full_mds.dt) +
+seus_spring_mds_contrast <- ggplot(data = seus_full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2), color = "#e7ac5b") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
 
-seus_summer_mds_contrast
+seus_spring_mds_contrast
 ```
 
 Differentiation: "NZ-WCSI" "#AAF400"
@@ -125,10 +123,8 @@ nz_wcsi_mds_contrast
 ```
 
 Stable: "ICE-GFS"
-Year 2 in series vs final year 
 ```{r}
 ice_years <- unique(FishGlob_clean[survey_unit == "ICE-GFS",year])
-#year 2 = 1996,  final year = 2021
 
 ice <- FishGlob_clean[survey_unit == "ICE-GFS" & year %in% c(1996,2021),]
 
@@ -177,7 +173,7 @@ Merge Data Tables to Ease Plotting in Ggplot
 ```{r}
 full_mds.dt <- rbind(ice_full_mds.dt, nz_wcsi_full_mds.dt, seus_full_mds.dt)
 
-name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-summer","ICE-GFS"),`Survey Unit` = c("W Coast S Island, NZ","SE US Summer","Iceland"))
+name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-spring","ICE-GFS"),`Survey Unit` = c("W Coast S Island, NZ","SE US Spring","Iceland"))
 
 full_mds.dt <- full_mds.dt[name_key, on = "survey_unit"]
 
@@ -185,7 +181,7 @@ full_mds.dt <- full_mds.dt[name_key, on = "survey_unit"]
 full_mds.dt[,`Time period`:= ifelse(year==min(year),"Early","Late"),.(survey_unit)]
 
 #change factor order to match other components of manuscript
-full_mds.dt[,`Survey Unit` := factor(`Survey Unit`, levels = c("W Coast S Island, NZ","SE US Summer","Iceland"), labels = c("West Coast South Island\nNew Zealand","Southeast United\nStates Summer","Iceland"))]
+full_mds.dt[,`Survey Unit` := factor(`Survey Unit`, levels = c("W Coast S Island, NZ","SE US Spring","Iceland"), labels = c("West Coast South Island\nNew Zealand","Southeast United\nStates Spring","Iceland"))]
 
 mds_contrast_noannotate <- ggplot(data = full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2, fill = `Survey Unit`, color = factor(`Time period`)), size = 2, shape = 21) +

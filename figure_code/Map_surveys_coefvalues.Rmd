@@ -355,12 +355,18 @@ library(cowplot)
 mds_contrast <- readRDS(here::here("figures","mds_contrast.rds"))
 
 merge_nmds_map <- plot_grid(
-  map_bray_coef_trend,
+  map_bray_coef_trend + theme(axis.text.y = element_blank(), plot.margin = unit(c(0,0.2,0,0), "cm")),
   mds_contrast + theme(plot.margin = unit(c(0,1,0,0), "cm")), 
   ncol = 1, nrow = 2, labels = c("a.",""), label_size = 12, label_face = "bold",
   rel_heights = c(2,1)
 )
 
-ggsave(merge_nmds_map, path = here::here("figures"), filename = "merge_nmds_map.jpg", height = 7, width = 7, unit = "in")
+merge_nmds_map <- ggdraw(xlim = c(0,10), ylim = c(0,20)) +
+  draw_plot(x = 0, y = 7,map_bray_coef_trend + theme(axis.text.y = element_blank(),plot.margin = unit(c(0,0.2,0,0), "cm")), width = 10, height = 14) +
+  draw_plot(x = 0, y = 0,mds_contrast + theme(plot.margin = unit(c(0,1,0,0), "cm")), width = 10, height = 8.5) +
+  geom_text(x = 0.2, y = 19.5,aes(label = "a.", fontface = "bold"))
+
+
+ggsave(merge_nmds_map, path = here::here("figures"), filename = "merge_nmds_map.jpg", height = 8, width = 7, unit = "in")
 
 ```
