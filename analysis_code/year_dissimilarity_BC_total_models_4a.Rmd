@@ -526,6 +526,8 @@ ggsave(BC_gradient_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL
 
 Generate predicted values (this datatable will hold both jaccard and bray curtis dissimilarities)
 ```{r generate predicted values GAM}
+#generate list again, as for some reason it doesn't stay in environment
+survey_unit.list <- levels(factor(distances_dissimilarities_allyears$survey_unit))
 
 #generate new data to smooth lines (need year and season survey combinations)
 year_survey_unit_expand.dt <- data.table(survey_unit = as.character(NULL), year = as.numeric(NULL), year_adj = as.numeric(NULL ))
@@ -994,7 +996,9 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_1_24 
                   y = bray_curtis_dissimilarity_total_mean), method = "gam", linewidth = 0.5, formula = y ~ s(x, bs = "fs", m = 1), color = "black") +
     scale_color_manual(values =    color_link_trend$trend_color[1:24], name = "Survey Unit") +
     scale_fill_manual(values =    color_link_trend$trend_color[1:24], name = "Survey Unit") +
+  scale_x_continuous(breaks = ~ axisTicks(., log = FALSE)) +
   theme_classic() +
+  theme(axis.text.x = element_text(size = 7)) +
   xlab("Year") +
 ylab("β-diversity") +
   facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
@@ -1018,7 +1022,9 @@ points_wavylines_bray_total_year_reduced_gam_colorbytrend_individual_facet_25_42
                   y = bray_curtis_dissimilarity_total_mean), method = "gam", linewidth = 0.5, formula = y ~ s(x, bs = "fs", m = 1), color = "black") +
     scale_color_manual(values =    color_link_trend$trend_color[25:42], name = "Survey Unit") +
     scale_fill_manual(values =    color_link_trend$trend_color[25:42], name = "Survey Unit") +
+  scale_x_continuous(breaks = ~ axisTicks(., log = FALSE)) +
   theme_classic() +
+  theme(axis.text.x = element_text(size = 7)) +
   xlab("Year") +
 ylab("β-diversity") +
   facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
