@@ -2,7 +2,7 @@
 
 Currently in preparation for PNAS.
 
-*Zoë J. Kitchel, Aurore M. Maureaud, Alexa Fredston, Nancy Shackell, Bastien Mérigot, James T. Thorson, Laurène Pécuchet, Juliano Palacios-Abrantes, Deng M. L. Palomares, Antonio Esteban Acón, Mark Belchier, Gioacchino Bono, Pierluigi Carbonara, Martin A. Collins, Luis A. Cubillos, Tracey P. Fairweather, Maria Cristina Follesa, Cristina Garciá Ruiz, Germana Garofalo, Beatriz Guijarro, Igor Isajlović, Johannes N. Kathena, Mariono Koen-Alonso, Porzia Maiorano, Chiara Manfredi, Jurgen Mifsud, Richard L. O’Driscoll, Mario Sbrana, Jón Sólmundsson, Maria Teresa Spedicato, Fabrice Stephenson, Karl-Michael Werner, Daniela V. Yepsen, Walter Zupa, Malin L. Pinsky*
+*Zoë J. Kitchel, Aurore A. Maureaud, Alexa Fredston, Nancy Shackell, Bastien Mérigot, James T. Thorson, Laurène Pécuchet, Juliano Palacios-Abrantes, Maria L.D. Palomares, Antonio Esteban Acón, Mark Belchier, Gioacchino Bono, Pierluigi Carbonara, Martin A. Collins, Luis A. Cubillos, Tracey P. Fairweather, Maria Cristina Follesa, Cristina Garciá Ruiz, Maria Teresa Farriols Garau, Germana Garofalo, Igor Isajlović, Johannes N. Kathena, Mariano Koen-Alonso, Porzia Maiorano, Chiara Manfredi, Jurgen Mifsud, Richard L. O’Driscoll, Mario Sbrana, Jón Sólmundsson, Maria Teresa Spedicato, Fabrice Stephenson, Karl-Michael Werner, Daniela V. Yepsen, Walter Zupa, Malin L. Pinsky*
 
 Please contact [Z.J. Kitchel](https://www.zoekitchel.com/) with questions about this project. The results are partially reproducible from the scripts and data files that can be shared are either in this GitHub repository or (if they are too large) will be hosted on [OSF](https://osf.io/) (as described below). 
 
