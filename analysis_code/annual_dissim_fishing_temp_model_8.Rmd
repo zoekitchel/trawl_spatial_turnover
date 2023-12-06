@@ -48,9 +48,9 @@ Pull in observed trend values
 bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
 ```
 
-
-Plot fishing and temperature vs. dissimilarity for all regions
+Plot fishing and temperature vs. time for all regions
 ```{r}
+#######TEMPERATURE
 
 #set order by survey unit for plotting
 all_surveys <- levels(as.factor(dissimilarities_temp_fishing_area$survey_unit))
@@ -58,7 +58,61 @@ setorder(dissimilarities_temp_fishing_area, survey_unit)
 
 dissimilarities_temp_fishing_area[,Survey_Name_Season:=factor(Survey_Name_Season, levels = unique(dissimilarities_temp_fishing_area$Survey_Name_Season), ordered = T)]
 
-(preds_sbt_mean_temp_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[1:24]]) +
+(temp_time_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[1:24] & year > 1979]) +
+  labs(y = "Mean bottom temperature (˚C)",  x = "Year") +
+  geom_point(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), alpha = 0.3) +
+  geom_smooth(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), method = "lm") +
+  scale_x_continuous(breaks = ~ axisTicks(., log = FALSE)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 7)) +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
+
+ggsave(temp_time_survey_facet_1_24, path = here::here("figures"), filename = "temp_time_survey_facet_1_24.jpg", height = 12, width =9)
+
+(temp_time_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[25:42] & year > 1979]) +
+  labs(y = "Mean bottom temperature (˚C)",  x = "Year") +
+  geom_point(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), alpha = 0.3) +
+  geom_smooth(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), method = "lm") +
+  scale_x_continuous(breaks = ~ axisTicks(., log = FALSE)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 7)) +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
+
+ggsave(temp_time_survey_facet_25_42, path = here::here("figures"), filename = "temp_time_survey_facet_25_42.jpg", height = 12, width =9)
+
+#######FISHING
+
+dissimilarities_temp_fishing_area.cc <- dissimilarities_temp_fishing_area[complete.cases(dissimilarities_temp_fishing_area[,summed_tonnes_scaled_byreg]),]
+
+(fishing_time_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[1:24] & year > 1979]) +
+  labs(y = "Relative fishing catch",  x = "Year") +
+  geom_point(aes(y = summed_tonnes_scaled_byreg, x = year), alpha = 0.3) +
+  geom_smooth(aes(y = summed_tonnes_scaled_byreg, x = year), method = "lm") +
+  scale_x_continuous(breaks = ~ axisTicks(., log = FALSE)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 7)) +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
+
+ggsave(fishing_time_survey_facet_1_24, path = here::here("figures"), filename = "fishing_time_survey_facet_1_24.jpg", height = 12, width =9)
+
+(fishing_time_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[c(25:42)] & year > 1979]) +
+  labs(y = "Relative fishing catch",  x = "Year") +
+  geom_point(aes(y = summed_tonnes_scaled_byreg, x = year), alpha = 0.3) +
+  geom_smooth(aes(y = summed_tonnes_scaled_byreg, x = year), method = "lm") +
+  scale_x_continuous(breaks = ~ axisTicks(., log = FALSE)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 7)) +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
+
+ggsave(fishing_time_survey_facet_25_42, path = here::here("figures"), filename = "fishing_time_survey_facet_25_42.jpg", height = 12, width =9)
+
+
+```
+
+Plot fishing and temperature vs. dissimilarity for all regions
+```{r}
+
+(preds_sbt_mean_temp_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[1:24] & year > 1979]) +
   labs(x = "Mean bottom temperature (˚C)",  y = "β-diversity") +
   geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
   geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), method = "lm") +
@@ -67,7 +121,7 @@ dissimilarities_temp_fishing_area[,Survey_Name_Season:=factor(Survey_Name_Season
 
 ggsave(preds_sbt_mean_temp_survey_facet_1_24, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_1_24.jpg", height = 12, width =9)
 
-(preds_sbt_mean_temp_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[25:42]]) +
+(preds_sbt_mean_temp_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[25:42] & year > 1979]) +
   labs(x = "Mean bottom temperature (˚C)",  y = "β-diversity") +
   geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
   geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), method = "lm") +
@@ -80,7 +134,7 @@ ggsave(preds_sbt_mean_temp_survey_facet_25_42, path = here::here("figures"), fil
 
 dissimilarities_temp_fishing_area.cc <- dissimilarities_temp_fishing_area[complete.cases(dissimilarities_temp_fishing_area[,summed_tonnes_scaled_byreg]),]
 
-(preds_sbt_mean_fishing_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[1:24]]) +
+(preds_sbt_mean_fishing_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[1:24] & year > 1979]) +
   labs(x = "Relative fishing catch",  y = "β-diversity") +
   geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
   geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
@@ -89,7 +143,7 @@ dissimilarities_temp_fishing_area.cc <- dissimilarities_temp_fishing_area[comple
 
 ggsave(preds_sbt_mean_fishing_survey_facet_1_24, path = here::here("figures"), filename = "preds_sbt_mean_fishing_survey_facet_1_24.jpg", height = 12, width =9)
 
-(preds_sbt_mean_fishing_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[c(25:42)]]) +
+(preds_sbt_mean_fishing_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[c(25:42)] & year > 1979]) +
   labs(x = "Relative fishing catch",  y = "β-diversity") +
   geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
   geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
