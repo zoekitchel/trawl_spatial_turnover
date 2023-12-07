@@ -55,7 +55,7 @@ source(here::here("analysis_code","color_links.R"))
 Load up 'true slopes' and CIs for comparison
 ```{r}
 
-bray_curtis_total_coefs.r <- read_csv(here::here("output","bray_curtis_total_coefs.r.csv"))
+bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
 View(bray_curtis_total_coefs.r)
 bray_curtis_total_coefs.r_true <- bray_curtis_total_coefs.r
 ```
@@ -113,30 +113,25 @@ years_adj_null",survey_unit := "AI"]
   print(i)
 }
 
-#95% quantile of poisson distributions (both count homogenization and count differentiation)
-# Example with a Poisson distribution
-lambda_homogenization <- mean(all_null_runs_reshuffle_year[,homogenizing])
-lambda_differentiation <- mean(all_null_runs_reshuffle_year[,differentiating])
+#95% quantile o(both count homogenization and count differentiation)
 
-# Calculate the 95th percentile for the Poisson distribution
-percentile_95_poisson_homogenization <- qpois(0.95, lambda_homogenization)
-percentile_95_poisson_differentiation <- qpois(0.95, lambda_differentiation)
-    
-#link up
-all_null_runs_reshuffle_year <- rbind(all_null_runs_reshuffle_year,true_slopes)
+homogenization_95_quantile <- quantile(all_null_runs_reshuffle_year[,homogenizing], 0.95)
+differentiation_95_quantile <- quantile(all_null_runs_reshuffle_year[,differentiating], 0.95)
 
+#plot differentiation distribution
 (reshuffle_differentiation_plot <- ggplot() +
   geom_histogram(data = all_null_runs_reshuffle_year, aes(differentiating), binwidth = 1) +
       geom_vline(xintercept = sum(bray_curtis_total_coefs.r_true$differentiating), color = "red") +
-          geom_vline(xintercept = percentile_95_poisson_differentiation, linetype = "dashed") +
+          geom_vline(xintercept = differentiation_95_quantile, linetype = "dashed") +
     scale_x_continuous(breaks = seq(0,16,by = 2)) +
   labs(x = "Number of surveys differentiating", y = "Count") +
   theme_classic())
 
+#plot homogenization distribution
 (reshuffle_homogenizing_plot <- ggplot() +
   geom_histogram(data = all_null_runs_reshuffle_year, aes(homogenizing), binwidth = 1) +
       geom_vline(xintercept = sum(bray_curtis_total_coefs.r_true$homogenizing), color = "red") +
-          geom_vline(xintercept = percentile_95_poisson_homogenization, linetype = "dashed") +
+          geom_vline(xintercept = homogenization_95_quantile, linetype = "dashed") +
     scale_x_continuous(breaks = seq(0,10,by = 2)) +
   labs(x = "Number of surveys homogenizing", y = "Count") +
   theme_classic())
