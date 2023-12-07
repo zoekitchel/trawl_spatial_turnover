@@ -1,6 +1,6 @@
 # Marine fish communities cycle between homogenized and differentiated states through time
 
-Currently in preparation for PNAS.
+Currently in review at PNAS.
 
 *Zoë J. Kitchel, Aurore A. Maureaud, Alexa Fredston, Nancy Shackell, Bastien Mérigot, James T. Thorson, Laurène Pécuchet, Juliano Palacios-Abrantes, Maria L.D. Palomares, Antonio Esteban Acón, Mark Belchier, Gioacchino Bono, Pierluigi Carbonara, Martin A. Collins, Luis A. Cubillos, Tracey P. Fairweather, Maria Cristina Follesa, Cristina Garciá Ruiz, Maria Teresa Farriols Garau, Germana Garofalo, Igor Isajlović, Johannes N. Kathena, Mariano Koen-Alonso, Porzia Maiorano, Chiara Manfredi, Jurgen Mifsud, Richard L. O’Driscoll, Mario Sbrana, Jón Sólmundsson, Maria Teresa Spedicato, Fabrice Stephenson, Karl-Michael Werner, Daniela V. Yepsen, Walter Zupa, Malin L. Pinsky*
 
@@ -127,9 +127,10 @@ Supplemental Figures:
 - Figure S9: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
 - Figure S10: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
 - Figure S11: `analysis_code` > `annual_dissim_fishing_temp_model_8b_oisst.Rmd`
-- Figure S12: `analysis_code` > `annual_dissim_fishing_temp_model_8b_oisst.Rmd`
-- Figure S13: `analysis_code` > `Regional_statistics_7.Rmd`
+- Figure S12: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Figure S13: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
 - Figure S14: `analysis_code` > `Regional_statistics_7.Rmd`
+- Figure S15: `analysis_code` > `Regional_statistics_7.Rmd`
 
 Supplemental Tables
 
