@@ -235,7 +235,7 @@ all_null_runs_cyclic_shift.u <- unique(all_null_runs_cyclic_shift[,.(survey_unit
 errorbar_slope_year_cyclic_shift <- ggplot() +
   geom_errorbar(data = all_null_runs_cyclic_shift.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = mean_slope, label = Survey_Name_Season, ymin = lower_95, ymax = upper_95), color = "grey50", width = 0) + #add confidence intervals
   geom_point(data = all_null_runs_cyclic_shift.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = true_slope, label = Survey_Name_Season, color = Directional_Change_sig), shape = 18, size = 3) +
-  scale_color_manual(values = c("#73BA4D","#E0962C","#75608a"), name = "Dissimilarity trend", guide="none") +
+  scale_color_manual(values = c("#FFC109","#D81C60","#1E88E5"), name = "Dissimilarity trend", guide="none") +
   geom_hline(yintercept = 0) +
  # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
   xlab("Survey unit") +

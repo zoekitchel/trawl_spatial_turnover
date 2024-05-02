@@ -2207,7 +2207,7 @@ ice_2021_mds.dt[,survey_unit := &quot;ICE-GFS&quot;][,year := 2021]
 ice_full_mds.dt &lt;- rbind(ice_1996_mds.dt, ice_2021_mds.dt)
 
 ice_mds_contrast &lt;- ggplot(data = ice_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = &quot;#75608a&quot;) +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = &quot;#1E88E5&quot;) +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -2239,7 +2239,7 @@ mds_contrast_noannotate &lt;- ggplot(data = full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2, fill = `Survey Unit`, color = factor(`Time period`)), size = 2, shape = 21) +
   stat_ellipse(aes(x = NMDS1, y = NMDS2,linetype=`Time period`)) +
   facet_wrap(vars(`Survey Unit`), nrow = 1) +
-  scale_fill_manual(values = c(&quot;#91c874&quot;,&quot;#e7ac5b&quot;, &quot;#75608a&quot;)) +
+  scale_fill_manual(values = c(&quot;#91c874&quot;,&quot;#e7ac5b&quot;, &quot;#1E88E5&quot;)) +
   scale_color_manual(values=c(&quot;white&quot;,&quot;black&quot;)) +
   scale_linetype_manual(values = c(&quot;dotted&quot;,&quot;solid&quot;)) +
   theme_classic() +

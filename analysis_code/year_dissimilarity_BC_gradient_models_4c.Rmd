@@ -309,7 +309,7 @@ color_year_adj_order <- BC_gradient_model_coefs_reduced_length.unique[,hex]
 #alphabetical order
 BC_gradient_model_coefs_reduced_length.unique.alpha <- setorder(BC_gradient_model_coefs_reduced_length.unique, Survey_Name_Season)
 
-BC_gradient_model_coefs_reduced_length.unique.alpha[,trend_color := ifelse(Directional_Change_sig == "Homogenization", "#e7ac5b", ifelse(Directional_Change_sig == "Differentiation","#91c874","#75608a"))]
+BC_gradient_model_coefs_reduced_length.unique.alpha[,trend_color := ifelse(Directional_Change_sig == "Homogenization", "#e7ac5b", ifelse(Directional_Change_sig == "Differentiation","#91c874","#1E88E5"))]
 
 color_alpha_order <- BC_gradient_model_coefs_reduced_length.unique.alpha[,hex]
 color_alpha_order_bytrend <- BC_gradient_model_coefs_reduced_length.unique.alpha[, trend_color]
@@ -362,12 +362,12 @@ BC_GRADIENT_Dissimilarity_Coef_errorbar_reduced_greyscale <- ggplot() +
 Alternatively, we color  this plot by trend experienced
 
 ```{r}
-#"#73BA4D","#E0962C","#75608a"
+#"#FFC109","#D81C60","#1E88E5"
 
 BC_gradient_Dissimilarity_Coef_errorbar_reduced_colorbytrend <- ggplot() +
     geom_errorbar(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
   geom_point(data = model_coefs_reduced_length, aes(x = reorder(Survey_Name_Season, year_adj) , y = year_adj, label = Survey_Name_Season, size = years_sampled, color = Directional_Change_sig), stat = 'identity') +
-  scale_color_manual(values = c("#73BA4D","#E0962C","#75608a"), name = "Dissimilarity trend", guide="none") +
+  scale_color_manual(values = c("#FFC109","#D81C60","#1E88E5"), name = "Dissimilarity trend", guide="none") +
   scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
   geom_hline(yintercept = 0) +
 #  scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +

@@ -311,17 +311,17 @@ map_bray_coef_trend <- ggplot() +
   #polygons
   geom_sf(data = all_survey_units_polygons_stats.robin, aes(fill = `Significant Trends`, color = `Significant Trends`), alpha = 0.7, lwd = 0.1) +
   #add scotland alone
-  geom_sf(data = scotland.robin, fill = "#75608a", color = "#73BA4D") +
+  geom_sf(data = scotland.robin, fill = "#1E88E5", color = "#FFC109") +
   #add southeast US alone
-  geom_sf(data = southeast_us.robin, fill = "#75608a", color = "#E0962C", lwd = 0.001) +
+  geom_sf(data = southeast_us.robin, fill = "#1E88E5", color = "#D81C60", lwd = 0.001) +
   #polygon outlines
 #  geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
   #colored points with trend assocaited with each survey
   geom_sf(all_survey_units_centroid_points_stats.robin, mapping = aes(fill = `Significant Trends`), size=1.5, pch=21, color="black", lwd = 0.05) +
  # geom_sf_text(data = all_survey_units_centroid_points_stats, aes(label = survey_unit), size = 0.5) +
-  scale_fill_manual(values = c("#73BA4D","#E0962C","#75608a"),
+  scale_fill_manual(values = c("#FFC109","#D81C60","#1E88E5"),
                     labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
-  scale_color_manual(values = c("#73BA4D","#E0962C","#75608a"),
+  scale_color_manual(values = c("#FFC109","#D81C60","#1E88E5"),
                      labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
     # Labels
   scale_x_continuous(breaks=seq(-180, 50, 30)) +

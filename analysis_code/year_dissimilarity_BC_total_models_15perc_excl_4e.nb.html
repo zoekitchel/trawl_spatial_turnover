@@ -1930,7 +1930,7 @@ bray_curtis_total_coefs &lt;- data.table(summary(bray_curtis_total_lm)$coefficie
   bray_curtis_total_coefs_sum &lt;- data.table(differentiating = sum(  bray_curtis_total_coefs_15perc_exclude.r$differentiating), homogenizing = sum(  bray_curtis_total_coefs_15perc_exclude.r$homogenizing))
   
   #hex by trend
-  bray_curtis_total_coefs_15perc_exclude.r[,trend_color := ifelse(homogenizing == 1, &quot;#e7ac5b&quot;, ifelse(differentiating == 1,&quot;#91c874&quot;,&quot;#75608a&quot;))]
+  bray_curtis_total_coefs_15perc_exclude.r[,trend_color := ifelse(homogenizing == 1, &quot;#e7ac5b&quot;, ifelse(differentiating == 1,&quot;#91c874&quot;,&quot;#1E88E5&quot;))]
   
   #link to color link
   bray_curtis_total_coefs_15perc_exclude.r &lt;- color_link[bray_curtis_total_coefs_15perc_exclude.r, on = &quot;survey_unit&quot;]
@@ -1982,7 +1982,7 @@ bray_curtis_total_coefs_15perc_exclude.r &lt;- bray_curtis_total_coefs_15perc_ex
 (BC_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_15perc_exclude &lt;- ggplot(data = bray_curtis_total_coefs_15perc_exclude.r, aes(x = reorder(Survey_Name_Season, survey_unit_coefficient) , y = survey_unit_coefficient), label = Survey_Name_Season) +
     geom_errorbar(aes(ymin = lwr, ymax = upr), fill = &quot;grey&quot;, width = 0) + #add confidence intervals
   geom_point(aes(size = years_sampled, color = Directional_Change_sig), stat = &#39;identity&#39;) +
-  scale_color_manual(values = c(&quot;#73BA4D&quot;,&quot;#E0962C&quot;,&quot;#75608a&quot;), name = &quot;Dissimilarity trend&quot;, guide=&quot;none&quot;) +
+  scale_color_manual(values = c(&quot;#FFC109&quot;,&quot;#D81C60&quot;,&quot;#1E88E5&quot;), name = &quot;Dissimilarity trend&quot;, guide=&quot;none&quot;) +
   scale_size_binned(range = c(1,8), name = &quot;Survey period length\n(years)&quot;) +
   geom_hline(yintercept = 0) +
   #scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c(&quot;-0.005&quot;,&quot;&quot;,&quot;0&quot;, &quot;&quot;, &quot;0.005&quot;,  &quot;&quot;)) +
