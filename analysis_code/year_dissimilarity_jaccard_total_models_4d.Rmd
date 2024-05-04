@@ -309,7 +309,7 @@ color_year_adj_order <- jaccard_total_model_coefs_reduced_length.unique[,hex]
 #alphabetical order
 jaccard_total_model_coefs_reduced_length.unique.alpha <- setorder(jaccard_total_model_coefs_reduced_length.unique, Survey_Name_Season)
 
-jaccard_total_model_coefs_reduced_length.unique.alpha[,trend_color := ifelse(Directional_Change_sig == "Homogenization", "#e7ac5b", ifelse(Directional_Change_sig == "Differentiation","#91c874","#1E88E5"))]
+jaccard_total_model_coefs_reduced_length.unique.alpha[,trend_color := ifelse(Directional_Change_sig == "Homogenization", "#D81C60", ifelse(Directional_Change_sig == "Differentiation","#FFC109","#1E88E5"))]
 
 color_alpha_order <- jaccard_total_model_coefs_reduced_length.unique.alpha[,hex]
 color_alpha_order_bytrend <- jaccard_total_model_coefs_reduced_length.unique.alpha[, trend_color]

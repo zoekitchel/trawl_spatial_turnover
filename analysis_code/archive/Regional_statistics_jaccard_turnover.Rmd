@@ -256,7 +256,7 @@ Regions that are homogenizing tend to have lower overall gamma diversity than re
 spp_num_vs_jaccard_turnover_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = spp_num, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = spp_num , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   geom_smooth(data = region_stats_jaccard_turnover, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F) +
   ylab("Dissimilarity coefficient") +
@@ -283,7 +283,7 @@ More likely to detect both homogenization and differentation for longer study pe
 study_period_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = study_period, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = study_period , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Survey period") + #first minus last
@@ -304,7 +304,7 @@ More likely to detect differentiation when fewer years are sampled and more like
 study_duration_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = study_duration, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = study_duration , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Total years sampled") + #count of years sampled
@@ -328,7 +328,7 @@ More likely to detect differentiation when a small latitudinal range is sampled,
 lat_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = lat_range, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = lat_range , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Latitudinal range (\u00B0s)") + #count of years sampled
@@ -350,7 +350,7 @@ Differentiation occurs below 30 degrees latitude, homogenization and no change b
 mid_lat_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = mid_lat, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = mid_lat , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   geom_smooth(data = region_stats_jaccard_turnover, aes(x = mid_lat, y = jaccard_coef), method = "lm", color = "black", se = F) +
   ylab("Dissimilarity coefficient") +
@@ -387,7 +387,7 @@ Areas that are differentiating tend to be smaller than areas that are homogenizi
 area_km_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = area_km/1000, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = (area_km/1000) , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Area (1000s of squared km)") + #area_km
@@ -408,7 +408,7 @@ summary(lm(jaccard_coef~area_km, data = region_stats_jaccard_turnover)) #not sig
 avg_hauls_area_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = avg_hauls_area, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = (avg_hauls_area) , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Hauls per area (squared km)") + #avg_hauls_area
@@ -430,7 +430,7 @@ summary(lm(jaccard_coef~avg_hauls_area, data = region_stats_jaccard_turnover)) #
 depth_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = depth_range, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = (depth_range) , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Depth range (m)") + #depth_range
@@ -450,7 +450,7 @@ summary(lm(jaccard_coef~depth_range, data = region_stats_jaccard_turnover)) #not
 mid_depth_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = mid_depth, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = (mid_depth) , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Average depth (m)") + #mid_depth
@@ -469,7 +469,7 @@ summary(lm(jaccard_coef~mid_depth, data = region_stats_jaccard_turnover)) #not s
 mean_temp_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = mean_temp, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = (mean_temp) , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   geom_smooth(data = region_stats_jaccard_turnover, aes(x = mean_temp, y = jaccard_coef), method = "lm", color = "black", se = F) +
   ylab("Dissimilarity coefficient") +
@@ -491,7 +491,7 @@ saveRDS(mean_temp_vs_coef, here::here("figures","jaccard_coef_vs_survey_characte
 mean_landings_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats_jaccard_turnover, aes(x = (mean_landings/1000), y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = `Significant Trends`), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats_jaccard_turnover, aes(x = (mean_landings/1000) , y = jaccard_coef, color = `Significant Trends`), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#91c874", "#e7ac5b", "#1E88E5"), name = "Directional Change") +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Directional Change") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("Dissimilarity coefficient") +
   xlab("Mean landings (1000s of tonnes)") + #average annual landings

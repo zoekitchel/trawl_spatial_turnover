@@ -124,7 +124,7 @@ bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients
   bray_curtis_total_coefs_sum <- data.table(differentiating = sum(  bray_curtis_total_coefs_onethirdyears_exclude.r$differentiating), homogenizing = sum(  bray_curtis_total_coefs_onethirdyears_exclude.r$homogenizing))
   
   #hex by trend
-  bray_curtis_total_coefs_onethirdyears_exclude.r[,trend_color := ifelse(homogenizing == 1, "#e7ac5b", ifelse(differentiating == 1,"#91c874","#1E88E5"))]
+  bray_curtis_total_coefs_onethirdyears_exclude.r[,trend_color := ifelse(homogenizing == 1, "#D81C60", ifelse(differentiating == 1,"#FFC109","#1E88E5"))]
   
   #link to color link
   bray_curtis_total_coefs_onethirdyears_exclude.r <- color_link[bray_curtis_total_coefs_onethirdyears_exclude.r, on = "survey_unit"]

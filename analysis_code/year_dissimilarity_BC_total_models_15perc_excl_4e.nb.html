@@ -1930,7 +1930,7 @@ bray_curtis_total_coefs &lt;- data.table(summary(bray_curtis_total_lm)$coefficie
   bray_curtis_total_coefs_sum &lt;- data.table(differentiating = sum(  bray_curtis_total_coefs_15perc_exclude.r$differentiating), homogenizing = sum(  bray_curtis_total_coefs_15perc_exclude.r$homogenizing))
   
   #hex by trend
-  bray_curtis_total_coefs_15perc_exclude.r[,trend_color := ifelse(homogenizing == 1, &quot;#e7ac5b&quot;, ifelse(differentiating == 1,&quot;#91c874&quot;,&quot;#1E88E5&quot;))]
+  bray_curtis_total_coefs_15perc_exclude.r[,trend_color := ifelse(homogenizing == 1, &quot;#D81C60&quot;, ifelse(differentiating == 1,&quot;#FFC109&quot;,&quot;#1E88E5&quot;))]
   
   #link to color link
   bray_curtis_total_coefs_15perc_exclude.r &lt;- color_link[bray_curtis_total_coefs_15perc_exclude.r, on = &quot;survey_unit&quot;]

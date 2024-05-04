@@ -62,7 +62,7 @@ bray_curtis_total_coefs.r_true <- bray_curtis_total_coefs.r
 
 
 #NULL MODEL CONSTUCTION
-##1) Reshuffle years (maintain correlation among species, removes autocorrelation within a species)
+##1) Reshuffle years (maintain correlation among species, removes temporal autocorrelation within a species)
 
 I need to:
 - reshuffle years
@@ -93,8 +93,7 @@ for (i in 1:1000){
   bray_curtis_total_coefs.r <- bray_curtis_total_coefs[c(2,44:84),]
   
   #adjust survey unit name by deleting beginning of string
-  bray_curtis_total_coefs.r[,survey_unit := substr(var, 23, str_length(var))][var == "	
-years_adj_null",survey_unit := "AI"]
+  bray_curtis_total_coefs.r[,survey_unit := substr(var, 23, str_length(var))][var == "years_null",survey_unit := "AI"]
   
   #calculate interaction coefficients
   AI_estimate <- bray_curtis_total_coefs.r[1,Estimate]
@@ -104,6 +103,14 @@ years_adj_null",survey_unit := "AI"]
   #homogenizing vs differentiating
   bray_curtis_total_coefs.r[,differentiating := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient > 0),1,0)][,homogenizing := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient < 0),1,0)]
   
+    #full table with distribution of coefficients
+    if(i == 1){
+     bray_curtis_total_coefs.allruns <- bray_curtis_total_coefs.r }else{
+    bray_curtis_total_coefs.allruns <- rbind(bray_curtis_total_coefs.allruns, bray_curtis_total_coefs.r)
+   }
+  
+  
+  #sum # differentiating vs homogenizing for each run
   bray_curtis_total_coefs_sum <- data.table(run = i, differentiating = sum(  bray_curtis_total_coefs.r$differentiating), homogenizing = sum(  bray_curtis_total_coefs.r$homogenizing))
   
   if(i == 1){
@@ -137,9 +144,40 @@ differentiation_95_quantile <- quantile(all_null_runs_reshuffle_year[,differenti
   theme_classic())
 
 reshuffle_null_plot <- cowplot::plot_grid(reshuffle_homogenizing_plot,reshuffle_differentiation_plot, 
-                                     ncol = 2)
+                                     ncol = 2, labels = c("a.","b."))
 
 ggsave(reshuffle_null_plot, path = here::here("figures"), filename = "reshuffle_null_plot.jpg", width = 6.5, height = 3)
+
+
+#Plot the distribution of coefficients across all surveys versus the distribution of true coefficients
+(reshuffle_slope_comparison_plot <- ggplot() +
+  geom_histogram(data = bray_curtis_total_coefs.allruns, aes(survey_unit_coefficient), fill = "#595959", binwidth = 0.001) +
+  labs(x = "Dissimilarity coefficient (null)", y = "Count (in 10,000s)") +
+    scale_y_continuous(breaks = c(0,10000,20000,30000), labels = c("0","1","2","3")) +
+    geom_vline(xintercept = median(bray_curtis_total_coefs.allruns$survey_unit_coefficient)) +
+   geom_vline(xintercept = quantile(bray_curtis_total_coefs.allruns$survey_unit_coefficient, c(0.025,0.975)), linetype = "dashed") +
+    xlim(min(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))-0.0035,
+         max(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))+0.003) +
+  theme_classic())
+
+(true_slope_comparison_plot <- ggplot() +
+  geom_histogram(data = bray_curtis_total_coefs.r_true, aes(survey_unit_coefficient), fill = "#595959", binwidth = 0.001) +
+  labs(x = "Dissimilarity coefficient (observed)", y = "Count") +
+    geom_vline(xintercept = median(bray_curtis_total_coefs.allruns$survey_unit_coefficient)) +
+    geom_vline(xintercept = quantile(bray_curtis_total_coefs.allruns$survey_unit_coefficient, c(0.025,0.975)), linetype = "dashed") +
+    xlim(min(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))-0.003,
+         max(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))+0.003) +
+  theme_classic())
+
+#merge two plots
+reshuffle_null_plot_bottom <- cowplot::plot_grid(true_slope_comparison_plot,reshuffle_slope_comparison_plot, 
+                                     ncol = 1, labels = c("c.","d."), align = "h")
+
+#merge all
+reshuffle_null_plot_full <- cowplot::plot_grid(reshuffle_null_plot, reshuffle_null_plot_bottom, ncol = 1, rel_heights = c(1,2))
+
+ggsave(reshuffle_null_plot_full, path = here::here("figures"), filename = "reshuffle_null_plot_full.jpg", width = 6.5, height = 6.5)
+
 
 ```
 

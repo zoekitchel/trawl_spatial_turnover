@@ -65,7 +65,7 @@ seus_2019_mds.dt[,survey_unit := "SEUS-spring"][,year := 2019]
 seus_full_mds.dt <- rbind(seus_1990_mds.dt, seus_2019_mds.dt)
 
 seus_spring_mds_contrast <- ggplot(data = seus_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#e7ac5b") +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#D81C60") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -114,7 +114,7 @@ nz_wcsi_2019_mds.dt[,survey_unit := "NZ-WCSI"][,year := 2019]
 nz_wcsi_full_mds.dt <- rbind(nz_wcsi_2000_mds.dt, nz_wcsi_2019_mds.dt)
 
 nz_wcsi_mds_contrast <- ggplot(data = nz_wcsi_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#91c874") +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#FFC109") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -187,7 +187,7 @@ mds_contrast_noannotate <- ggplot(data = full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2, fill = `Survey Unit`, color = factor(`Time period`)), size = 2, shape = 21) +
   stat_ellipse(aes(x = NMDS1, y = NMDS2,linetype=`Time period`)) +
   facet_wrap(vars(`Survey Unit`), nrow = 1) +
-  scale_fill_manual(values = c("#91c874","#e7ac5b", "#1E88E5")) +
+  scale_fill_manual(values = c("#FFC109","#D81C60", "#1E88E5")) +
   scale_color_manual(values=c("white","black")) +
   scale_linetype_manual(values = c("dotted","solid")) +
   theme_classic() +
