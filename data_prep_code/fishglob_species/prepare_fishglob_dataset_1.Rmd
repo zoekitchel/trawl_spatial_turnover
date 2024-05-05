@@ -1,10 +1,10 @@
 ---
 title: "Prepare FishGlob Dataset"
 author: Zoë J. Kitchel
-date: October 11, 2023
+date: May 4, 2023
 ---
 
-Script 1 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
+Script 1 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
 
 
 ```{r setup}
@@ -94,14 +94,6 @@ fishglob_colnames <- colnames(FishGlob_1.5)
 
 ```
 
-This version of FishGlob leaves out seasons for GMEX, fix here
-
-```{r add season to GMEX}
-#add season to GMEX to survey unit
-
-FishGlob_1.5[survey == "GMEX", survey_unit := paste0(survey,"-",season)]
-```
-
 Also adding in seasons for NIGFS
 
 ```{r add season to NIGFS}
@@ -120,6 +112,7 @@ Region names
 ```{r}
 sort(unique(FishGlob_1.5[,survey_unit]))
 ```
+
 ##Data Replacements
 ####Greenland (version in FishGlob 1.5 is missing lengths and therefore biomass values)
 This version was obtained directly from Karl-Michael Werner [karl-michael.werner@thuenen.de](karl-michael.werner@thuenen.de) who now manages the Greenland survey October 2023. He is based in Germany.
@@ -178,36 +171,90 @@ norway_clean <- norway_clean[latitude  >= 62,]
 
 ```
 
-DFO-QCS, HS, WCHG, WCVI had issues with cpue in fishglob version used. Therefore, we will pull in new version of QCS (others won't be pulled in, as they aren't used in analsyes because of short time period)
+QCS, HS, WCHG, WCVI, AI, EBS, GMEX, GOA, NEUS, SCS, SEUS, SOG, WCANN, WCTRI, WCVI had issues with cpue in fishglob version used. Therefore, we will pull in new versions except for HS, WCHG, WCVI, SOG, WCVI, and WCTRI because they aren't used in the final analyses because of time period length
+
+Updated May 4 2024
 ```{r}
-#load QCS data
-load(here::here("data","DFO-QCS_Sep2023","QCS_clean.RData"))
+#load in updated data files
+load("data/FishGlob_wgt_abun_edits/AI_clean.RData")
+AI_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/EBS_clean.RData")
+EBS_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/GMEX_clean.RData")
+GMEX_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/GOA_clean.RData")
+GOA_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/NEUS_clean.RData")
+NEUS_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/QCS_clean.RData")
 QCS_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/SCS_clean.RData")
+SCS_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/SEUS_clean.RData")
+SEUS_clean <- data.table(data)
+load("data/FishGlob_wgt_abun_edits/WCANN_clean.RData")
+WCANN_clean <- data.table(data)
 
 #some column names don't match fishglob 1.5 (fishglob = num, num_h, num_cpue, wgt, wgt_h, wgt_cpue; norway = num, num_cpue (number of ind./hour), num_cpua (number of ind./km2), wgt, wgt_cpue (kg/min), wgt_cpua(kg/km2)  )
-#also, some column units in the readme are in correct. Therefore, I will generate _cpue and _h values here
-# we will need to check  and rename columns
-QCS_clean[,num_h := num/haul_dur][,num_cpue := num/area_swept][,wgt_h := wgt/haul_dur][,wgt_cpue := wgt/area_swept]
+
+AI_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+EBS_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+GMEX_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+GOA_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+NEUS_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+QCS_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+SCS_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+SEUS_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
+WCANN_clean[,num_h := num_cpue][,num_cpue := num_cpua][,wgt_h := wgt_cpue][,wgt_cpue := wgt_cpua]
 
 #change some columns to numeric
 cols = c("month","day")
+AI_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+EBS_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+GMEX_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+GOA_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+NEUS_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
 QCS_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+SCS_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+SEUS_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
+WCANN_clean[,(cols) := lapply(.SD,as.numeric),.SDcols = cols]
 
 #also, delete source and timestamp
 fishglob_colnames <- colnames(FishGlob_1.5)
+AI_clean <- AI_clean[,..fishglob_colnames]
+EBS_clean <- EBS_clean[,..fishglob_colnames]
+GMEX_clean <- GMEX_clean[,..fishglob_colnames]
+GOA_clean <- GOA_clean[,..fishglob_colnames]
+NEUS_clean <- NEUS_clean[,..fishglob_colnames]
 QCS_clean <- QCS_clean[,..fishglob_colnames]
+SCS_clean <- SCS_clean[,..fishglob_colnames]
+SEUS_clean <- SEUS_clean[,..fishglob_colnames]
+WCANN_clean <- WCANN_clean[,..fishglob_colnames]
+
+#merge
+multiple_clean <- rbind(
+AI_clean,
+EBS_clean,
+GMEX_clean,
+GOA_clean,
+NEUS_clean,
+QCS_clean,
+SCS_clean,
+SEUS_clean,
+WCANN_clean
+)
 ```
 
 
-Delete Greenland, Norway, and QCS
+Delete Greenland, Norway, QCS, AI, EBS, GMEX, GOA, NEUS, SCS, SEUS, WCANN
 ```{r}
-FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS","DFO-QCS","GRL-DE"))]
+FishGlob_1.5 <- FishGlob_1.5[!(survey %in% c("Nor-BTS","DFO-QCS","GRL-DE","AI", "EBS", "GMEX", "GOA", "NEUS", "SCS", "SEUS", "WCANN"))]
 ```
 
 
 Add in updated Greenland and Norway data
 ```{r}
-FishGlob_1.5 <-rbind(FishGlob_1.5,norway_clean,QCS_clean,greenland_clean)
+FishGlob_1.5 <-rbind(FishGlob_1.5,norway_clean,greenland_clean, multiple_clean)
 
 ```
 
@@ -275,13 +322,13 @@ rm(FishGlob_1.5)
 
 ```
 
-###For taxonomic analyses, resolution to species is required. Therefore, we will  exclude any observations not resolved to species. 
+###For taxonomic analyses, resolution to species is required. Therefore, we will exclude any observations not resolved to species. 
 
 ```{r spp ID only}
 #month a number
 FishGlob.10year[,month := as.numeric(month)]
 
-FishGlob.10year.spp <- FishGlob.10year[rank %in% c("Species", "Subspecies"),] #3869384 total observations
+FishGlob.10year.spp <- FishGlob.10year[rank %in% c("Species", "Subspecies"),] #3544333 total observations
 
 #remove full species database
 rm(FishGlob.10year)

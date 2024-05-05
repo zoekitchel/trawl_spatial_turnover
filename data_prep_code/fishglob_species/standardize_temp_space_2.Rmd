@@ -478,19 +478,33 @@ Otherwise, very small proportions, so will just exclude these observations.
 Delete these observations above except for MEDITS (we will do trends in abundance metrics for this region)
 
 Final cleaning edits
- - Delete all observations without CPUE except for MEDITS
+ - Delete all observations that have NA for both num_cpue and wgt_cpue
  - Sum duplicates, summing from more than one obs for accepted name
 ```{r final cleaning edits}
-#delete all rows where wgt_cpue is NA,  unless it is MEDITS region
-FishGlob_clean.noNA <- FishGlob.wellsampledyearscells_complete.final[(survey != "MEDITS" & !is.na(wgt_cpue)) | survey == "MEDITS"]
+#delete all rows where both num_cpue and wgt_cpue are NA
+FishGlob_clean.noNA <- FishGlob.wellsampledyearscells_complete.final[!(is.na(num_cpue) & is.na(wgt_cpue))]
+#drops 0.2% of observations
 
-#Some spp are duplicated within a tow. In all cases,  this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances
-FishGlob_clean.noNA[, wgt := sum(wgt,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     wgt_h := sum(wgt_h,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     wgt_cpue := sum(wgt_cpue,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num := sum(num,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num_h := sum(num_h,  na.rm = T), .(accepted_name,  haul_id)][, 
-                     num_cpue := sum(num_cpue,  na.rm = T), .(accepted_name,  haul_id)]
+#Some spp may be duplicated within a tow (sex, etc.). In all cases, this is due to verbatim names matching to a single accepted name. Therefore,  we will sum these wgts and abundances. Most recently, this removed 0 rows.
+
+#Define function to correctly sum across duplicates (sum(NA,NA,NA) = NA, while sum(1,NA,NA) = 1, which is not the default for na.rm parameter)
+
+my_sum <- function(x){
+  if(all(is.na(x))){
+    return(NA)
+  }
+  else{
+    return(sum(x, na.rm = TRUE))
+  }
+}
+
+
+FishGlob_clean.noNA[, wgt := my_sum(wgt), .(accepted_name,  haul_id)][, 
+                     wgt_h := my_sum(wgt_h), .(accepted_name,  haul_id)][, 
+                     wgt_cpue := my_sum(wgt_cpue), .(accepted_name,  haul_id)][, 
+                     num := my_sum(num), .(accepted_name,  haul_id)][, 
+                     num_h := my_sum(num_h), .(accepted_name,  haul_id)][, 
+                     num_cpue := my_sum(num_cpue), .(accepted_name,  haul_id)]
 
 FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
 
@@ -500,6 +514,28 @@ FishGlob_clean <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
 
 saveRDS(FishGlob_clean, here::here("data","cleaned","FishGlob_clean.rds"))
 
+#missing values
+#missing abundances
+180786/nrow(FishGlob_clean) #7% missing abundances
 
+#missing biomass
+357932/nrow(FishGlob_clean) #13% missing biomass
+
+
+```
+
+We will only keep one season per region, based on the largest # of observations
+
+Number of observations per survey_unit
+```{r}
+FishGlob_clean[survey != survey_unit, .(count = .N), by = survey_unit]
+
+#REMOVE observations from: survey_unit %in% c("BITS-4", "NIGFS-4", "NS-IBTS-3", "SWC-IBTS-4", "GMEX-Summer","NEUS-Spring", "SEUS-spring", "SEUS-fall")
+
+FishGlob_clean.singleseason <- copy(FishGlob_clean[!(survey_unit %in% c("BITS-4", "NIGFS-4", "NS-IBTS-3", "SWC-IBTS-4", "GMEX-Summer","NEUS-Spring", "SEUS-spring", "SEUS-fall"))])
+
+unique(FishGlob_clean.singleseason$survey_unit)
+
+saveRDS(FishGlob_clean.singleseason, here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
 ```
 
