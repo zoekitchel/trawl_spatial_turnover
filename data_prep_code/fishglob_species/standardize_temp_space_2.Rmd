@@ -523,6 +523,12 @@ saveRDS(FishGlob_clean, here::here("data","cleaned","FishGlob_clean.rds"))
 
 
 ```
+Visualize standardization proceedure
+```{r}
+merged_ebs_standardization_plot <- cowplot::plot_grid(fishglob_exclude_years_plots[[36]]+theme(legend.position = "null"), fishglob_exclude_cells_plots[[36]], ncol = 1, labels = c("a.","b."), rel_heights = c(1,1.3))
+
+ggsave(merged_ebs_standardization_plot, path = here::here("figures","standardization"),filename ="merged_ebs_standardization_plot.jpg", height = 6.5, width = 6.5, unit = "in")
+```
 
 We will only keep one season per region, based on the largest # of observations
 
@@ -538,4 +544,3 @@ unique(FishGlob_clean.singleseason$survey_unit)
 
 saveRDS(FishGlob_clean.singleseason, here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
 ```
-
