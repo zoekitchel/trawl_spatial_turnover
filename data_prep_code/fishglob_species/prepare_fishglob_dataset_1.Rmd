@@ -176,23 +176,23 @@ QCS, HS, WCHG, WCVI, AI, EBS, GMEX, GOA, NEUS, SCS, SEUS, SOG, WCANN, WCTRI, WCV
 Updated May 4 2024
 ```{r}
 #load in updated data files
-load("data/FishGlob_wgt_abun_edits/AI_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/AI_clean.RData"))
 AI_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/EBS_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/EBS_clean.RData"))
 EBS_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/GMEX_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/GMEX_clean.RData"))
 GMEX_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/GOA_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/GOA_clean.RData"))
 GOA_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/NEUS_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/NEUS_clean.RData"))
 NEUS_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/QCS_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/QCS_clean.RData"))
 QCS_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/SCS_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/SCS_clean.RData"))
 SCS_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/SEUS_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/SEUS_clean.RData"))
 SEUS_clean <- data.table(data)
-load("data/FishGlob_wgt_abun_edits/WCANN_clean.RData")
+load(here::here("data/FishGlob_wgt_abun_edits/WCANN_clean.RData"))
 WCANN_clean <- data.table(data)
 
 #some column names don't match fishglob 1.5 (fishglob = num, num_h, num_cpue, wgt, wgt_h, wgt_cpue; norway = num, num_cpue (number of ind./hour), num_cpua (number of ind./km2), wgt, wgt_cpue (kg/min), wgt_cpua(kg/km2)  )
@@ -3267,17 +3267,62 @@ zaf_ind_keep <- unique(FishGlob.10year.uniquehauls[survey_unit == "ZAF-IND" & mo
 list_obj <- ls(pattern = "_keep")
 
 #combine
-fishglob_haulids_to_keep <- unlist(lapply(list_obj, get)) #233772 hauls
+fishglob_haulids_to_keep <- unlist(lapply(list_obj, get)) #234392 hauls
 
 FishGlob.10year.spp_manualclean <- FishGlob.10year.spp[haul_id %in% fishglob_haulids_to_keep,]
 
 #Require latitude and longitude for all observations
 FishGlob.10year.spp_manualclean <- FishGlob.10year.spp_manualclean[complete.cases(FishGlob.10year.spp_manualclean[,.(latitude, longitude)])] #check that this works
 
-#another check for # years sampled
+#Convert depth to numeric
+FishGlob.10year.spp_manualclean[,depth := as.numeric(depth)]
+
+#another check for # years sampled (we only want >10)
 #new row for total number of years sampled
 FishGlob.10year.spp_manualclean[,years_sampled := length(unique(year)),.(survey_unit)]
 View(unique(FishGlob.10year.spp_manualclean[,.(survey_unit, years_sampled)]))
+
+#if num_cpue value is less than 0, change to NA
+summary(FishGlob.10year.spp_manualclean$num_cpue)
+FishGlob.10year.spp_manualclean <- FishGlob.10year.spp_manualclean[num_cpue < 0, num_cpue := NA] 
+summary(FishGlob.10year.spp_manualclean$num_cpue) #added 4328 new NAs
+
+#13 infinite observations from GSL-N,  I will delete these
+FishGlob.10year.spp_manualclean <- FishGlob.10year.spp_manualclean[!is.infinite(wgt_cpue), ]
+
+#sometimes, there are multiple hauls at a single site (i.e. across depths), we will take average of these (initial = 2965284) #loss of 0.04% of unique rows that are now summed. It wouldn't be right to take sum, because in some cases, the haul duration may have increased. Instead, we take mean of tows at that site on that day. We will also take mean depth of sampling for these duplicate events.
+
+#Define function to correctly take means across duplicates (mean(NA,NA,NA) = NA, while mean(1,NA,NA) = 1, which is not the default for na.rm parameter)
+
+my_mean<- function(x){
+  if(all(is.na(x))){
+    return(NA)
+  }
+  else{
+    return(mean(x, na.rm = TRUE))
+  }
+}
+
+FishGlob.10year.spp_manualclean[,num := my_mean(num),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,wgt := my_mean(wgt),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,num_cpue := my_mean(num_cpue),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,num_h := my_mean(num_h),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,wgt_cpue := my_mean(wgt_cpue),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,wgt_h := my_mean(wgt_h),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,depth := my_mean(depth),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)] #also, depth needs to be converted from character to numeric
+
+
+#columns to keep
+col_keep <- c("survey","country" ,"sub_area","continent" ,"year","month" ,"day" ,"quarter",
+"season","latitude","longitude" ,"depth","num" ,"num_h" ,"num_cpue" ,
+"wgt" ,"wgt_h" ,"wgt_cpue","verbatim_name" ,"verbatim_aphia_id" ,"accepted_name" , 
+"aphia_id","SpecCode","kingdom" ,"phylum","class" ,"order" , 
+"family","genus" ,"rank","survey_unit" ,"years_sampled")
+
+FishGlob.10year.spp_manualclean <- unique(FishGlob.10year.spp_manualclean[,..col_keep]) #now, 2963092
+
+#new haul ids!
+FishGlob.10year.spp_manualclean[,haul_id := paste(survey_unit, sub_area, year, month, day, latitude, longitude, sep = "_")]
 
 #save
 saveRDS(FishGlob.10year.spp_manualclean, file = here::here("data","cleaned","FishGlob.10year.spp_manualclean.rds"))

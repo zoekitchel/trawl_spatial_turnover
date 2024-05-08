@@ -39,18 +39,18 @@ source(here::here("analysis_code","color_links.R"))
 Pull in data
 ```{r pull in data}
 #trend
-bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
-bray_curtis_total_coefs.r[,`Significant Trends`:= ifelse(differentiating == 1, "differentiating",ifelse(homogenizing == 1,"homogenizing","no trend"))]
+jaccard_total_coefs.r <- fread(here::here("output","jaccard_total_coefs.r.csv"))
+jaccard_total_coefs.r[,`Significant Trends`:= ifelse(differentiating == 1, "differentiating",ifelse(homogenizing == 1,"homogenizing","no trend"))]
 
 #raw data
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
+FishGlob_clean.singleseason <- readRDS(here::here("data", "cleaned", "FishGlob_clean.singleseason.rds"))
 
 
 ```
 
 Unique lat lon values
 ```{r unique lat lon}
-unique_lat_lon_survey_units <- unique(FishGlob_clean[,.(survey_unit, survey, latitude, longitude)])
+unique_lat_lon_survey_units <- unique(FishGlob_clean.singleseason[,.(survey_unit, survey, latitude, longitude)])
 #shift longitude for mapping
 unique_lat_lon_survey_units[,longitude_s := ifelse(longitude >160, longitude - 360, longitude)]
 
@@ -61,7 +61,7 @@ coordinates(unique_lat_lon_survey_units.spdf) <- c(5,3)
 unique_lat_lon_survey_units.spdf$long <- unique_lat_lon_survey_units$longitude_s
 unique_lat_lon_survey_units.spdf$lat <- unique_lat_lon_survey_units$latitude
 
-rm(FishGlob_clean)
+rm(FishGlob_clean.singleseason)
 
 ```
 
@@ -273,10 +273,10 @@ all_survey_units_polygons.names <- all_survey_units_polygons.names[c(1:34,40:42)
 Instead color by change experienced
 ```{r color map by change experienced}
 #merge polygons with stats
-all_survey_units_polygons_stats <- left_join(all_survey_units_polygons.names, bray_curtis_total_coefs.r, by = "survey_unit")
+all_survey_units_polygons_stats <- left_join(all_survey_units_polygons.names, jaccard_total_coefs.r, by = "survey_unit")
 
 #merge points with stats
-all_survey_units_centroid_points_stats <- left_join(all_survey_units_centroid_points, bray_curtis_total_coefs.r, by = "survey_unit")
+all_survey_units_centroid_points_stats <- left_join(all_survey_units_centroid_points, jaccard_total_coefs.r, by = "survey_unit")
 
 #focal regions
 centroids_focal <- all_survey_units_centroid_points_stats %>%
@@ -305,23 +305,22 @@ centroids_focal.robin <- st_transform(centroids_focal, crs = robin_proj)
 
 ```{r figure 1 map}
 
-map_bray_coef_trend <- ggplot() +
+#drop NAs
+all_survey_units_polygons_stats.robin <- all_survey_units_polygons_stats.robin[1:34,]
+
+map_jaccard_coef_trend <- ggplot() +
     #world map
   geom_sf(data = world_robinson, fill = "lightgrey", color="white", lwd=0.1) +
   #polygons
   geom_sf(data = all_survey_units_polygons_stats.robin, aes(fill = `Significant Trends`, color = `Significant Trends`), alpha = 0.7, lwd = 0.1) +
-  #add scotland alone
-  geom_sf(data = scotland.robin, fill = "#1E88E5", color = "#FFC109") +
-  #add southeast US alone
-  geom_sf(data = southeast_us.robin, fill = "#1E88E5", color = "#D81C60", lwd = 0.001) +
   #polygon outlines
 #  geom_sf(data = all_survey_units_polygons_stats, aes(color = `Significant Trends`), linewidth = 0.1, alpha = 1, lwd = 0.4, fill = NA) +
   #colored points with trend assocaited with each survey
   geom_sf(all_survey_units_centroid_points_stats.robin, mapping = aes(fill = `Significant Trends`), size=1.5, pch=21, color="black", lwd = 0.05) +
  # geom_sf_text(data = all_survey_units_centroid_points_stats, aes(label = survey_unit), size = 0.5) +
-  scale_fill_manual(values = c("#FFC109","#D81C60","#1E88E5"),
+  scale_fill_manual(values = c("#D81C60", "#FFC109","#1E88E5"),
                     labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
-  scale_color_manual(values = c("#FFC109","#D81C60","#1E88E5"),
+  scale_color_manual(values = c("#D81C60", "#FFC109","#1E88E5"),
                      labels = c("Differentiation","Homogenization","No trend in dissimilarity")) +
     # Labels
   scale_x_continuous(breaks=seq(-180, 50, 30)) +
@@ -341,10 +340,10 @@ map_bray_coef_trend <- ggplot() +
         legend.text = element_text(size = 12), legend.title = element_text(size = 12),
         axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 
-map_bray_coef_trend
+map_jaccard_coef_trend
 
-ggsave(map_bray_coef_trend, path = here::here("figures"), filename = "map_bray_coef_trend.pdf", height = 4, width = 8, unit = "in")
-ggsave(map_bray_coef_trend, path = here::here("figures"), filename = "map_bray_coef_trend.jpg", height = 4, width = 8, unit = "in")
+ggsave(map_jaccard_coef_trend, path = here::here("figures"), filename = "map_jaccard_coef_trend.pdf", height = 4, width = 8, unit = "in")
+ggsave(map_jaccard_coef_trend, path = here::here("figures"), filename = "map_jaccard_coef_trend.jpg", height = 4, width = 8, unit = "in")
 ```
 
 Merge completed map with visualizations of NMDS
@@ -355,14 +354,14 @@ library(cowplot)
 mds_contrast <- readRDS(here::here("figures","mds_contrast.rds"))
 
 merge_nmds_map <- plot_grid(
-  map_bray_coef_trend + theme(axis.text.y = element_blank(), plot.margin = unit(c(0,0.2,0,0), "cm")),
+  map_jaccard_coef_trend + theme(axis.text.y = element_blank(), plot.margin = unit(c(0,0.2,0,0), "cm")),
   mds_contrast + theme(plot.margin = unit(c(0,1,0,0), "cm")), 
   ncol = 1, nrow = 2, labels = c("a.",""), label_size = 12, label_face = "bold",
   rel_heights = c(2,1)
 )
 
 merge_nmds_map <- ggdraw(xlim = c(0,10), ylim = c(0,20)) +
-  draw_plot(x = 0, y = 7,map_bray_coef_trend + theme(axis.text.y = element_blank(),plot.margin = unit(c(0,0.2,0,0), "cm")), width = 10, height = 14) +
+  draw_plot(x = 0, y = 7,map_jaccard_coef_trend + theme(axis.text.y = element_blank(),plot.margin = unit(c(0,0.2,0,0), "cm")), width = 10, height = 14) +
   draw_plot(x = 0, y = 0,mds_contrast + theme(plot.margin = unit(c(0,1,0,0), "cm")), width = 10, height = 8.5) +
   geom_text(x = 0.2, y = 19.5,aes(label = "a.", fontface = "bold"))
 

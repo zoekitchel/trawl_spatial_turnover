@@ -26,18 +26,18 @@ library(stringr)
 library(data.table)
 
 #pull in data for year and lat lon restrictions
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
+FishGlob_clean.singleseason <- readRDS(here::here("data", "cleaned", "FishGlob_clean.singleseason.rds"))
 
 #names of all survey units
-all_survey_units <- unique(FishGlob_clean[,.(survey_unit)])
+all_survey_units <- unique(FishGlob_clean.singleseason[,.(survey_unit)])
 #for annotate (HPC)
-#FishGlob_clean <- readRDS(here::here("OISST_temp_data_homogenization","FishGlob.wellsampledyearscells_complete.final.rds"))
+#FishGlob_clean.singleseason <- readRDS(here::here("OISST_temp_data_homogenization","FishGlob.wellsampledyearscells_complete.final.rds"))
 
 ```
 
 Unique Lat Lon Year for each Survey/season
 ```{r unique lat lon}
-unique_lat_lon_year <- unique(FishGlob_clean[,.(latitude, longitude, year, survey, survey_unit)])
+unique_lat_lon_year <- unique(FishGlob_clean.singleseason[,.(latitude, longitude, year, survey, survey_unit)])
 
 #data range for this data is (-179.875, 179.875), so I will trim to this
 unique_lat_lon_year[,longitude_trim := ifelse(longitude < -179.875, -179.875, ifelse(longitude > 179.875, 179.875, longitude))]
@@ -110,7 +110,7 @@ AI_max_negative <-max(unique_lat_lon_year[longitude < 0 & survey == "AI"]$longit
 OISST_data_AI <- OISST_data_AI[lon >= AI_min_positive | lon <= AI_max_negative,][,lon_s := ifelse(lon > 160, lon-360, lon)]
 
 #edit, because we don't actually need all of this data
-hist(FishGlob_clean[survey == "AI", longitude])
+hist(FishGlob_clean.singleseason[survey == "AI", longitude])
 #for just AI 
 #2024.317  159.159 4585.945 
 
@@ -249,21 +249,21 @@ First go from daily temp to average monthly temp. We need mean temp 12 months be
 And now all other regions
 ```{r loop for average values}
 
-#to maximize memory, remove FishGlob_clean except for min_month
-FishGlob_clean.months_surveys <- unique(FishGlob_clean[,.(survey_unit, month)])
-FishGlob_clean.months_surveys[survey_unit == "MEDITS", month := 4]
-FishGlob_clean.months_surveys[survey_unit == "GRL-DE", month := 8] #NEED TO CHECK THIS
+#to maximize memory, remove FishGlob_clean.singleseason except for min_month
+FishGlob_clean.singleseason.months_surveys <- unique(FishGlob_clean.singleseason[,.(survey_unit, month)])
+FishGlob_clean.singleseason.months_surveys[survey_unit == "MEDITS", month := 4]
+FishGlob_clean.singleseason.months_surveys[survey_unit == "GRL-DE", month := 8] #NEED TO CHECK THIS
 
 #Greenland and Mediterranean don't have months
 #Mediterranean: All observations in quarter 2, so I will say April as month 1
 #Greenland, some publications mention August, so will go for that
 
-rm(FishGlob_clean)
+rm(FishGlob_clean.singleseason)
 
 OISST_data_temp_avgs_full <- data.table()
 
 for (i in 1:length(all_survey_units)) {
-  min_month <- min(FishGlob_clean.months_surveys[survey_unit == all_survey_units[i]]$month)
+  min_month <- min(FishGlob_clean.singleseason.months_surveys[survey_unit == all_survey_units[i]]$month)
   
   #pull in data from rds files if not already in console
   
@@ -331,6 +331,11 @@ saveRDS(OISST_data_temp_avgs_full, here::here("data","Temperature","OISST_data_t
 #annotate cluster
 #saveRDS(OISST_data_temp_avgs_full, file.path("OISST_temp_data_homogenization","OISST_data_temp_avgs_full.rds"))
 
+
+ggplot() +
+  geom_histogram(data = OISST_data_temp_avgs_full, aes(x = yearly_min_bypoint_avg)) +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
 ```
 
 

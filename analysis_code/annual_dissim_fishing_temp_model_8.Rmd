@@ -2,10 +2,10 @@
 title: "Model annual dissimilarity with temperature, fishing, and survey identity"
 output: html_notebook
 author: Zoë J. Kitchel
-date: October 11, 2023
+date: May 6, 2025
 ---
 
-Script 8 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
+Script 8 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
 
 
 ```{r setup}
@@ -14,6 +14,7 @@ library(MuMIn)
 library(ggplot2)
 library(cowplot)
 library(lme4)
+library(stringr)
 ```
 
 ###Predicts annual dissimilarity with annual characteristics, temperature and fishing values
@@ -35,6 +36,9 @@ dissimilarities_temp_fishing <- fread(here::here("output","dissimilarities_temp_
 
 #combine
 dissimilarities_temp_fishing_area <- dissimilarities_temp_fishing[region_area_byyear, on = c("survey_unit","year")]
+
+#only jaccard for these analyses
+dissimilarities_temp_fishing_area.jaccard <- dissimilarities_temp_fishing_area[dissimilarity_metric == "jaccard_dissimilarity_total",]
 ```
 
  
@@ -45,7 +49,7 @@ source(here::here("analysis_code","color_links.R"))
 
 Pull in observed trend values
 ```{r}
-bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
+jaccard_total_coefs.r <- fread(here::here("output","jaccard_total_coefs.r.csv"))
 ```
 
 Plot fishing and temperature vs. time for all regions
@@ -53,12 +57,12 @@ Plot fishing and temperature vs. time for all regions
 #######TEMPERATURE
 
 #set order by survey unit for plotting
-all_surveys <- levels(as.factor(dissimilarities_temp_fishing_area$survey_unit))
-setorder(dissimilarities_temp_fishing_area, survey_unit)
+all_surveys <- levels(as.factor(dissimilarities_temp_fishing_area.jaccard$survey_unit))
+setorder(dissimilarities_temp_fishing_area.jaccard, survey_unit)
 
-dissimilarities_temp_fishing_area[,Survey_Name_Season:=factor(Survey_Name_Season, levels = unique(dissimilarities_temp_fishing_area$Survey_Name_Season), ordered = T)]
+dissimilarities_temp_fishing_area.jaccard[,Survey_Name_Season:=factor(Survey_Name_Season, levels = unique(dissimilarities_temp_fishing_area.jaccard$Survey_Name_Season), ordered = T)]
 
-(temp_time_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[1:24] & year > 1979]) +
+(sbt_time_survey_facet_1_20 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[1:20] & year > 1979]) +
   labs(y = "Mean bottom temperature (˚C)",  x = "Year") +
   geom_point(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), alpha = 0.3) +
   geom_smooth(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), method = "lm") +
@@ -67,9 +71,9 @@ dissimilarities_temp_fishing_area[,Survey_Name_Season:=factor(Survey_Name_Season
   theme(axis.text.x = element_text(size = 7)) +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
 
-ggsave(temp_time_survey_facet_1_24, path = here::here("figures"), filename = "temp_time_survey_facet_1_24.jpg", height = 12, width =9)
+ggsave(sbt_time_survey_facet_1_20, path = here::here("figures"), filename = "temp_time_survey_facet_1_20.jpg", height = 12, width =9)
 
-(temp_time_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[25:42] & year > 1979]) +
+(sbt_time_survey_facet_21_34 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[21:34] & year > 1979]) +
   labs(y = "Mean bottom temperature (˚C)",  x = "Year") +
   geom_point(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), alpha = 0.3) +
   geom_smooth(aes(y = as.numeric(yearly_mean_bypoint_avg), x = year), method = "lm") +
@@ -78,13 +82,13 @@ ggsave(temp_time_survey_facet_1_24, path = here::here("figures"), filename = "te
   theme(axis.text.x = element_text(size = 7)) +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
 
-ggsave(temp_time_survey_facet_25_42, path = here::here("figures"), filename = "temp_time_survey_facet_25_42.jpg", height = 12, width =9)
+ggsave(sbt_time_survey_facet_21_34, path = here::here("figures"), filename = "sbt_time_survey_facet_21_34.jpg", height = 12, width =9)
 
 #######FISHING
 
-dissimilarities_temp_fishing_area.cc <- dissimilarities_temp_fishing_area[complete.cases(dissimilarities_temp_fishing_area[,summed_tonnes_scaled_byreg]),]
+dissimilarities_temp_fishing_area.jaccard.cc <- dissimilarities_temp_fishing_area.jaccard[complete.cases(dissimilarities_temp_fishing_area.jaccard[,summed_tonnes_scaled_byreg]),]
 
-(fishing_time_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[1:24] & year > 1979]) +
+(fishing_time_survey_facet_1_20 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard.cc[survey_unit %in% all_surveys[1:20] & year > 1979]) +
   labs(y = "Relative fishing catch",  x = "Year") +
   geom_point(aes(y = summed_tonnes_scaled_byreg, x = year), alpha = 0.3) +
   geom_smooth(aes(y = summed_tonnes_scaled_byreg, x = year), method = "lm") +
@@ -93,9 +97,9 @@ dissimilarities_temp_fishing_area.cc <- dissimilarities_temp_fishing_area[comple
   theme(axis.text.x = element_text(size = 7)) +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
 
-ggsave(fishing_time_survey_facet_1_24, path = here::here("figures"), filename = "fishing_time_survey_facet_1_24.jpg", height = 12, width =9)
+ggsave(fishing_time_survey_facet_1_20, path = here::here("figures"), filename = "fishing_time_survey_facet_1_20.jpg", height = 12, width =9)
 
-(fishing_time_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[c(25:42)] & year > 1979]) +
+(fishing_time_survey_facet_21_34 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard.cc[survey_unit %in% all_surveys[c(21:34)] & year > 1979]) +
   labs(y = "Relative fishing catch",  x = "Year") +
   geom_point(aes(y = summed_tonnes_scaled_byreg, x = year), alpha = 0.3) +
   geom_smooth(aes(y = summed_tonnes_scaled_byreg, x = year), method = "lm") +
@@ -104,7 +108,7 @@ ggsave(fishing_time_survey_facet_1_24, path = here::here("figures"), filename = 
   theme(axis.text.x = element_text(size = 7)) +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
 
-ggsave(fishing_time_survey_facet_25_42, path = here::here("figures"), filename = "fishing_time_survey_facet_25_42.jpg", height = 12, width =9)
+ggsave(fishing_time_survey_facet_21_34, path = here::here("figures"), filename = "fishing_time_survey_facet_21_34.jpg", height = 12, width =9)
 
 
 ```
@@ -112,45 +116,45 @@ ggsave(fishing_time_survey_facet_25_42, path = here::here("figures"), filename =
 Plot fishing and temperature vs. dissimilarity for all regions
 ```{r}
 
-(preds_sbt_mean_temp_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[1:24] & year > 1979]) +
+(preds_sbt_mean_temp_survey_facet_1_20 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[1:20] & year > 1979]) +
   labs(x = "Mean bottom temperature (˚C)",  y = "β-diversity") +
-  geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
-  geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = annual_dissimilarity_value), alpha = 0.3) +
+  geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = annual_dissimilarity_value), method = "lm") +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
   theme_classic())
 
-ggsave(preds_sbt_mean_temp_survey_facet_1_24, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_1_24.jpg", height = 12, width =9)
+ggsave(preds_sbt_mean_temp_survey_facet_1_20, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_1_20.jpg", height = 12, width =9)
 
-(preds_sbt_mean_temp_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area[survey_unit %in% all_surveys[25:42] & year > 1979]) +
+(preds_sbt_mean_temp_survey_facet_21_34 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[21:34] & year > 1979]) +
   labs(x = "Mean bottom temperature (˚C)",  y = "β-diversity") +
-  geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
-  geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = annual_dissimilarity_value), alpha = 0.3) +
+  geom_smooth(aes(x = as.numeric(yearly_mean_bypoint_avg), y = annual_dissimilarity_value), method = "lm") +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
   theme_classic())
 
-ggsave(preds_sbt_mean_temp_survey_facet_25_42, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_25_42.jpg", height = 12, width =9)
+ggsave(preds_sbt_mean_temp_survey_facet_21_34, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_21_34.jpg", height = 12, width =9)
 
 #######FISHING
 
-dissimilarities_temp_fishing_area.cc <- dissimilarities_temp_fishing_area[complete.cases(dissimilarities_temp_fishing_area[,summed_tonnes_scaled_byreg]),]
+dissimilarities_temp_fishing_area.jaccard.cc <- dissimilarities_temp_fishing_area.jaccard[complete.cases(dissimilarities_temp_fishing_area.jaccard[,summed_tonnes_scaled_byreg]),]
 
-(preds_sbt_mean_fishing_survey_facet_1_24 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[1:24] & year > 1979]) +
+(preds_sbt_mean_fishing_survey_facet_1_20 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard.cc[survey_unit %in% all_surveys[1:20] & year > 1979]) +
   labs(x = "Relative fishing catch",  y = "β-diversity") +
-  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
-  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = annual_dissimilarity_value), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = annual_dissimilarity_value), method = "lm") +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
   theme_classic())
 
-ggsave(preds_sbt_mean_fishing_survey_facet_1_24, path = here::here("figures"), filename = "preds_sbt_mean_fishing_survey_facet_1_24.jpg", height = 12, width =9)
+ggsave(preds_sbt_mean_fishing_survey_facet_1_20, path = here::here("figures"), filename = "preds_sbt_mean_fishing_survey_facet_1_20.jpg", height = 12, width =9)
 
-(preds_sbt_mean_fishing_survey_facet_25_42 <- ggplot(data = dissimilarities_temp_fishing_area.cc[survey_unit %in% all_surveys[c(25:42)] & year > 1979]) +
+(preds_sbt_mean_fishing_survey_facet_21_34 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard.cc[survey_unit %in% all_surveys[c(21:34)] & year > 1979]) +
   labs(x = "Relative fishing catch",  y = "β-diversity") +
-  geom_point(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), alpha = 0.3) +
-  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = bray_curtis_dissimilarity_total_mean), method = "lm") +
+  geom_point(aes(x = summed_tonnes_scaled_byreg, y = annual_dissimilarity_value), alpha = 0.3) +
+  geom_smooth(aes(x = summed_tonnes_scaled_byreg, y = annual_dissimilarity_value), method = "lm") +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
   theme_classic())
 
-ggsave(preds_sbt_mean_fishing_survey_facet_25_42, path = here::here("figures"), filename = "preds_sbt_mean_fishing_survey_facet_25_42.jpg", height = 12, width =9)
+ggsave(preds_sbt_mean_fishing_survey_facet_21_34, path = here::here("figures"), filename = "preds_sbt_mean_fishing_survey_facet_21_34.jpg", height = 12, width =9)
 
 
 ```
@@ -161,13 +165,13 @@ ggsave(preds_sbt_mean_fishing_survey_facet_25_42, path = here::here("figures"), 
 
 options(na.action = "na.fail")
 
-dissimilarity_covariates_dredge.dt <- dissimilarities_temp_fishing_area[,.
+dissimilarity_covariates_dredge.dt <- dissimilarities_temp_fishing_area.jaccard[,.
                   (year, survey_unit,
                     yearly_mean_bypoint_avg, yearly_max_bypoint_avg, yearly_min_bypoint_avg,yearly_seas_bypoint_avg,
                     yearly_mean_bypoint_SD, yearly_max_bypoint_SD, yearly_min_bypoint_SD,yearly_seas_bypoint_SD,
                     yearly_mean_bypoint_avg.s, yearly_max_bypoint_avg.s, yearly_min_bypoint_avg.s,yearly_seas_bypoint_avg.s,
-                    bray_curtis_dissimilarity_total_mean,
-                    wgt_cpue_annual, haul_id_count_annual,
+                    annual_dissimilarity_value,
+                    haul_id_count_annual,
                     spp_count_annual, depth_annual_avg,
                     depth_annual_range, latitude_annual_avg,
                     latitude_annual_range, area_km, summed_tonnes_scaled_byreg)]
@@ -184,7 +188,7 @@ View(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt <- dissimilarity_covariates_dredge.dt[complete.cases(dissimilarity_covariates_dredge.dt)]
 
 
-dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,wgt_cpue_annual.scaledacrossall := scale(wgt_cpue_annual)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)]
+dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)]
 
 
 ```
@@ -202,7 +206,7 @@ For temperature, we will look at:
 Comparing temp variables
 ```{r fit global mod}
 
-global_mod_mean_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+global_mod_mean_temp <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -214,7 +218,7 @@ global_mod_mean_temp <- lm(bray_curtis_dissimilarity_total_mean ~
                              haul_id_count_annual.scaledacrossall,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_max_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+global_mod_max_temp <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_max_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -226,7 +230,7 @@ global_mod_max_temp <- lm(bray_curtis_dissimilarity_total_mean ~
                              haul_id_count_annual.scaledacrossall,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_min_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+global_mod_min_temp <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_min_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -238,7 +242,7 @@ global_mod_min_temp <- lm(bray_curtis_dissimilarity_total_mean ~
                              haul_id_count_annual.scaledacrossall,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_seas_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+global_mod_seas_temp <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_seas_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -250,7 +254,7 @@ global_mod_seas_temp <- lm(bray_curtis_dissimilarity_total_mean ~
                              haul_id_count_annual.scaledacrossall,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_SD_temp <- lm(bray_curtis_dissimilarity_total_mean ~ 
+global_mod_SD_temp <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_mean_bypoint_SD.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -338,13 +342,13 @@ setorder(global_mod_temp_table,cols = -"deltaAICc")
 
 global_mod_temp_table[,Rank := seq(1,5,by = 1)]
 
-global_mod_temp_table <- global_mod_temp_table[,.(Rank,`Model structure`, deltaAICc)]
+global_mod_sbt_table <- global_mod_temp_table[,.(Rank,`Model structure`, deltaAICc)]
 
-fwrite(global_mod_temp_table, here::here("output","global_mod_temp_table.csv"))
+fwrite(global_mod_sbt_table, here::here("output","global_mod_sbt_table.csv"))
 
 ```
 
-Best performing global model includes minimum temperature (centered and scaled)
+Best performing global model includes minimum temperature (centered and scaled) (Still the case as of May 6, 2024)
 
 Now, look at different combinations of all predictors (min temp) using dredge
 
@@ -356,7 +360,7 @@ dd <- dredge(global_mod_min_temp)
 dd.dt <- data.table(dd)
 View(dd)
 
-#only models less than 2 delta AICc (12 models)
+#only models less than 4 delta AICc (2 models)
 dd.dt.2 <- dd.dt[delta <= 2,]
 
 colnames(dd.dt.2)
@@ -425,10 +429,10 @@ model_avg.wide <- dcast(model_avg_values, formula = . ~ coef_name, value.var = c
 #add rank of "model avg" to table
 model_avg.wide[,Rank := "Model avg"]
 
-best_model_table_formatted <- rbind(model_coef_se_AIC, model_avg.wide, fill = T)
+best_model_sbt_jaccard_table_formatted <- rbind(model_coef_se_AIC, model_avg.wide, fill = T)
 
 #get rid of interaction coefficients
-best_model_table_formatted.r <- best_model_table_formatted[,.(Rank,`(Intercept)`,area_km.scaledacrossall,
+best_model_sbt_jaccard_table_formatted.r <- best_model_sbt_jaccard_table_formatted[,.(Rank,`(Intercept)`,area_km.scaledacrossall,
                                 depth_annual_avg.scaledacrossall,
                                 depth_annual_range.scaledacrossall,
                                 haul_id_count_annual.scaledacrossall,
@@ -448,13 +452,13 @@ best_model_table_formatted.r <- best_model_table_formatted[,.(Rank,`(Intercept)`
 #round to 2 significant figures
 
 #names of numeric columns
-numeric_cols <- names(best_model_table_formatted.r)[sapply(best_model_table_formatted.r, is.numeric)]
+numeric_cols <- names(best_model_sbt_jaccard_table_formatted.r)[sapply(best_model_sbt_jaccard_table_formatted.r, is.numeric)]
 
 # Apply signif() only to numeric columns
-best_model_table_formatted.r[, (numeric_cols) := lapply(.SD, function(x) if (is.numeric(x)) signif(x, digits = 2) else x), .SDcols = numeric_cols]
+best_model_sbt_jaccard_table_formatted.r[, (numeric_cols) := lapply(.SD, function(x) if (is.numeric(x)) signif(x, digits = 2) else x), .SDcols = numeric_cols]
 
 #change column names, in caption note that all variables are centered and scaled
-colnames(best_model_table_formatted.r) <- c(
+colnames(best_model_sbt_jaccard_table_formatted.r) <- c(
 "Rank",                                              
 "Intercept",                                     
 "Area",       #scaled across all                    
@@ -477,20 +481,21 @@ paste0("\u03C9"))
 
 #save as csv
 
-fwrite(best_model_table_formatted.r,here::here("output","best_model_table_formatted.csv"))
+fwrite(best_model_sbt_jaccard_table_formatted.r,here::here("output","best_model_sbt_jaccard_table_formatted.csv"))
 ```
 
 
 Take aways
-Dissimilarity increases with increasing avg # hauls
-Dissimilarity increases with increasing avg latitude
+Dissimilarity increases with increasing avg # tows
+Dissimilarity decreases with increasing avg latitude
 Dissimilarity increases with increasing latitude range
 Dissimilarity increases with increasing fishing effort
-Dissimilarity increases with increasing depth range
-Dissimilarity   decreases with increasing average depth
+Dissimilarity decreases with increasing depth range
+Dissimilarity  increases with increasing average depth
 Dissimilarity increases with increasing area
-Dissimilarity   decreases with increasing minimum temperature
+Dissimilarity  decreases with increasing minimum temperature
 Dissimilarity increases with increasing # spp
+Dissimilarity increases with relative fishing catch
 
 
 
@@ -498,52 +503,67 @@ Predict dissimilarity across years using averaged model (model_avg_delta4)
 ```{r}
 dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_dredge.dt)
 
-  #allowing temp and fishing to vary
-  dissimilarity_covariates_dredge.dt_predictions[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]]
+  #allowing temp and fishing to vary (aka no changes)
+  dissimilarity_covariates_dredge.dt_predictions[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]] #full allows us to switch back to mixed effect models
   
   
   
-  #constant temp in regions
+  #constant temp in regions (aka take mean of temperature values within survey units so they are the same value within each year for a survey)
   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg <- copy(dissimilarity_covariates_dredge.dt)
   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
 
-  #constant fishing in regions
+  #constant fishing in regions (aka take mean of fishing values within survey units so they are the same value within each year for a survey)
   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)]
 
-#and then with consistent temp and fishing in regions
+#and then with consistent temp and fishing in regions (aka take mean of both min temp and fishing)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
 
 
-  #allowing temp and fishing to vary only within regs
-  dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[2]]]
+#allowing temp and fishing to vary within regs (normal)
+    dissimilarity_covariates_dredge.dt_predictions[,pred_dissim := 
+                                                     predict(model_avg_delta4, se.fit = T, full = F, newdata =   dissimilarity_covariates_dredge.dt_predictions)[[1]]][,pred_se := 
+                                                                                                                                                                         predict(model_avg_delta4, se.fit = T, full = F, newdata =   dissimilarity_covariates_dredge.dt_predictions)[[2]]]
   
-#allowing only fishing to vary
+#allowing only fishing to vary within regions (with mean temp)
   
-   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[2]]]
+   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,pred_dissim := 
+                                                                        predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[1]]][,pred_se :=
+                                                                                                                                                                                                              predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[2]]]
 
   
   
-#allowing only temperature to vary
+#allowing only temperature to vary within regions (with mean fishing pressure)
      
-   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[2]]]
+   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,pred_dissim :=
+                                                                           predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[1]]][,pred_se := 
+                                                                                                                                                                                                                                  predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[2]]]
+   
+#and then with consistent temp and fishing across regions (mean of both fishing and temp)
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
+
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,pred_dissim := 
+                                                                         predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[1]]][,pred_se :=
+                                                                                                                                                                                                                 predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[2]]]
 
 
-#and then with consistent temp and fishing across regions
+#and then with consistent temp and fishing across regions (mean of both fishing and temp)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing <- copy(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall)]
 
-  #allowing temp and fishing to vary across all regs
-  dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[2]]]
+dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,pred_dissim := 
+                                                                         predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[1]]][,pred_se :=
+                                                                                                                                                                                                                 predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[2]]]
 
 #FOR COLOR TO MATCH
 #sort color link by survey name season
 #alphabetical order
 color_link_alpha <- setorder(color_link, survey_unit)
 
-#exclude GSL S and Rockall which we do not include because of missing covariates (depth and fishing respectively)
-color_link_alpha <- color_link_alpha[!(survey_unit %in% c("ROCKALL","GSL-S"))]
+#exclude surveys we don't include
+color_link_alpha <- color_link_alpha[survey_unit %in% unique(dissimilarity_covariates_dredge.dt_predictions$survey_unit),]
 
 color_alpha_order <- color_link_alpha[,hex]
 label_alpha_order <- color_link_alpha[,Survey_Name_Season]
@@ -552,7 +572,7 @@ label_alpha_order <- color_link_alpha[,Survey_Name_Season]
 #maintain temp and fishing
 #plot
 predicted_values_temp_fishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions) +
-  geom_point(aes(x = year, y = bray_curtis_dissimilarity_total_mean, color = survey_unit)) +
+  geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
   geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
@@ -564,7 +584,7 @@ predicted_values_temp_fishing <- ggplot(dissimilarity_covariates_dredge.dt_predi
 
 #average temp and fishing for each region
 predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg) +
-  geom_point(aes(x = year, y = bray_curtis_dissimilarity_total_mean, color = survey_unit)) +
+  geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
   geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
@@ -576,7 +596,7 @@ predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_co
 
 #average temp and fishing across all regions
 predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing) +
-  geom_point(aes(x = year, y = bray_curtis_dissimilarity_total_mean, color = survey_unit)) +
+  geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
   geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.1) +
   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
@@ -587,12 +607,12 @@ predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates
   ggtitle("Average model predictions with mean\novereall temperature and fishing pressure")
 
 #merge plots
-predicted_values_temp_fishing_merge <- cowplot::plot_grid(predicted_values_temp_fishing,
+predicted_values_sbt_jaccard_fishing_merge <- cowplot::plot_grid(predicted_values_temp_fishing,
                                                  predicted_values_temp_fishing_meantempfishinginsurvey,
                                                  predicted_values_temp_fishing_meantempfishing,
                                                  ncol = 1)
 
-ggsave(predicted_values_temp_fishing_merge, path = here::here("figures"), filename = "predicted_values_temp_fishing_merge.jpg", height = 30, width = 14)
+ggsave(predicted_values_sbt_jaccard_fishing_merge, path = here::here("figures"), filename = "predicted_values_sbt_jaccard_fishing_merge.jpg", height = 30, width = 14)
 ```
 
 Take dissimilarity values from random normal distribution for each year for each region, and then calculate slope (1000 times). Do this for:
@@ -613,13 +633,13 @@ table <- dissimilarity_covariates_dredge.dt_predictions[,.(survey_unit, pred_dis
 for (i in 1:1000){
   table[,rnorm_pred := rnorm(1, mean = pred_dissim, sd = pred_se),.(year, survey_unit)]
 #2) CALCULATE LINEAR MODEL TO EXTRACT SURVEY SPECIFIC TREND VALUES
-  bray_curtis_total_predicted_lm_singlerun <- lm(rnorm_pred ~ year*survey_unit,data = table)
+  jaccard_total_predicted_lm_singlerun <- lm(rnorm_pred ~ year*survey_unit,data = table)
 
-  model_coefs_reduced_predictions_singlerun <- data.table(summary(bray_curtis_total_predicted_lm_singlerun)$coefficients)
-  model_coefs_reduced_predictions_singlerun[,var := rownames(summary(bray_curtis_total_predicted_lm_singlerun)$coefficients)]
+  model_coefs_reduced_predictions_singlerun <- data.table(summary(jaccard_total_predicted_lm_singlerun)$coefficients)
+  model_coefs_reduced_predictions_singlerun[,var := rownames(summary(jaccard_total_predicted_lm_singlerun)$coefficients)]
   
-  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
-  model_coefs_reduced_predictions_singlerun <- model_coefs_reduced_predictions_singlerun[c(2,42:80),]
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 34:64
+  model_coefs_reduced_predictions_singlerun <- model_coefs_reduced_predictions_singlerun[c(2,34:64),]
   
   #adjust survey unit name by deleting beginning of string
   model_coefs_reduced_predictions_singlerun[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
@@ -627,7 +647,7 @@ for (i in 1:1000){
   #calculate interaction coefficients
   AI_estimate <- model_coefs_reduced_predictions_singlerun[1,Estimate]
   model_coefs_reduced_predictions_singlerun[1,survey_unit_coefficient := AI_estimate]
-  model_coefs_reduced_predictions_singlerun[2:40,survey_unit_coefficient := (AI_estimate + Estimate)]
+  model_coefs_reduced_predictions_singlerun[2:32,survey_unit_coefficient := (AI_estimate + Estimate)]
   
   predicted_dissim_trends_rnormruns <- rbind(predicted_dissim_trends_rnormruns, model_coefs_reduced_predictions_singlerun[,.(survey_unit, survey_unit_coefficient)])
   
@@ -642,7 +662,7 @@ predicted_dissim_trends_rnormruns.summary <- unique(predicted_dissim_trends_rnor
 predicted_dissim_trends_rnormruns.summary[,pred_type := "full"]
 
 ################################################################################
-#predictions with temp held constant
+#predictions with temp held constant and fishing still varying from year to year
 ################################################################################
 #table with predicted dissimilarity values and standard error of all predicted dissimilarity values (by year)
 table_constanttemp <- dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,.(survey_unit, pred_dissim, pred_se, year)]
@@ -652,13 +672,13 @@ table_constanttemp <- dissimilarity_covariates_dredge.dt_predictions_consistentt
 for (i in 1:1000){
   table_constanttemp[,rnorm_pred := rnorm(1, mean = pred_dissim, sd = pred_se),.(year, survey_unit)]
 #2) CALCULATE LINEAR MODEL FOR SLOPE VALUES
-  bray_curtis_total_predicted_lm_singlerun_constanttemp <- lm(rnorm_pred ~ year*survey_unit,data = table_constanttemp)
+  jaccard_total_predicted_lm_singlerun_constanttemp <- lm(rnorm_pred ~ year*survey_unit,data = table_constanttemp)
 
-  model_coefs_reduced_predictions_singlerun_constanttemp <- data.table(summary(bray_curtis_total_predicted_lm_singlerun_constanttemp)$coefficients)
-  model_coefs_reduced_predictions_singlerun_constanttemp[,var := rownames(summary(bray_curtis_total_predicted_lm_singlerun_constanttemp)$coefficients)]
+  model_coefs_reduced_predictions_singlerun_constanttemp <- data.table(summary(jaccard_total_predicted_lm_singlerun_constanttemp)$coefficients)
+  model_coefs_reduced_predictions_singlerun_constanttemp[,var := rownames(summary(jaccard_total_predicted_lm_singlerun_constanttemp)$coefficients)]
   
-  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
-  model_coefs_reduced_predictions_singlerun_constanttemp <- model_coefs_reduced_predictions_singlerun_constanttemp[c(2,42:80),]
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 34:64
+  model_coefs_reduced_predictions_singlerun_constanttemp <- model_coefs_reduced_predictions_singlerun_constanttemp[c(2,34:64),]
   
   #adjust survey unit name by deleting beginning of string
   model_coefs_reduced_predictions_singlerun_constanttemp[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
@@ -666,7 +686,7 @@ for (i in 1:1000){
   #calculate interaction coefficients
   AI_estimate <- model_coefs_reduced_predictions_singlerun_constanttemp[1,Estimate]
   model_coefs_reduced_predictions_singlerun_constanttemp[1,survey_unit_coefficient := AI_estimate]
-  model_coefs_reduced_predictions_singlerun_constanttemp[2:40,survey_unit_coefficient := (AI_estimate + Estimate)]
+  model_coefs_reduced_predictions_singlerun_constanttemp[2:32,survey_unit_coefficient := (AI_estimate + Estimate)]
   
   predicted_dissim_trends_rnormruns_constanttemp <- rbind(predicted_dissim_trends_rnormruns_constanttemp, model_coefs_reduced_predictions_singlerun_constanttemp[,.(survey_unit, survey_unit_coefficient)])
   
@@ -683,7 +703,7 @@ predicted_dissim_trends_rnormrunsconstant_temp.summary[,pred_type := "temp_const
 predicted_dissim_trends_rnormruns.summary <- rbind(predicted_dissim_trends_rnormruns.summary, predicted_dissim_trends_rnormrunsconstant_temp.summary)
 
 ################################################################################
-#predictions with fishing held constant
+#predictions with fishing held constant (and temperature varying)
 ################################################################################
 #table with predicted dissimilarity values and standard error of all predicted dissimilarity values (by year)
 table_constantfishing <- dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,.(survey_unit, pred_dissim, pred_se, year)]
@@ -693,13 +713,13 @@ table_constantfishing <- dissimilarity_covariates_dredge.dt_predictions_consiste
 for (i in 1:1000){
   table_constantfishing[,rnorm_pred := rnorm(1, mean = pred_dissim, sd = pred_se),.(year, survey_unit)]
 #2) CALCULATE LINEAR MODEL FOR SLOPE VALUES
-  bray_curtis_total_predicted_lm_singlerun_constantfishing <- lm(rnorm_pred ~ year*survey_unit,data = table_constantfishing)
+  jaccard_total_predicted_lm_singlerun_constantfishing <- lm(rnorm_pred ~ year*survey_unit,data = table_constantfishing)
 
-  model_coefs_reduced_predictions_singlerun_constantfishing <- data.table(summary(bray_curtis_total_predicted_lm_singlerun_constantfishing)$coefficients)
-  model_coefs_reduced_predictions_singlerun_constantfishing[,var := rownames(summary(bray_curtis_total_predicted_lm_singlerun_constantfishing)$coefficients)]
+  model_coefs_reduced_predictions_singlerun_constantfishing <- data.table(summary(jaccard_total_predicted_lm_singlerun_constantfishing)$coefficients)
+  model_coefs_reduced_predictions_singlerun_constantfishing[,var := rownames(summary(jaccard_total_predicted_lm_singlerun_constantfishing)$coefficients)]
   
-  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
-  model_coefs_reduced_predictions_singlerun_constantfishing <- model_coefs_reduced_predictions_singlerun_constantfishing[c(2,42:80),]
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 34:64
+  model_coefs_reduced_predictions_singlerun_constantfishing <- model_coefs_reduced_predictions_singlerun_constantfishing[c(2,34:64),]
   
   #adjust survey unit name by deleting beginning of string
   model_coefs_reduced_predictions_singlerun_constantfishing[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
@@ -707,7 +727,7 @@ for (i in 1:1000){
   #calculate interaction coefficients
   AI_estimate <- model_coefs_reduced_predictions_singlerun_constantfishing[1,Estimate]
   model_coefs_reduced_predictions_singlerun_constantfishing[1,survey_unit_coefficient := AI_estimate]
-  model_coefs_reduced_predictions_singlerun_constantfishing[2:40,survey_unit_coefficient := (AI_estimate + Estimate)]
+  model_coefs_reduced_predictions_singlerun_constantfishing[2:32,survey_unit_coefficient := (AI_estimate + Estimate)]
   
   predicted_dissim_trends_rnormruns_constantfishing <- rbind(predicted_dissim_trends_rnormruns_constantfishing, model_coefs_reduced_predictions_singlerun_constantfishing[,.(survey_unit, survey_unit_coefficient)])
   
@@ -725,7 +745,7 @@ predicted_dissim_trends_rnormruns.summary <- rbind(predicted_dissim_trends_rnorm
 
 
 ################################################################################
-#predictions with both fishing and temperature held constant
+#predictions with both fishing and temperature held constant (variability goes to other factors we don't account for)
 ################################################################################
 #table with predicted dissimilarity values and standard error of all predicted dissimilarity values (by year)
 table_constanttempfishing <- dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,.(survey_unit, pred_dissim, pred_se, year)]
@@ -735,13 +755,13 @@ table_constanttempfishing <- dissimilarity_covariates_dredge.dt_predictions_cons
 for (i in 1:1000){
   table_constanttempfishing[,rnorm_pred := rnorm(1, mean = pred_dissim, sd = pred_se),.(year, survey_unit)]
 #2) CALCULATE LINEAR MODEL FOR SLOPE VALUES
-  bray_curtis_total_predicted_lm_singlerun_constanttempfishing <- lm(rnorm_pred ~ year*survey_unit,data = table_constanttempfishing)
+  jaccard_total_predicted_lm_singlerun_constanttempfishing <- lm(rnorm_pred ~ year*survey_unit,data = table_constanttempfishing)
 
-  model_coefs_reduced_predictions_singlerun_constanttempfishing <- data.table(summary(bray_curtis_total_predicted_lm_singlerun_constanttempfishing)$coefficients)
-  model_coefs_reduced_predictions_singlerun_constanttempfishing[,var := rownames(summary(bray_curtis_total_predicted_lm_singlerun_constanttempfishing)$coefficients)]
+  model_coefs_reduced_predictions_singlerun_constanttempfishing <- data.table(summary(jaccard_total_predicted_lm_singlerun_constanttempfishing)$coefficients)
+  model_coefs_reduced_predictions_singlerun_constanttempfishing[,var := rownames(summary(jaccard_total_predicted_lm_singlerun_constanttempfishing)$coefficients)]
   
-  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
-  model_coefs_reduced_predictions_singlerun_constanttempfishing <- model_coefs_reduced_predictions_singlerun_constanttempfishing[c(2,42:80),]
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 34:64
+  model_coefs_reduced_predictions_singlerun_constanttempfishing <- model_coefs_reduced_predictions_singlerun_constanttempfishing[c(2,34:64),]
   
   #adjust survey unit name by deleting beginning of string
   model_coefs_reduced_predictions_singlerun_constanttempfishing[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
@@ -749,7 +769,7 @@ for (i in 1:1000){
   #calculate interaction coefficients
   AI_estimate <- model_coefs_reduced_predictions_singlerun_constanttempfishing[1,Estimate]
   model_coefs_reduced_predictions_singlerun_constanttempfishing[1,survey_unit_coefficient := AI_estimate]
-  model_coefs_reduced_predictions_singlerun_constanttempfishing[2:40,survey_unit_coefficient := (AI_estimate + Estimate)]
+  model_coefs_reduced_predictions_singlerun_constanttempfishing[2:32,survey_unit_coefficient := (AI_estimate + Estimate)]
   
   predicted_dissim_trends_rnormruns_constanttempfishing <- rbind(predicted_dissim_trends_rnormruns_constanttempfishing, model_coefs_reduced_predictions_singlerun_constanttempfishing[,.(survey_unit, survey_unit_coefficient)])
   
@@ -769,74 +789,179 @@ predicted_dissim_trends_rnormruns.summary <- rbind(predicted_dissim_trends_rnorm
 Plotting observed vs predicted
 ```{r}
 
-bray_curtis_fishing_temp_model_observed_predicted_dt <- bray_curtis_total_coefs.r[predicted_dissim_trends_rnormruns.summary, on = "survey_unit"]
+jaccard_fishing_temp_model_observed_predicted_dt <- jaccard_total_coefs.r[predicted_dissim_trends_rnormruns.summary, on = "survey_unit"]
 
-bray_curtis_fishing_temp_model_observed_predicted_dt[,pred_lower := mean_dissim_coef-sd_dissim][,pred_upper := mean_dissim_coef+sd_dissim]
+jaccard_fishing_temp_model_observed_predicted_dt[,pred_lower := mean_dissim_coef-sd_dissim][,pred_upper := mean_dissim_coef+sd_dissim]
 
 #FULL MODEL, both temperature and fishing are allowed to vary
-bray_curtis_fishing_temp_model_observed_predicted_lm <- lm(mean_dissim_coef ~ survey_unit_coefficient, data = bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "full"])
-summary(bray_curtis_fishing_temp_model_observed_predicted_lm) #R^2 0.50
+jaccard_fishing_temp_model_observed_predicted_lm <- lm(survey_unit_coefficient ~ mean_dissim_coef, data = jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "full"])
+summary(jaccard_fishing_temp_model_observed_predicted_lm) #R^2 0.42
 
-(bray_curtis_fishing_temp_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "full"]) +
+(jaccard_fishing_temp_model_observed_predicted <- ggplot(jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "full"]) +
   geom_errorbar(aes(x = mean_dissim_coef, ymin = lwr, ymax = upr), color = "lightgrey", linewidth = 0.4) +
   geom_errorbarh(aes(y = survey_unit_coefficient, xmin = mean_dissim_coef-sd_dissim, xmax = mean_dissim_coef+sd_dissim), color = "lightgrey", linewidth = 0.4) +
   geom_point(aes(y = survey_unit_coefficient, x = mean_dissim_coef)) +
+  geom_smooth(aes(y = survey_unit_coefficient, x = mean_dissim_coef), color = "darkgrey",linetype = "dotted", method = "lm") +
   geom_abline(aes(slope = 1, intercept = 0)) +
-  lims(x = c(min(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_lower),max(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_upper))) +
+  lims(x = c(min(jaccard_fishing_temp_model_observed_predicted_dt$pred_lower),max(jaccard_fishing_temp_model_observed_predicted_dt$pred_upper))) +
   labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n") +
   theme_classic()
 )
 
-#fishing constant (fishing constant; temperature only)
-bray_curtis_fishing_maintained_model_observed_predicted_lm <- lm(mean_dissim_coef ~ survey_unit_coefficient, data = bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_constant"])
-summary(bray_curtis_fishing_maintained_model_observed_predicted_lm) #R^2 = 0.06
+#fishing constant (fishing constant; temperature varies only)
+jaccard_fishing_constant_model_observed_predicted_lm <- lm(survey_unit_coefficient ~ mean_dissim_coef, data = jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_constant"])
+summary(jaccard_fishing_constant_model_observed_predicted_lm) 
+#Temperature as a predictor, not fishing = R^2 = 0.28 (drop in 12% of variance explained when you lose fishing as predictor)
 
-(bray_curtis_fishing_maintained_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_constant"]) +
+(jaccard_fishing_constant_model_observed_predicted <- ggplot(jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_constant"]) +
 geom_errorbar(aes(x = mean_dissim_coef, ymin = lwr, ymax = upr), color = "lightgrey", linewidth = 0.4) +
   geom_errorbarh(aes(y = survey_unit_coefficient, xmin = mean_dissim_coef-sd_dissim, xmax = mean_dissim_coef+sd_dissim), color = "lightgrey", linewidth = 0.4) +
   geom_point(aes(y = survey_unit_coefficient, x = mean_dissim_coef)) +
+    geom_smooth(aes(y = survey_unit_coefficient, x = mean_dissim_coef), color = "darkgrey",linetype = "dotted", method = "lm") +
   geom_abline(aes(slope = 1, intercept = 0)) +
-      lims(x = c(min(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_lower),max(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_upper))) +
-  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(temperature only)") +
+      lims(x = c(min(jaccard_fishing_temp_model_observed_predicted_dt$pred_lower),max(jaccard_fishing_temp_model_observed_predicted_dt$pred_upper))) +
+  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(temperature varies fishing constant)") +
   theme_classic()
 )
 
 #temp constant (fishing only; temperature constant)
-bray_curtis_temp_maintained_model_observed_predicted_lm <- lm(mean_dissim_coef ~ survey_unit_coefficient, data = bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "temp_constant"])
-summary(bray_curtis_temp_maintained_model_observed_predicted_lm) #0.48
+jaccard_temperature_constant_model_observed_predicted_lm <- lm(survey_unit_coefficient ~ mean_dissim_coef, data = jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "temp_constant"])
+summary(jaccard_temperature_constant_model_observed_predicted_lm) #0.18 Drop in 22% of variance explained when you lose temperature as a predictor
 
-(bray_curtis_temp_maintained_model_observed_predicted <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "temp_constant"]) +
+(jaccard_temperature_constant_model_observed_predicted <- ggplot(jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "temp_constant"]) +
   geom_errorbar(aes(x = mean_dissim_coef, ymin = lwr, ymax = upr), color = "lightgrey", linewidth = 0.4) +
   geom_errorbarh(aes(y = survey_unit_coefficient, xmin = mean_dissim_coef-sd_dissim, xmax = mean_dissim_coef+sd_dissim), color = "lightgrey", linewidth = 0.4) +
   geom_point(aes(y = survey_unit_coefficient, x = mean_dissim_coef)) +
+    geom_smooth(aes(y = survey_unit_coefficient, x = mean_dissim_coef), color = "darkgrey",linetype = "dotted", method = "lm") +
   geom_abline(aes(slope = 1, intercept = 0)) +
-      lims(x = c(min(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_lower),max(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_upper))) +
-  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(fishing only)") +
+      lims(x = c(min(jaccard_fishing_temp_model_observed_predicted_dt$pred_lower),max(jaccard_fishing_temp_model_observed_predicted_dt$pred_upper))) +
+  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(fishing varies temperature constant)") +
   theme_classic()
 )
 
 #both temperature and fish held constant
-bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(mean_dissim_coef ~ survey_unit_coefficient, data = bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_and_temp_constant"])
-summary(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #%05
+jaccard_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm <- lm(survey_unit_coefficient ~ mean_dissim_coef, data = jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_and_temp_constant"])
+summary(jaccard_fishing_temp_model_observed_predicted_tempfishconstantinsurvey_lm) #%11 
 
-(bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey <- ggplot(bray_curtis_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_and_temp_constant"]) +
+(jaccard_fishing_temp_model_observed_predicted_tempfishconstantinsurvey <- ggplot(jaccard_fishing_temp_model_observed_predicted_dt[pred_type == "fishing_and_temp_constant"]) +
 geom_errorbar(aes(x = mean_dissim_coef, ymin = lwr, ymax = upr), color = "lightgrey", linewidth = 0.4) +
   geom_errorbarh(aes(y = survey_unit_coefficient, xmin = mean_dissim_coef-sd_dissim, xmax = mean_dissim_coef+sd_dissim), color = "lightgrey", linewidth = 0.4) +
   geom_point(aes(y = survey_unit_coefficient, x = mean_dissim_coef)) +
+    geom_smooth(aes(y = survey_unit_coefficient, x = mean_dissim_coef), color = "darkgrey",linetype = "dotted", method = "lm")+
   geom_abline(aes(slope = 1, intercept = 0)) +
-      lims(x = c(min(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_lower),max(bray_curtis_fishing_temp_model_observed_predicted_dt$pred_upper))) +
-  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(excludes temperature and fishing)") +
+      lims(x = c(min(jaccard_fishing_temp_model_observed_predicted_dt$pred_lower),max(jaccard_fishing_temp_model_observed_predicted_dt$pred_upper))) +
+  labs(y = "Observed β-diversity trend",x = "Predicted β-diversity trend\n(fishing and temperature constant)") +
   theme_classic()
 )
 
 
 #merge
-bray_curtis_fishing_temp_model_observed_predicted_merge <- plot_grid(bray_curtis_fishing_temp_model_observed_predicted + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")),
-                                                                     bray_curtis_temp_maintained_model_observed_predicted + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")),
-                                                                     bray_curtis_fishing_maintained_model_observed_predicted + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")),
-                                                                     bray_curtis_fishing_temp_model_observed_predicted_tempfishconstantinsurvey + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")), ncol = 2, labels = c("a.","b.","c.","d."))
+jaccard_fishing_sbt_model_observed_predicted_merge <- plot_grid(jaccard_fishing_temp_model_observed_predicted + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")),
+                                                                     jaccard_fishing_constant_model_observed_predicted + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")),
+                                                                     jaccard_temperature_constant_model_observed_predicted + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")),
+                                                                     jaccard_fishing_temp_model_observed_predicted_tempfishconstantinsurvey + theme(plot.margin = unit(c(0.1,0.3,0.1,0.1),"cm")), ncol = 2, labels = c("a.","b.","c.","d."))
 
-ggsave(bray_curtis_fishing_temp_model_observed_predicted_merge, path = here::here("figures"),filename = "bray_curtis_fishing_temp_model_observed_predicted_merge.jpg", height =6, width = 8)
+ggsave(jaccard_fishing_sbt_model_observed_predicted_merge, path = here::here("figures"),filename = "jaccard_fishing_sbt_model_observed_predicted_merge.jpg", height =6, width = 8)
+
+
+```
+
+Let's visualize model coefficients with temperature and fishing (similar to figure 2)
+model_avg_values
+```{r}
+model_avg_values
+
+interaction_avg_model_coef <- model_avg_values[c(4,36:98),.(coef_name, coef, se)]
+
+#insert AI
+interaction_avg_model_coef[1:2,survey_unit := "AI"][1:2,coef_true := coef][1:2,predictor := c("Relative fishing catch","Minimum temperature")]
+
+#Other summed_tonnes_scaled_byreg
+interaction_avg_model_coef[3:33,survey_unit := substr(coef_name, 39, str_length(coef_name))][3:33,coef_true := interaction_avg_model_coef[1,coef_true]+coef][3:33,predictor := "Relative fishing catch"]
+
+#Other yearly_min_bypoint_avg.scaledacrossall
+interaction_avg_model_coef[34:64,survey_unit := substr(coef_name, str_length("survey_unit")+1, str_length(coef_name)-str_length("yearly_min_bypoint_avg.scaledacrossall")-1)][34:64,coef_true := interaction_avg_model_coef[2,coef_true]+coef][34:64,predictor := "Minimum temperature"]
+
+#reorder temperature and fishing
+interaction_avg_model_coef[,predictor := factor(predictor, levels = c("Minimum temperature","Relative fishing catch"))]
+
+#link for full survey name
+interaction_avg_model_coef <- color_link[interaction_avg_model_coef, on = "survey_unit"]
+
+#reorder by survey_unit
+interaction_avg_model_coef[,Survey_Name_Season := reorder(Survey_Name_Season, survey_unit, decreasing = TRUE)]
+
+#mark significance
+interaction_avg_model_coef[,Significant := ifelse((coef_true-se > 0 & coef_true+se > 0) | (coef_true-se < 0 & coef_true+se < 0),T,F)]
+
+
+#Plot both
+sbt_fishing_avg_model_coef <- ggplot() +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+geom_point(data = interaction_avg_model_coef, aes(x = Survey_Name_Season, y = coef_true, color = Significant)) +  
+geom_errorbar(data = interaction_avg_model_coef, aes(x = Survey_Name_Season, ymin = coef_true-se, ymax = coef_true+se, color = Significant), width = 0) +
+  scale_color_manual(values = c("darkgrey","black")) +
+facet_wrap(~predictor, scales = "free_x") +
+scale_x_discrete(limits = rev) +
+  labs(y = "Coefficient", x = "") +
+coord_flip() +
+theme_classic()
+  
+
+
+```
+Plot all other coefficients in averaged model
+```{r}
+model_avg_values.nonfishortemp <- model_avg_values[c(2,3,99:103),]
+
+#mark significance
+model_avg_values.nonfishortemp[,Significant := ifelse((coef-se > 0 & coef+se > 0) | (coef-se < 0 & coef+se < 0),T,F)]
+
+#more helpful names for variables
+model_avg_values.nonfishortemp[,Variable := c("Area","Species count","Number of tows","Latitude range","Depth","Latitude","Depth range")]
+
+#make factor with order
+model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Area","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
+
+
+#plot
+all_avg_model_coef <- ggplot() + 
+geom_point(data = model_avg_values.nonfishortemp, aes(x = Variable, y = coef, color = Significant)) +  
+geom_errorbar(data = model_avg_values.nonfishortemp, aes(x = Variable, ymin = coef-se, ymax = coef+se, color = Significant), width = 0) +
+  scale_color_manual(values = c("darkgrey","black")) +
+geom_hline(yintercept = 0) +
+scale_x_discrete(limits = rev) +
+  labs(y = "Coefficient", x = "\n\n\n") +
+coord_flip() +
+theme_classic()
+
+#plot
+all_but_lat_avg_model_coef <- ggplot() + 
+geom_point(data = model_avg_values.nonfishortemp[Variable == "Latitude"], aes(x = Variable, y = coef, color = Significant)) +  
+geom_errorbar(data = model_avg_values.nonfishortemp[Variable == "Latitude"], aes(x = Variable, ymin = coef-se, ymax = coef+se, color = Significant), width = 0) +
+  scale_color_manual(values = c("darkgrey","black")) +
+geom_hline(yintercept = 0) +
+scale_x_discrete(limits = rev) +
+  labs(y = "Coefficient", x = "Model variable") +
+coord_flip() +
+theme_classic()
+
+#plot
+lat_avg_model_coef <- ggplot() + 
+geom_point(data = model_avg_values.nonfishortemp[Variable != "Latitude"], aes(x = Variable, y = coef, color = Significant)) +  
+geom_errorbar(data = model_avg_values.nonfishortemp[Variable != "Latitude"], aes(x = Variable, ymin = coef-se, ymax = coef+se, color = Significant), width = 0) +
+  scale_color_manual(values = c("darkgrey","black")) +
+geom_hline(yintercept = 0) +
+scale_x_discrete(limits = rev) +
+  labs(y = "Coefficient", x = "Model variable") +
+coord_flip() +
+theme_classic()
+
+#merge into single plot
+
+model_coef_summary_sbt_jaccard <- cowplot::plot_grid(sbt_fishing_avg_model_coef+theme(legend.position = "null", axis.title.x = element_blank()),all_avg_model_coef+theme(legend.position = "null"), ncol = 1, labels = c("  a.                                                      b.","        c."), label_y = 0.99, rel_heights = c(3,1))
+
+ggsave(model_coef_summary_sbt_jaccard, path = here::here("figures"),filename = "model_coef_summary_sbt_jaccard.jpg", height = 6.5, width = 8, unit = "in")
 
 
 ```
