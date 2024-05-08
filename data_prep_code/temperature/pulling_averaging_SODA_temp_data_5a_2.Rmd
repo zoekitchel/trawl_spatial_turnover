@@ -28,17 +28,17 @@ library(stringr)
 library(data.table)
 
 #pull in data for year and lat lon restrictions
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob.wellsampledyearscells_complete.final.rds"))
+FishGlob_clean.singleseason <- readRDS(here::here("data", "cleaned", "FishGlob_clean.singleseason.rds"))
 
 #names of all survey units
-all_survey_units <- unique(FishGlob_clean$survey_unit)
+all_survey_units <- unique(FishGlob_clean.singleseason.singleseason.rds$survey_unit)
 
 
 ```
 
 Unique Lat Lon for each Survey/season. 
 ```{r unique lat lon}
-unique_lat_lon <- unique(FishGlob_clean[,.(latitude, longitude, survey_unit)])
+unique_lat_lon <- unique(FishGlob_clean.singleseason.singleseason.rds[,.(latitude, longitude, survey_unit)])
 
 #data range for SODA data is (0,360), so I will edit lat lon to match
 unique_lat_lon[,longitude.shift := ifelse(longitude >= 0, longitude, 360+longitude)]
@@ -107,17 +107,17 @@ First go from daily temp to average monthly temp. We need temp 12 months before 
 And now all other regions
 ```{r loop for average values}
 
-#to maximize memory, remove FishGlob_clean except for min_month
-FishGlob_clean.months_surveys <- unique(FishGlob_clean[,.(survey_unit, month)])
-FishGlob_clean.months_surveys[survey_unit == "MEDITS", month := 4]
-FishGlob_clean.months_surveys[survey_unit == "GRL-DE", month := 8] #NEED TO CHECK THIS
+#to maximize memory, remove FishGlob_clean.singleseason.singleseason.rds except for min_month
+FishGlob_clean.singleseason.singleseason.rds.months_surveys <- unique(FishGlob_clean.singleseason.singleseason.rds[,.(survey_unit, month)])
+FishGlob_clean.singleseason.singleseason.rds.months_surveys[survey_unit == "MEDITS", month := 4]
+FishGlob_clean.singleseason.singleseason.rds.months_surveys[survey_unit == "GRL-DE", month := 8] #NEED TO CHECK THIS
 
-rm(FishGlob_clean)
+rm(FishGlob_clean.singleseason.singleseason.rds)
 
 SODA_data_temp_avgs_full <- data.table()
 
 for (i in 1:length(all_survey_units)) {
-  min_month <- min(FishGlob_clean.months_surveys[survey_unit == all_survey_units[i]]$month)
+  min_month <- min(FishGlob_clean.singleseason.singleseason.rds.months_surveys[survey_unit == all_survey_units[i]]$month)
   
   #pull in data from rds files if not already in console
   
@@ -186,6 +186,12 @@ saveRDS(SODA_data_temp_avgs_full, here::here("SODA_data_temp_avgs_full.rds"))
 
 summary(SODA_data_temp_avgs_full)
 
+#check histogram
+
+ggplot() +
+  geom_histogram(data = SODA_data_temp_avgs_full, aes(x = yearly_min_bypoint_avg)) +
+  facet_wrap(~survey_unit, scales = "free") +
+  theme_classic()
 ```
 
 NOT SURE WHY, but all data from SODA 2.2.4 is wonky, so I'm going to go ahead and only use temp data from 3.3.2, so from 1981 onward (doesn't leave out much! Only NEUS starts before 1981)

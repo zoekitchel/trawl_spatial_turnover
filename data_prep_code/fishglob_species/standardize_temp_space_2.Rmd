@@ -1,10 +1,10 @@
 ---
 title: "Apply Temporal and Spatial Standardization (70/70)"
 author: Zoë J. Kitchel
-date: October 11, 2023
+date: May 4, 2024
 ---
 
-Script 2 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
+Script 2 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(tidyverse)
@@ -506,24 +506,22 @@ FishGlob_clean.noNA[, wgt := my_sum(wgt), .(accepted_name,  haul_id)][,
                      num_h := my_sum(num_h), .(accepted_name,  haul_id)][, 
                      num_cpue := my_sum(num_cpue), .(accepted_name,  haul_id)]
 
-FishGlob_clean.noNA <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, stat_rec, station, stratum, year, month, day, quarter, season, latitude, longitude, haul_dur, area_swept, gear, depth, sbt, sst, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
-
-#check
-summary(FishGlob_clean.noNA[, wgt_cpue]) #why inf? 13 observations from GSL-N,  I will delete these
-FishGlob_clean <- copy(FishGlob_clean.noNA)[!is.infinite(wgt_cpue), ]
+FishGlob_clean <- unique(FishGlob_clean.noNA[,.(survey, haul_id, country, sub_area, continent, year, month, day, quarter, season, latitude, longitude, depth, num, num_h, num_cpue, wgt, wgt_h, wgt_cpue, verbatim_aphia_id, accepted_name, aphia_id, SpecCode, kingdom, phylum, class, order, family, genus, rank, survey_unit, years_sampled, cell_ID, cell_year_count, year_cell_count, years_sampled_update)])
 
 saveRDS(FishGlob_clean, here::here("data","cleaned","FishGlob_clean.rds"))
 
 #missing values
 #missing abundances
-180786/nrow(FishGlob_clean) #7% missing abundances
+summary(FishGlob_clean$num_cpue)
+180620/nrow(FishGlob_clean) #7% missing abundances
 
 #missing biomass
-357932/nrow(FishGlob_clean) #13% missing biomass
+summary(FishGlob_clean$wgt_cpue)
+357850/nrow(FishGlob_clean) #13% missing biomass
 
 
 ```
-Visualize standardization proceedure
+Visualize standardization procedure
 ```{r}
 merged_ebs_standardization_plot <- cowplot::plot_grid(fishglob_exclude_years_plots[[36]]+theme(legend.position = "null"), fishglob_exclude_cells_plots[[36]], ncol = 1, labels = c("a.","b."), rel_heights = c(1,1.3))
 
@@ -540,7 +538,15 @@ FishGlob_clean[survey != survey_unit, .(count = .N), by = survey_unit]
 
 FishGlob_clean.singleseason <- copy(FishGlob_clean[!(survey_unit %in% c("BITS-4", "NIGFS-4", "NS-IBTS-3", "SWC-IBTS-4", "GMEX-Summer","NEUS-Spring", "SEUS-spring", "SEUS-fall"))])
 
-unique(FishGlob_clean.singleseason$survey_unit)
 
 saveRDS(FishGlob_clean.singleseason, here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
 ```
+
+Quick statistics
+```{r}
+length(unique(FishGlob_clean.singleseason$haul_id))
+length(unique(FishGlob_clean.singleseason$survey_unit))
+length(unique(FishGlob_clean.singleseason$accepted_name))
+length(unique(FishGlob_clean.singleseason$year))
+```
+

@@ -1,9 +1,10 @@
 ---
 title: "Figure Visualization Homogenization, Differentiation, and Stability"
 output: html_notebook
+Date: May 6, 2024
 ---
 
-Figure 1 script part 1 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
+Figure 1 script part 1 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
 
 ```{r setup}
 library(data.table)
@@ -20,75 +21,79 @@ library(cowplot)
 
 Load Data
 ```{r}
-FishGlob_clean <- readRDS(here::here("data", "cleaned", "FishGlob_clean.rds"))
+FishGlob_clean.singleseason <- readRDS(here::here("data", "cleaned", "FishGlob_clean.singleseason.rds"))
+
+#add new presence column
+#if either wgt or num are above 0, present = 1
+FishGlob_clean.singleseason[,Present:=ifelse(wgt_cpue>=0 | num_cpue >=0,1,0)]
 
 ```
 
 Examples:
 
-Homogenization: "SEUS-spring"
+Homogenization: "SEUS-summer"
 ```{r seus summer contrast plot mds}
-seus_years <- unique(FishGlob_clean[survey_unit == "SEUS-spring",year])
+seus_years <- unique(FishGlob_clean.singleseason[survey_unit == "SEUS-summer",year])
 
-seus_spring <- FishGlob_clean[survey_unit == "SEUS-spring" & year %in% c(1990,2019),]
+seus_summer <- FishGlob_clean.singleseason[survey_unit == "SEUS-summer" & year %in% c(1990,2019),]
 
 #1990
-seus_1990 <- dcast(seus_spring[year == 1990,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+seus_1990 <- dcast(seus_summer[year == 1990,],  haul_id + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
 seus_1990.communitymatrix <- seus_1990[, 3:ncol(seus_1990)] #community matrix
 
 #construct ordination
 
-seus_1990_mds <- metaMDS(seus_1990.communitymatrix)
+seus_1990_mds <- metaMDS(seus_1990.communitymatrix, distance = "jaccard")
 
 seus_1990_mds_plot <- ordiplot(seus_1990_mds, choices=c(1,2))
 
 seus_1990_mds.dt <- data.table(seus_1990_mds_plot$sites)
 
-seus_1990_mds.dt[,survey_unit := "SEUS-spring"][,year := 1990]
+seus_1990_mds.dt[,survey_unit := "SEUS-summer"][,year := 1990]
 
 #2019
-seus_2019 <- dcast(seus_spring[year == 2019,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+seus_2019 <- dcast(seus_summer[year == 2019,],  haul_id + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
 seus_2019.communitymatrix <- seus_2019[, 3:ncol(seus_2019)] #community matrix
 
 #construct ordination
 
-seus_2019_mds <- metaMDS(seus_2019.communitymatrix)
+seus_2019_mds <- metaMDS(seus_2019.communitymatrix, distance = "jaccard")
 
 seus_2019_mds_plot <- ordiplot(seus_2019_mds, choices=c(1,2))
 
 seus_2019_mds.dt <- data.table(seus_2019_mds_plot$sites)
 
-seus_2019_mds.dt[,survey_unit := "SEUS-spring"][,year := 2019]
+seus_2019_mds.dt[,survey_unit := "SEUS-summer"][,year := 2019]
 
 seus_full_mds.dt <- rbind(seus_1990_mds.dt, seus_2019_mds.dt)
 
-seus_spring_mds_contrast <- ggplot(data = seus_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#D81C60") +
+seus_summer_mds_contrast <- ggplot(data = seus_full_mds.dt) +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#FFC109") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
 
-seus_spring_mds_contrast
+seus_summer_mds_contrast
 ```
 
 Differentiation: "NZ-WCSI" "#AAF400"
 Year 1 versus to final 
 ```{r}
-nz_wcsi_years <- unique(FishGlob_clean[survey_unit == "NZ-WCSI",year])
+nz_wcsi_years <- unique(FishGlob_clean.singleseason[survey_unit == "NZ-WCSI",year])
 #year 1 = 2000,  final year = 2019
 
-nz_wcsi <- FishGlob_clean[survey_unit == "NZ-WCSI" & year %in% c(2000,2019),]
+nz_wcsi <- FishGlob_clean.singleseason[survey_unit == "NZ-WCSI" & year %in% c(2000,2019),]
 
 #2000
-nz_wcsi_2000 <- dcast(nz_wcsi[year == 2000,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+nz_wcsi_2000 <- dcast(nz_wcsi[year == 2000,],  haul_id + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
 nz_wcsi_2000.communitymatrix <- nz_wcsi_2000[, 3:ncol(nz_wcsi_2000)] #community matrix
 
 #construct ordination
 
-nz_wcsi_2000_mds <- metaMDS(nz_wcsi_2000.communitymatrix)
+nz_wcsi_2000_mds <- metaMDS(nz_wcsi_2000.communitymatrix, distance = "jaccard")
 
 nz_wcsi_2000_mds_plot <- ordiplot(nz_wcsi_2000_mds, choices=c(1,2))
 
@@ -97,13 +102,13 @@ nz_wcsi_2000_mds.dt <- data.table(nz_wcsi_2000_mds_plot$sites)
 nz_wcsi_2000_mds.dt[,survey_unit := "NZ-WCSI"][,year := 2000]
 
 #2019
-nz_wcsi_2019 <- dcast(nz_wcsi[year == 2019,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+nz_wcsi_2019 <- dcast(nz_wcsi[year == 2019,],  haul_id + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
 nz_wcsi_2019.communitymatrix <- nz_wcsi_2019[, 3:ncol(nz_wcsi_2019)] #community matrix
 
 #construct ordination
 
-nz_wcsi_2019_mds <- metaMDS(nz_wcsi_2019.communitymatrix)
+nz_wcsi_2019_mds <- metaMDS(nz_wcsi_2019.communitymatrix, distance = "jaccard")
 
 nz_wcsi_2019_mds_plot <- ordiplot(nz_wcsi_2019_mds, choices=c(1,2))
 
@@ -114,7 +119,7 @@ nz_wcsi_2019_mds.dt[,survey_unit := "NZ-WCSI"][,year := 2019]
 nz_wcsi_full_mds.dt <- rbind(nz_wcsi_2000_mds.dt, nz_wcsi_2019_mds.dt)
 
 nz_wcsi_mds_contrast <- ggplot(data = nz_wcsi_full_mds.dt) +
-  geom_point(aes(x = NMDS1, y = NMDS2), color = "#FFC109") +
+  geom_point(aes(x = NMDS1, y = NMDS2), color = "#D81C60") +
   stat_ellipse(aes(x = NMDS1, y = NMDS2)) +
   facet_wrap(~year)+
   theme_classic()
@@ -124,18 +129,18 @@ nz_wcsi_mds_contrast
 
 Stable: "ICE-GFS"
 ```{r}
-ice_years <- unique(FishGlob_clean[survey_unit == "ICE-GFS",year])
+ice_years <- unique(FishGlob_clean.singleseason[survey_unit == "ICE-GFS",year])
 
-ice <- FishGlob_clean[survey_unit == "ICE-GFS" & year %in% c(1996,2021),]
+ice <- FishGlob_clean.singleseason[survey_unit == "ICE-GFS" & year %in% c(1996,2021),]
 
 #1996
-ice_1996 <- dcast(ice[year == 1996,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+ice_1996 <- dcast(ice[year == 1996,],  haul_id + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
 ice_1996.communitymatrix <- ice_1996[, 3:ncol(ice_1996)] #community matrix
 
 #construct ordination
 
-ice_1996_mds <- metaMDS(ice_1996.communitymatrix)
+ice_1996_mds <- metaMDS(ice_1996.communitymatrix, distance = "jaccard")
 
 ice_1996_mds_plot <- ordiplot(ice_1996_mds, choices=c(1,2))
 
@@ -144,13 +149,13 @@ ice_1996_mds.dt <- data.table(ice_1996_mds_plot$sites)
 ice_1996_mds.dt[,survey_unit := "ICE-GFS"][,year := 1996]
 
 #2021
-ice_2021 <- dcast(ice[year == 2021,],  haul_id + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+ice_2021 <- dcast(ice[year == 2021,],  haul_id + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
               
 ice_2021.communitymatrix <- ice_2021[, 3:ncol(ice_2021)] #community matrix
 
 #construct ordination
 
-ice_2021_mds <- metaMDS(ice_2021.communitymatrix)
+ice_2021_mds <- metaMDS(ice_2021.communitymatrix, distance = "jaccard")
 
 ice_2021_mds_plot <- ordiplot(ice_2021_mds, choices=c(1,2))
 
@@ -173,7 +178,7 @@ Merge Data Tables to Ease Plotting in Ggplot
 ```{r}
 full_mds.dt <- rbind(ice_full_mds.dt, nz_wcsi_full_mds.dt, seus_full_mds.dt)
 
-name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-spring","ICE-GFS"),`Survey Unit` = c("W Coast S Island, NZ","SE US Spring","Iceland"))
+name_key <- data.table(survey_unit = c("NZ-WCSI","SEUS-summer","ICE-GFS"),`Survey Unit` = c("W Coast S Island, NZ","SE US Summer","Iceland"))
 
 full_mds.dt <- full_mds.dt[name_key, on = "survey_unit"]
 
@@ -181,7 +186,7 @@ full_mds.dt <- full_mds.dt[name_key, on = "survey_unit"]
 full_mds.dt[,`Time period`:= ifelse(year==min(year),"Early","Late"),.(survey_unit)]
 
 #change factor order to match other components of manuscript
-full_mds.dt[,`Survey Unit` := factor(`Survey Unit`, levels = c("W Coast S Island, NZ","SE US Spring","Iceland"), labels = c("West Coast South Island\nNew Zealand","Southeast United\nStates Spring","Iceland"))]
+full_mds.dt[,`Survey Unit` := factor(`Survey Unit`, levels = c("W Coast S Island, NZ","SE US Summer","Iceland"), labels = c("West Coast South Island\nNew Zealand","Southeast United\nStates Summer","Iceland"))]
 
 mds_contrast_noannotate <- ggplot(data = full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2, fill = `Survey Unit`, color = factor(`Time period`)), size = 2, shape = 21) +

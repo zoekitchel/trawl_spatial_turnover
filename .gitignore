@@ -16,6 +16,7 @@ FishGlob_1.1.clean.rds
 FISHGLOB_v1.2_clean.csv
 FishGlob_1.2.clean.rds
 FISHGLOB_v1.5_clean.csv
+FISHGLOB_v1.7_clean.csv
 FishGlob_cleaned.10year.rds
 data/FishGlob_1.1.clean.rds
 output/region_season_cleaned_data/FishGlob_cleaned.10year.rds
@@ -48,3 +49,4 @@ data_providers_allsurveys.xlsx
 survey_biomass_abundance_availability_stats.xlsx
 data/FishGlob_wgt_abun_edits/*.csv
 data/cleaned/FishGlob_clean.singleseason.rds
+data/cleaned/FishGlob.wellsampledyearscells_complete.final.rds
