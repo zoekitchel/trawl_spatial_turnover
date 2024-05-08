@@ -50,3 +50,4 @@ survey_biomass_abundance_availability_stats.xlsx
 data/FishGlob_wgt_abun_edits/*.csv
 data/cleaned/FishGlob_clean.singleseason.rds
 data/cleaned/FishGlob.wellsampledyearscells_complete.final.rds
+FishGlob.wellsampledyearscells_complete.final.rds
