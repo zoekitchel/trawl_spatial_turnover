@@ -59,6 +59,14 @@ source(here::here("analysis_code","color_links.R"))
 
 ##Make GAM (Generalized Additive Models)
 
+Jaccard
+```{r jaccard gams}
+jaccard_total_gam <- gam(annual_dissimilarity_value ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
+                            data = distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total"])
+
+```
+
+
 Bray Curtis for abundance
 ```{r bray curtis gams}
 bray_curtis_total_gam <- gam(annual_dissimilarity_value ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
@@ -66,10 +74,10 @@ bray_curtis_total_gam <- gam(annual_dissimilarity_value ~ year + s(survey_unit, 
 
 ```
 
-Jaccard
-```{r jaccard gams}
-jaccard_total_gam <- gam(annual_dissimilarity_value ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
-                            data = distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total"])
+Bray Curtis for relative
+```{r bray curtis gams}
+bray_curtis_total_relative_gam <- gam(annual_dissimilarity_value ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
+                            data = distances_dissimilarities_allyears[dissimilarity_metric == "bray_curtis_dissimilarity_total_relative_abundance"])
 
 ```
 
@@ -169,6 +177,50 @@ bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients
 
 ```
 
+Same, but for RELATIVE abundance
+```{r linear model relative abundance Bray}
+
+bray_curtis_total_relative_lm <- lm(annual_dissimilarity_value ~ year * survey_unit,data = distances_dissimilarities_allyears[dissimilarity_metric == "bray_curtis_dissimilarity_total_relative_abundance"])
+
+bray_curtis_total_relative_coefs <- data.table(summary(bray_curtis_total_relative_lm)$coefficients)
+  bray_curtis_total_relative_coefs[,var := rownames(summary(bray_curtis_total_relative_lm)$coefficients)]
+  
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 24:44
+  bray_curtis_total_relative_coefs.r <- bray_curtis_total_relative_coefs[c(2,24:44),]
+  
+  #adjust survey unit name by deleting beginning of string
+  bray_curtis_total_relative_coefs.r[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
+  
+  #calculate interaction coefficients
+  AI_estimate <- bray_curtis_total_relative_coefs.r[1,Estimate]
+  bray_curtis_total_relative_coefs.r[1,survey_unit_coefficient := AI_estimate]
+  bray_curtis_total_relative_coefs.r[2:22,survey_unit_coefficient := (AI_estimate + Estimate)]
+  
+  #homogenizing vs differentiating
+  bray_curtis_total_relative_coefs.r[,differentiating := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient > 0),1,0)][,homogenizing := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient < 0),1,0)]
+  
+  #lower and upper CI
+    bray_curtis_total_relative_coefs.r[,lwr := survey_unit_coefficient-`Std. Error`][,upr:= survey_unit_coefficient+`Std. Error`]
+    
+    #save as output
+    fwrite(bray_curtis_total_relative_coefs.r, here::here("output","bray_curtis_total_relative_coefs.r.csv"))
+  
+  bray_curtis_total_relative_coefs_sum <- data.table(differentiating = sum(  bray_curtis_total_relative_coefs.r$differentiating), homogenizing = sum(  bray_curtis_total_relative_coefs.r$homogenizing))
+  
+  #hex by trend
+  bray_curtis_total_relative_coefs.r[,trend_color_bray_curtis_relative := ifelse(homogenizing == 1,"#FFC109", ifelse(differentiating == 1,"#D81C60","#1E88E5"))]
+  
+  #link to color link
+  bray_curtis_total_relative_coefs.r <- color_link[bray_curtis_total_relative_coefs.r, on = "survey_unit"]
+  
+  #delete rows of surveys without abundance data
+    bray_curtis_total_relative_coefs.r <-     bray_curtis_total_relative_coefs.r[complete.cases(  bray_curtis_total_relative_coefs.r),]
+  
+  color_link_relative_trend_bray_curtis <- bray_curtis_total_relative_coefs.r[,.(survey_unit,Survey_Name_Season, hex,  trend_color_bray_curtis_relative)]
+
+```
+
+
 Same, but for Jaccard
 ```{r linear model Jaccard}
 
@@ -244,13 +296,14 @@ lmer_jaccard_total_predictions[,jaccard_lmer_preds := fixef(jaccard_total_lmer)[
 
 ##Lollipop SE plot by linear trend experienced
 
-```{r lollipop figure 2b main text}
+Bray Curtis true abundance
+```{r lollipop figure 2b main text bray curtis true abundance}
 
 ###############
 #FOR LINEAR MODEL INSTEAD OF LINEAR MIXED EFFECTS as of fall 2023
 ###############
 
-bray_curtis_total_coefs.r[,Directional_Change_sig := ifelse(differentiating > 0, "Differentiation",ifelse(homogenizing > 0 , "Homogenization", "No trend in\ndissimilarity"))]
+bray_curtis_total_coefs.r[,Directional_Change_sig := ifelse(differentiating > 0, "Differentiation",ifelse(homogenizing > 0 , "Homogenization", "No β-diversity trend"))]
 years_sampled <- unique(distances_dissimilarities_allyears[,.(survey_unit, years_sampled)])
 bray_curtis_total_coefs.r <- years_sampled[bray_curtis_total_coefs.r, on = "survey_unit"]
 
@@ -276,12 +329,41 @@ directional_change_legend_plot_colorbytrend <- BC_total_Dissimilarity_Coef_error
          legend.text = element_text(size = 15), legend.title = element_text(size = 16)) +
   guides(colour = guide_legend(override.aes = list(size=6)), size = "none")
 ```
+Bray Curtis relative abundance
+```{r lollipop figure 2b main text bray curtis relative abundance}
+
+bray_curtis_total_relative_coefs.r[,Directional_Change_sig := ifelse(differentiating > 0, "Differentiation",ifelse(homogenizing > 0 , "Homogenization", "No β-diversity trend"))]
+years_sampled <- unique(distances_dissimilarities_allyears[,.(survey_unit, years_sampled)])
+bray_curtis_total_relative_coefs.r <- years_sampled[bray_curtis_total_relative_coefs.r, on = "survey_unit"]
+
+(BC_relative_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL <- ggplot(data = bray_curtis_total_relative_coefs.r, aes(x = reorder(Survey_Name_Season, survey_unit_coefficient) , y = survey_unit_coefficient), label = Survey_Name_Season) +
+    geom_errorbar(aes(ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(aes(size = years_sampled, color = Directional_Change_sig), stat = 'identity') +
+  scale_color_manual(values = c("#D81C60","#FFC109","#1E88E5"), name = "Dissimilarity trend", guide="none") +
+  scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(breaks = seq(-0.01, 0.005, by = 0.0025), labels = c("-0.0010","","-0.0050","","0", "0.0025","0.0050")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend") + #total BC dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16), plot.margin = margin(5,20,5,5,unit = "pt")))
+
+ggsave(BC_relative_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL, 
+       path = here::here("figures"), filename = "BC_relative_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL.jpg", height = 7, width = 7)
+
+#plot for legend
+directional_change_legend_plot_colorbytrend <- BC_relative_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL + 
+  theme(legend.position = "right", legend.background = element_rect(fill= "transparent"), 
+         legend.text = element_text(size = 15), legend.title = element_text(size = 16)) +
+  guides(colour = guide_legend(override.aes = list(size=6)), size = "none")
+```
 
 Jaccard total dissimilarity
 ```{r lollipop figure jaccard total dissimilarity}
 
 
-jaccard_total_coefs.r[,Directional_Change_sig := ifelse(differentiating > 0, "Differentiation",ifelse(homogenizing > 0 , "Homogenization", "No trend in\ndissimilarity"))]
+jaccard_total_coefs.r[,Directional_Change_sig := ifelse(differentiating > 0, "Differentiation",ifelse(homogenizing > 0 , "Homogenization", "No β-diversity trend"))]
 years_sampled <- unique(distances_dissimilarities_allyears[,.(survey_unit, years_sampled)])
 jaccard_total_coefs.r <- years_sampled[jaccard_total_coefs.r, on = "survey_unit"]
 
@@ -302,6 +384,43 @@ ggsave(jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MOD
        path = here::here("figures"), filename = "jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL.jpg", height = 7, width = 7)
 
 ```
+
+#Figure to merge three metrics for supplement
+```{r}
+jaccard_total_coefs.r[,jaccard_coefficient := survey_unit_coefficient][,Directional_Change_sig_jaccard := Directional_Change_sig]
+all_total_coefs <- jaccard_total_coefs.r[,.(survey_unit, Survey_Name_Season, jaccard_coefficient, Directional_Change_sig_jaccard, trend_color_jaccard)]
+
+#add bray metrics
+bray_curtis_total_coefs.r[,bray_coefficient := survey_unit_coefficient][,Directional_Change_sig_bray := Directional_Change_sig]
+bray_curtis_total_coefs.r.r <- bray_curtis_total_coefs.r[,.(survey_unit, bray_coefficient, Directional_Change_sig_bray, trend_color_bray_curtis)]
+all_total_coefs <- all_total_coefs[bray_curtis_total_coefs.r.r, on = "survey_unit"]
+
+#add relative bray metrics
+bray_curtis_total_relative_coefs.r[,bray_relative_coefficient := survey_unit_coefficient][,Directional_Change_sig_bray_relative := Directional_Change_sig]
+bray_curtis_total_relative_coefs.r.r <- bray_curtis_total_relative_coefs.r[,.(survey_unit, bray_relative_coefficient, Directional_Change_sig_bray_relative, trend_color_bray_curtis_relative)]
+all_total_coefs <- all_total_coefs[bray_curtis_total_relative_coefs.r.r, on = "survey_unit"]
+
+#plot
+(Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_comparison <- ggplot(data = all_total_coefs, aes(x = reorder(Survey_Name_Season, jaccard_coefficient)), label = Survey_Name_Season) +
+  geom_point(aes(y = jaccard_coefficient, fill = Directional_Change_sig_jaccard), stat = 'identity',shape = 21, color = "black", size = 5) +
+  geom_point(aes(y = bray_coefficient, color = Directional_Change_sig_bray), stat = 'identity', shape = 15, alpha = 0.5,size = 5) +
+  geom_point(aes(y = bray_relative_coefficient, color = Directional_Change_sig_bray_relative), stat = 'identity', shape = 17, alpha = 0.5,size = 5) +
+  scale_color_manual(values = c("#D81C60","#FFC109","#1E88E5"), name = "β-diversity trend", guide="none") +
+  scale_fill_manual(values = c("#D81C60","#FFC109","#1E88E5"), name = "β-diversity trend", guide="none") +
+  geom_hline(yintercept = 0) +
+ # scale_y_continuous(breaks = seq(-0.0075, 0.0075, by = 0.0025), labels = c("-0.0075","","-0.0025","0", "0.0025", "",  "")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend") + #total jaccard dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16)))
+
+ggsave(Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_comparison, 
+       path = here::here("figures"), filename = "Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_comparison.jpg", height = 7, width = 7)
+
+```
+
+
 
 ##Wavy Line Plot for GAMs (Figure 2a)
 
@@ -885,7 +1004,7 @@ model_coefs_reduced_length[,years_sampled := as.numeric(years_sampled)][,Directi
 model_coefs_reduced_length[,significant := ifelse(lwr >0 & upr>0,T,ifelse(lwr<0 & upr<0,T,F))]
 
 #significant directional change
-model_coefs_reduced_length[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No trend in\ndissimilarity"))]
+model_coefs_reduced_length[,Directional_Change_sig := ifelse(year_adj > 0 & significant == T, "Differentiation",ifelse(year_adj < 0 & significant == T, "Homogenization", "No β-diversity trend"))]
 
 
 #min max distances_dissimilarities

@@ -55,9 +55,9 @@ source(here::here("analysis_code","color_links.R"))
 Load up 'true slopes' and CIs for comparison
 ```{r}
 
-bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
-View(bray_curtis_total_coefs.r)
-bray_curtis_total_coefs.r_true <- bray_curtis_total_coefs.r
+jaccard_total_coefs.r <- fread(here::here("output","jaccard_total_coefs.r.csv"))
+View(jaccard_total_coefs.r)
+jaccard_total_coefs.r_true <- jaccard_total_coefs.r
 ```
 
 
@@ -72,50 +72,50 @@ I need to:
 ```{r}
 #surveys
 all_survey_units <- color_link$survey_unit
-years <- sort(unique(distances_dissimilarities_allyears$year))
+years <- sort(unique(distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total",]$year))
 
 
 for (i in 1:1000){
 
-  BC_dissimilarity_time <- distances_dissimilarities_allyears[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
+  jaccard_dissimilarity_time <- distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total",.(survey_unit, year, year_adj, annual_dissimilarity_value)]
   
   year_run_key <- data.table(year = years, years_null = sample(years, length(years), replace = F))
   
-  BC_dissimilarity_time  <- BC_dissimilarity_time[year_run_key, on = "year"]
+  jaccard_dissimilarity_time  <- jaccard_dissimilarity_time[year_run_key, on = "year"]
   
   #run overall model
-  bray_curtis_total_lm <- lm(bray_curtis_dissimilarity_total_mean ~ years_null * survey_unit,data = BC_dissimilarity_time)
+  jaccard_total_lm <- lm(annual_dissimilarity_value ~ years_null * survey_unit,data = jaccard_dissimilarity_time)
     
-  bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients)
-  bray_curtis_total_coefs[,var := rownames(summary(bray_curtis_total_lm)$coefficients)]
+  jaccard_total_coefs <- data.table(summary(jaccard_total_lm)$coefficients)
+  jaccard_total_coefs[,var := rownames(summary(jaccard_total_lm)$coefficients)]
   
-  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
-  bray_curtis_total_coefs.r <- bray_curtis_total_coefs[c(2,44:84),]
+  #limit to interactions only (check this if there are any model changes!) row 2 and rows 36:68
+  jaccard_total_coefs.r <- jaccard_total_coefs[c(2,36:68),]
   
   #adjust survey unit name by deleting beginning of string
-  bray_curtis_total_coefs.r[,survey_unit := substr(var, 23, str_length(var))][var == "years_null",survey_unit := "AI"]
+  jaccard_total_coefs.r[,survey_unit := substr(var, 23, str_length(var))][var == "years_null",survey_unit := "AI"]
   
   #calculate interaction coefficients
-  AI_estimate <- bray_curtis_total_coefs.r[1,Estimate]
-  bray_curtis_total_coefs.r[1,survey_unit_coefficient := AI_estimate]
-  bray_curtis_total_coefs.r[2:42,survey_unit_coefficient := (AI_estimate + Estimate)]
+  AI_estimate <- jaccard_total_coefs.r[1,Estimate]
+  jaccard_total_coefs.r[1,survey_unit_coefficient := AI_estimate]
+  jaccard_total_coefs.r[2:34,survey_unit_coefficient := (AI_estimate + Estimate)]
   
   #homogenizing vs differentiating
-  bray_curtis_total_coefs.r[,differentiating := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient > 0),1,0)][,homogenizing := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient < 0),1,0)]
+  jaccard_total_coefs.r[,differentiating := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient > 0),1,0)][,homogenizing := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient < 0),1,0)]
   
     #full table with distribution of coefficients
     if(i == 1){
-     bray_curtis_total_coefs.allruns <- bray_curtis_total_coefs.r }else{
-    bray_curtis_total_coefs.allruns <- rbind(bray_curtis_total_coefs.allruns, bray_curtis_total_coefs.r)
+     jaccard_total_coefs.allruns <- jaccard_total_coefs.r }else{
+    jaccard_total_coefs.allruns <- rbind(jaccard_total_coefs.allruns, jaccard_total_coefs.r)
    }
   
   
   #sum # differentiating vs homogenizing for each run
-  bray_curtis_total_coefs_sum <- data.table(run = i, differentiating = sum(  bray_curtis_total_coefs.r$differentiating), homogenizing = sum(  bray_curtis_total_coefs.r$homogenizing))
+  jaccard_total_coefs_sum <- data.table(run = i, differentiating = sum(  jaccard_total_coefs.r$differentiating), homogenizing = sum(  jaccard_total_coefs.r$homogenizing))
   
   if(i == 1){
-     all_null_runs_reshuffle_year <- bray_curtis_total_coefs_sum }else{
-    all_null_runs_reshuffle_year <- rbind(all_null_runs_reshuffle_year, bray_curtis_total_coefs_sum)
+     all_null_runs_reshuffle_year <- jaccard_total_coefs_sum }else{
+    all_null_runs_reshuffle_year <- rbind(all_null_runs_reshuffle_year, jaccard_total_coefs_sum)
    }
   print(i)
 }
@@ -128,7 +128,7 @@ differentiation_95_quantile <- quantile(all_null_runs_reshuffle_year[,differenti
 #plot differentiation distribution
 (reshuffle_differentiation_plot <- ggplot() +
   geom_histogram(data = all_null_runs_reshuffle_year, aes(differentiating), binwidth = 1) +
-      geom_vline(xintercept = sum(bray_curtis_total_coefs.r_true$differentiating), color = "red") +
+      geom_vline(xintercept = sum(jaccard_total_coefs.r_true$differentiating), color = "red") +
           geom_vline(xintercept = differentiation_95_quantile, linetype = "dashed") +
     scale_x_continuous(breaks = seq(0,16,by = 2)) +
   labs(x = "Number of surveys differentiating", y = "Count") +
@@ -137,7 +137,7 @@ differentiation_95_quantile <- quantile(all_null_runs_reshuffle_year[,differenti
 #plot homogenization distribution
 (reshuffle_homogenizing_plot <- ggplot() +
   geom_histogram(data = all_null_runs_reshuffle_year, aes(homogenizing), binwidth = 1) +
-      geom_vline(xintercept = sum(bray_curtis_total_coefs.r_true$homogenizing), color = "red") +
+      geom_vline(xintercept = sum(jaccard_total_coefs.r_true$homogenizing), color = "red") +
           geom_vline(xintercept = homogenization_95_quantile, linetype = "dashed") +
     scale_x_continuous(breaks = seq(0,10,by = 2)) +
   labs(x = "Number of surveys homogenizing", y = "Count") +
@@ -151,22 +151,22 @@ ggsave(reshuffle_null_plot, path = here::here("figures"), filename = "reshuffle_
 
 #Plot the distribution of coefficients across all surveys versus the distribution of true coefficients
 (reshuffle_slope_comparison_plot <- ggplot() +
-  geom_histogram(data = bray_curtis_total_coefs.allruns, aes(survey_unit_coefficient), fill = "#595959", binwidth = 0.001) +
-  labs(x = "Dissimilarity coefficient (null)", y = "Count (in 10,000s)") +
+  geom_histogram(data = jaccard_total_coefs.allruns, aes(survey_unit_coefficient), fill = "#595959", binwidth = 0.001) +
+  labs(x = "β diversity trend (null)", y = "Count (in 10,000s)") +
     scale_y_continuous(breaks = c(0,10000,20000,30000), labels = c("0","1","2","3")) +
-    geom_vline(xintercept = median(bray_curtis_total_coefs.allruns$survey_unit_coefficient)) +
-   geom_vline(xintercept = quantile(bray_curtis_total_coefs.allruns$survey_unit_coefficient, c(0.025,0.975)), linetype = "dashed") +
-    xlim(min(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))-0.0035,
-         max(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))+0.003) +
+    geom_vline(xintercept = median(jaccard_total_coefs.allruns$survey_unit_coefficient)) +
+   geom_vline(xintercept = quantile(jaccard_total_coefs.allruns$survey_unit_coefficient, c(0.025,0.975)), linetype = "dashed") +
+    xlim(min(c(jaccard_total_coefs.allruns$survey_unit_coefficient,jaccard_total_coefs.r_true$survey_unit_coefficient))-0.0035,
+         max(c(jaccard_total_coefs.allruns$survey_unit_coefficient,jaccard_total_coefs.r_true$survey_unit_coefficient))+0.003) +
   theme_classic())
 
 (true_slope_comparison_plot <- ggplot() +
-  geom_histogram(data = bray_curtis_total_coefs.r_true, aes(survey_unit_coefficient), fill = "#595959", binwidth = 0.001) +
-  labs(x = "Dissimilarity coefficient (observed)", y = "Count") +
-    geom_vline(xintercept = median(bray_curtis_total_coefs.allruns$survey_unit_coefficient)) +
-    geom_vline(xintercept = quantile(bray_curtis_total_coefs.allruns$survey_unit_coefficient, c(0.025,0.975)), linetype = "dashed") +
-    xlim(min(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))-0.003,
-         max(c(bray_curtis_total_coefs.allruns$survey_unit_coefficient,bray_curtis_total_coefs.r_true$survey_unit_coefficient))+0.003) +
+  geom_histogram(data = jaccard_total_coefs.r_true, aes(survey_unit_coefficient), fill = "#595959", binwidth = 0.001) +
+  labs(x = "β diversity trend (observed)", y = "Count") +
+    geom_vline(xintercept = median(jaccard_total_coefs.allruns$survey_unit_coefficient)) +
+    geom_vline(xintercept = quantile(jaccard_total_coefs.allruns$survey_unit_coefficient, c(0.025,0.975)), linetype = "dashed") +
+    xlim(min(c(jaccard_total_coefs.allruns$survey_unit_coefficient,jaccard_total_coefs.r_true$survey_unit_coefficient))-0.003,
+         max(c(jaccard_total_coefs.allruns$survey_unit_coefficient,jaccard_total_coefs.r_true$survey_unit_coefficient))+0.003) +
   theme_classic())
 
 #merge two plots
@@ -205,14 +205,14 @@ I need to:
 ```{r}
 #surveys
 all_survey_units <- levels(name_helper[,.(survey_unit)])
-years_adj <- sort(unique(distances_dissimilarities_allyears$year_adj))
+years_adj <- sort(unique(distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total",]$year_adj))
 
 #only 45 possibilities, so does it make sense to sample 1000 times? probably not?
 
 #for (i in 1:1000)){ #if we want 1000 runs
   for (i in 1:length(years_adj)){ #if we want 45 runs
 
-  BC_dissimilarity_time <- distances_dissimilarities_allyears[,.(survey_unit, year, year_adj, bray_curtis_dissimilarity_total_mean)]
+  jaccard_dissimilarity_time <- distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total",.(survey_unit, year, year_adj, annual_dissimilarity_value)]
   
  # start_year <- sample(1:length(years_adj), 1) #if instead we want 1000 random runs
   start_year <- years_adj[i]
@@ -221,30 +221,30 @@ years_adj <- sort(unique(distances_dissimilarities_allyears$year_adj))
   
   year_run_key <- data.table(year_adj = years_adj, years_adj_null = random_sequence)
   
-  BC_dissimilarity_time  <- BC_dissimilarity_time[year_run_key, on = "year_adj"]
+  jaccard_dissimilarity_time  <- jaccard_dissimilarity_time[year_run_key, on = "year_adj"]
   
   #run overall model
-  bray_curtis_total_lmer <- lmer(bray_curtis_dissimilarity_total_mean ~ years_adj_null + (1 + years_adj_null|survey_unit),data = BC_dissimilarity_time)
+  jaccard_total_lmer <- lmer(annual_dissimilarity_value ~ years_adj_null + (1 + years_adj_null|survey_unit),data = jaccard_dissimilarity_time)
   
     
-  bray_curtis_total_coefs <- data.table(coef(bray_curtis_total_lmer)[[1]])
-  bray_curtis_total_coefs[,survey_unit := rownames(coef(bray_curtis_total_lmer)[[1]])][,Year_slope := signif(years_adj_null,3)][,Intercept := signif(`(Intercept)`,3)]
-  bray_curtis_total_coefs <- bray_curtis_total_coefs[color_link, on = "survey_unit"]
+  jaccard_total_coefs <- data.table(coef(jaccard_total_lmer)[[1]])
+  jaccard_total_coefs[,survey_unit := rownames(coef(jaccard_total_lmer)[[1]])][,Year_slope := signif(years_adj_null,3)][,Intercept := signif(`(Intercept)`,3)]
+  jaccard_total_coefs <- jaccard_total_coefs[color_link, on = "survey_unit"]
   
-  bray_curtis_total_coefs[,run := i]
+  jaccard_total_coefs[,run := i]
   
-  bray_curtis_total_coefs.exp <- bray_curtis_total_coefs[,.(run, Survey_Name_Season, survey_unit, Intercept, Year_slope)]
+  jaccard_total_coefs.exp <- jaccard_total_coefs[,.(run, Survey_Name_Season, survey_unit, Intercept, Year_slope)]
   
   if(i == 1){
-     all_null_runs_cyclic_shift <- bray_curtis_total_coefs.exp }else{
-    all_null_runs_cyclic_shift <- rbind(all_null_runs_cyclic_shift, bray_curtis_total_coefs.exp)
+     all_null_runs_cyclic_shift <- jaccard_total_coefs.exp }else{
+    all_null_runs_cyclic_shift <- rbind(all_null_runs_cyclic_shift, jaccard_total_coefs.exp)
    }
   print(i)
 }
 
 #link "true" slope
 
-true_slopes <- BC_total_model_coefs_reduced_length.unique[,.(lwr,upr, survey_unit, year_adj, Directional_Change, significant, Directional_Change_sig, trend_color)]
+true_slopes <- jaccard_total_model_coefs_reduced_length.unique[,.(lwr,upr, survey_unit, year_adj, Directional_Change, significant, Directional_Change_sig, trend_color)]
 
 all_null_runs_cyclic_shift <- all_null_runs_cyclic_shift[true_slopes, on = "survey_unit"]
 
@@ -273,11 +273,11 @@ all_null_runs_cyclic_shift.u <- unique(all_null_runs_cyclic_shift[,.(survey_unit
 errorbar_slope_year_cyclic_shift <- ggplot() +
   geom_errorbar(data = all_null_runs_cyclic_shift.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = mean_slope, label = Survey_Name_Season, ymin = lower_95, ymax = upper_95), color = "grey50", width = 0) + #add confidence intervals
   geom_point(data = all_null_runs_cyclic_shift.u, aes(x = reorder(Survey_Name_Season, true_slope) , y = true_slope, label = Survey_Name_Season, color = Directional_Change_sig), shape = 18, size = 3) +
-  scale_color_manual(values = c("#FFC109","#D81C60","#1E88E5"), name = "Dissimilarity trend", guide="none") +
+  scale_color_manual(values = c("#FFC109","#D81C60","#1E88E5"), name = "β diversity trend\n(Jaccard dissimilarity)", guide="none") +
   geom_hline(yintercept = 0) +
  # scale_y_continuous(breaks = seq(-0.005, 0.0075, by = 0.0025), labels = c("-0.005","","0", "", "0.005",  "")) +
   xlab("Survey unit") +
-  ylab("β-diversity trend") + #total BC dissimilarity trend
+  ylab("β-diversity trend") + #total jaccard dissimilarity trend
   coord_flip() +
   theme_classic() +
   theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.1,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16))
