@@ -426,6 +426,9 @@ for (i in 1:length(all_survey_units)) {
             #if some rows have wgt_cpue missing,get rid of these rows
             reduced_year_bio <- copy(reduced_year.u[complete.cases(reduced_year.u[, wgt_cpue]), ])
             
+            #if some rows have 0 wgt_cpue, get rid of these rows 
+            reduced_year_bio <- reduced_year_bio[wgt_cpue>0, ]
+            
             #transition from true biomass to relative biomass of tow
             
             #total biomass per tow
@@ -604,6 +607,9 @@ for (i in 1:length(all_survey_units)) {
             #if some rows have num_cpue missing,get rid of these rows
             reduced_year_abun <- copy(reduced_year.u[complete.cases(reduced_year.u[, num_cpue]), ])
             
+            #delete rows if num_cpue is 0
+            reduced_year_abun <- reduced_year_abun[num_cpue > 0, ]
+            
             #transition to relative abundance
                #total biomass per tow
             reduced_year_abun[,summed_tow_abundance := sum(num_cpue),.(haul_id)]
@@ -721,7 +727,7 @@ saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilaritie
 
 
 
-Note that this outputs some NA biomass dissimilarity values for SCS and NEUS. I will NOT be using biomass going forward, so it's okay.
+Note that this outputs some NA biomass dissimilarity values for SCS and NEUS, and some 0 biomass balues for NZ WCSI and ECSI . I will NOT be using biomass going forward, so it's okay.
 
 
 

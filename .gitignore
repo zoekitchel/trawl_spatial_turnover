@@ -51,3 +51,5 @@ data/FishGlob_wgt_abun_edits/*.csv
 data/cleaned/FishGlob_clean.singleseason.rds
 data/cleaned/FishGlob.wellsampledyearscells_complete.final.rds
 FishGlob.wellsampledyearscells_complete.final.rds
+FishGlob_clean.singleseason_15perc_excluded.Rds
+FishGlob.wellsampledyearscells_complete.final.rds

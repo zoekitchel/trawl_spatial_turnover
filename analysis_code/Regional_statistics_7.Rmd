@@ -264,9 +264,9 @@ summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = tren
 summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs_bray_curtis[survey_unit != "ROCKALL",]))
 
 #Merge jaccard and Bray plots
-trends_beta_gamma <- cowplot::plot_grid(trends_beta_gamma_jaccard, trends_beta_gamma_bray_curtis, ncol = 2, labels = c("a.","b."))
+trends_beta_gamma <- cowplot::plot_grid(trends_beta_gamma_jaccard, trends_beta_gamma_bray_curtis, ncol = 1, labels = c("a.","b."))
 
-ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_gamma.jpg", height = 5, width = 12)
+ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_gamma.jpg", height = 10, width = 6.5)
 ```
 
 Beta vs. gamma raw
@@ -306,12 +306,12 @@ ggsave(beta_gamma_raw_plot_bray_curtis, path = here::here("figures"), filename =
 legend <- get_legend(beta_gamma_raw_plot_jaccard)
 
 #Merge jaccard and Bray plots
-beta_gamma_raw_plot <- cowplot::plot_grid(beta_gamma_raw_plot_jaccard + theme(legend.position = "null"), beta_gamma_raw_plot_bray_curtis + theme(legend.position = "null"), ncol = 2, labels = c("a.","b."), align = "v")
+beta_gamma_raw_plot <- cowplot::plot_grid(beta_gamma_raw_plot_jaccard + theme(legend.position = "null"), beta_gamma_raw_plot_bray_curtis + theme(legend.position = "null"), ncol = 1, labels = c("a.","b."), align = "v")
 
 #add legend on top
-beta_gamma_raw_plot_wlegend <- cowplot::plot_grid(beta_gamma_raw_plot, legend, ncol = 1, rel_heights = c(3,1))
+beta_gamma_raw_plot_wlegend <- cowplot::plot_grid(beta_gamma_raw_plot, legend, ncol = 1, rel_heights = c(5,1))
 
-ggsave(beta_gamma_raw_plot_wlegend, path = here::here("figures"), filename = "beta_gamma_raw_plot_wlegend.jpg", height = 7, width = 10)
+ggsave(beta_gamma_raw_plot_wlegend, path = here::here("figures"), filename = "beta_gamma_raw_plot_wlegend.jpg", height = 10, width = 6.5)
 ```
 
 
@@ -635,6 +635,49 @@ prop.test(differentiators,total_surveys) #p value =1, so groups are not differen
 
 
 ##Scatterplots showing dissimialrity vs survey characteristics
+
+####Median day of survey and trend
+```{r median day of survey}
+
+FishGlob_clean.singleseason <- readRDS(here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
+
+dates_regions <- unique(FishGlob_clean.singleseason[,.(survey_unit, year, month, day, quarter, season)])
+dates_regions[,day := ifelse(is.na(day),1,day)][survey_unit == "MEDITS",day := 15][survey_unit == "MEDITS",month := 5]
+
+#calculate date, julian date, and avg julian date for survey
+dates_regions[,date := ymd(paste(year,month,day,sep = "/"))][,julian := yday(date)][,avg_julian := mean(julian),.(survey_unit)][,avg_julian_annual := mean(julian),.(survey_unit, year)]
+
+#save
+saveRDS(dates_regions, here::here("output","dates_regions.rds"))
+
+#reduce to survey and avg julian
+julian_region <- unique(dates_regions[,.(survey_unit, avg_julian)])
+
+#merge with region stats and coefficeitns in that data table
+region_stats <- julian_region[region_stats, on = "survey_unit"]
+
+season_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = avg_julian, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+        geom_point(data = region_stats, aes(x = avg_julian , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
+    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
+  xlab("Average Julian day of survey") +
+  theme_classic()
+
+season_vs_coef
+
+ggsave(season_vs_coef, path = here::here("figures","jaccard_vs_survey_characteristics"), filename = "season_vs_coef.jpg", height =3, width = 5, unit = "in")
+
+#linear model
+summary(lm(abs(jaccard_coef)~avg_julian, data = region_stats)) #significant
+summary(lm(jaccard_coef~avg_julian, data = region_stats)) #not significant
+
+
+saveRDS(spp_num_vs_coef, here::here("figures","jaccard_vs_survey_characteristics","spp_num_vs_coef.rds"))
+
+```
 
 
 ```{r spp num}

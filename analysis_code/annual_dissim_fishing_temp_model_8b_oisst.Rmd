@@ -41,6 +41,20 @@ dissimilarities_SSTtemp_fishing_area <- dissimilarities_SSTtemp_fishing[region_a
 dissimilarities_SSTtemp_fishing_area <- dissimilarities_SSTtemp_fishing_area[dissimilarity_metric == "jaccard_dissimilarity_total",]
 ```
 
+
+Add in average Julian day
+```{r}
+#load up julian days
+dates_regions <- readRDS(here::here("output","dates_regions.rds"))
+
+#simplify
+dates_regions.annual <- unique(dates_regions[,.(survey_unit, year, avg_julian_annual)])
+
+#merge
+dissimilarities_SSTtemp_fishing_area <- dates_regions.annual[dissimilarities_SSTtemp_fishing_area, on = c("survey_unit","year")]
+```
+
+
 Pull in palette and name helper
 ```{r}
 source(here::here("analysis_code","color_links.R"))
@@ -173,7 +187,7 @@ dissimilarity_covariates_dredge.dt <- dissimilarities_SSTtemp_fishing_area[,.
                     haul_id_count_annual,
                     spp_count_annual, depth_annual_avg,
                     depth_annual_range, latitude_annual_avg,
-                    latitude_annual_range, area_km, summed_tonnes_scaled_byreg)]
+                    latitude_annual_range, area_km, avg_julian_annual, summed_tonnes_scaled_byreg)]
 
 #merge in with colors for plotting predictions by survey
 dissimilarity_covariates_dredge.dt <- color_link[dissimilarity_covariates_dredge.dt, on = "survey_unit"]
@@ -187,13 +201,13 @@ View(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt <- dissimilarity_covariates_dredge.dt[complete.cases(dissimilarity_covariates_dredge.dt)]
 
 
-dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)]
+dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)][,julian_scaled := scale(avg_julian_annual)]
 
 
 ```
 
 ###Full model
-~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls
+~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls + julian day
 
 For temperature, we will look at:
 -mean (scaled across all regions)
@@ -214,7 +228,8 @@ global_mod_mean_temp <- lm(annual_dissimilarity_value ~
                              depth_annual_range.scaledacrossall + #depth range
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
-                             haul_id_count_annual.scaledacrossall,
+                             haul_id_count_annual.scaledacrossall + 
+                                                          julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_max_temp <- lm(annual_dissimilarity_value ~ 
@@ -226,7 +241,8 @@ global_mod_max_temp <- lm(annual_dissimilarity_value ~
                              depth_annual_range.scaledacrossall + #depth range
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
-                             haul_id_count_annual.scaledacrossall,
+                             haul_id_count_annual.scaledacrossall + 
+                                                         julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_min_temp <- lm(annual_dissimilarity_value ~ 
@@ -238,7 +254,8 @@ global_mod_min_temp <- lm(annual_dissimilarity_value ~
                              depth_annual_range.scaledacrossall + #depth range
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
-                             haul_id_count_annual.scaledacrossall,
+                             haul_id_count_annual.scaledacrossall + 
+                                                         julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_seas_temp <- lm(annual_dissimilarity_value ~ 
@@ -250,7 +267,8 @@ global_mod_seas_temp <- lm(annual_dissimilarity_value ~
                              depth_annual_range.scaledacrossall + #depth range
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
-                             haul_id_count_annual.scaledacrossall,
+                             haul_id_count_annual.scaledacrossall + 
+                                                          julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_SD_temp <- lm(annual_dissimilarity_value ~ 
@@ -262,7 +280,8 @@ global_mod_SD_temp <- lm(annual_dissimilarity_value ~
                              depth_annual_range.scaledacrossall + #depth range
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
-                             haul_id_count_annual.scaledacrossall,
+                             haul_id_count_annual.scaledacrossall + 
+                                                        julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
 View(AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp))
@@ -273,7 +292,8 @@ global_mod_temp_table <- data.table(
               "Area",                   
               "Average depth",                  
               "Depth range",                
-              "Number of tows",              
+              "Number of tows",     
+                            "Average Julian day",
               "Average latitude",               
               "Latitude range",             
               "Species count",                  
@@ -286,7 +306,8 @@ global_mod_temp_table <- data.table(
               "Area",                   
               "Average depth",                  
               "Depth range",                
-              "Number of tows",              
+              "Number of tows", 
+                            "Average Julian day",
               "Average latitude",               
               "Latitude range",             
               "Species count",                  
@@ -299,7 +320,8 @@ global_mod_temp_table <- data.table(
               "Area",                   
               "Average depth",                  
               "Depth range",                
-              "Number of tows",              
+              "Number of tows",   
+                            "Average Julian day",
               "Average latitude",               
               "Latitude range",             
               "Species count",                  
@@ -312,7 +334,8 @@ global_mod_temp_table <- data.table(
               "Area",                   
               "Average depth",                  
               "Depth range",                
-              "Number of tows",              
+              "Number of tows", 
+                            "Average Julian day",
               "Average latitude",               
               "Latitude range",             
               "Species count",                  
@@ -325,7 +348,8 @@ global_mod_temp_table <- data.table(
               "Area",                   
               "Average depth",                  
               "Depth range",                
-              "Number of tows",              
+              "Number of tows",    
+                            "Average Julian day",
               "Average latitude",               
               "Latitude range",             
               "Species count",                  
@@ -435,6 +459,7 @@ best_model_sst_jaccard_table_formatted.r <- best_model_sst_jaccard_table_formatt
                                 depth_annual_avg.scaledacrossall,
                                 depth_annual_range.scaledacrossall,
                                 haul_id_count_annual.scaledacrossall,
+                                                                julian_scaled,
                                 latitude_annual_avg.scaledacrossall,
                                 latitude_annual_range.scaledacrossall,
                                 spp_count_annual.scaledacrossall,
@@ -463,7 +488,8 @@ colnames(best_model_sst_jaccard_table_formatted.r) <- c(
 "Area",       #scaled across all                    
 "Average depth",                  
 "Depth range",                
-"Number of tows",              
+"Number of tows",     
+"Average Julian day",
 "Average latitude",               
 "Latitude range",             
 "Species count",                  
@@ -878,9 +904,6 @@ interaction_avg_model_coef[1,survey_unit := "AI"][1,coef_true := coef][1,predict
 #Other summed_tonnes_scaled_byreg
 interaction_avg_model_coef[2:32,survey_unit := substr(coef_name, 39, str_length(coef_name))][2:32,coef_true := interaction_avg_model_coef[1,coef_true]+coef][2:32,predictor := "Relative fishing catch"]
 
-#reorder temperature and fishing
-interaction_avg_model_coef[,predictor := factor(predictor, levels = c("Relative fishing catch"))]
-
 #link for full survey name
 interaction_avg_model_coef <- color_link[interaction_avg_model_coef, on = "survey_unit"]
 
@@ -908,16 +931,16 @@ theme_classic()
 ```
 Plot all other coefficients in averaged model
 ```{r}
-model_avg_values.nonfishortemp <- model_avg_values[c(2,3,67:72),]
+model_avg_values.nonfishortemp <- model_avg_values[c(2,3,67:73),]
 
 #mark significance
 model_avg_values.nonfishortemp[,Significant := ifelse((coef-se > 0 & coef+se > 0) | (coef-se < 0 & coef+se < 0),T,F)]
 
 #more helpful names for variables
-model_avg_values.nonfishortemp[,Variable := c("Depth","Species count","Number of tows","Area","Latitude range","Latitude","Depth range","Maximum temperature")]
+model_avg_values.nonfishortemp[,Variable := c("Depth","Species count","Number of tows","Area","Julian day","Latitude range","Latitude","Depth range","Temperature")]
 
 #make factor with order
-model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Maximum temperature","Area","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
+model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Temperature","Area","Julian day","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
 
 
 #plot
@@ -927,7 +950,7 @@ geom_errorbar(data = model_avg_values.nonfishortemp, aes(x = Variable, ymin = co
   scale_color_manual(values = c("darkgrey","black")) +
 geom_hline(yintercept = 0) +
 scale_x_discrete(limits = rev) +
-  labs(y = "Coefficient", x = "\n") +
+  labs(y = "Coefficient", x = "\n\n\n") +
 coord_flip() +
 theme_classic()
 
@@ -955,10 +978,12 @@ theme_classic()
 
 #merge into single plot
 
-model_coef_summary_sst_jaccard <- cowplot::plot_grid(fishing_avg_model_coef+theme(legend.position = "null", axis.title.x = element_blank()),all_avg_model_coef+theme(legend.position = "null"), ncol = 1, labels = c("a.","b."), label_y = 0.99, rel_heights = c(2,1))
+model_coef_summary_sst_jaccard <- cowplot::plot_grid(fishing_avg_model_coef+theme(legend.position = "null", axis.title.x = element_blank()),all_avg_model_coef+theme(legend.position = "null"), ncol = 1, labels = c("a.","b."), label_y = 0.99, rel_heights = c(3,1))
 
 ggsave(model_coef_summary_sst_jaccard, path = here::here("figures"),filename = "model_coef_summary_sst_jaccard.jpg", height = 6.5, width = 8, unit = "in")
 
 
 ```
+
+
 
