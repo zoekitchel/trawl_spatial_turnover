@@ -60,7 +60,7 @@ abun_subset <- c(
 "IE-IGFS",
 "MEDITS",
 "NIGFS-1",
-"NS-IBTS-3",
+"NS-IBTS-1",
 "PT-IBTS",
 "ROCKALL",
 "SWC-IBTS-1",
@@ -76,7 +76,7 @@ abun_subset <- c(
 "NEUS-Fall",
 "Nor-BTS-3",
 "SCS-SUMMER",
-"SEUS-fall",
+"SEUS-summer",
 "WCANN"
 )
 
@@ -103,7 +103,7 @@ bio_subset <- c(
 "NEUS-Fall",
 "Nor-BTS-3",
 "SCS-SUMMER",
-"SEUS-fall",
+"SEUS-summer",
 "WCANN"
 )
 ```
@@ -167,7 +167,7 @@ FishGlob_clean.singleseason[,latitude_annual_range := max(latitude, na.rm =T)-mi
 FishGlob_clean.singleseason[,depth_annual_range := max(depth, na.rm =T)-min(depth, na.rm =T),.(year, survey_unit)]
 
 #add column for average abundance CPUE per tow for those that have abundance data
-FishGlob_clean.singleseason[,num_cpue_annual := sum(num_cpue), .(year, survey_unit)]
+FishGlob_clean.singleseason[,num_cpue_annual := ifelse(survey_unit %in% abun_subset, my_sum(num_cpue),NA), .(year, survey_unit)]
 
 
 #unique rows
