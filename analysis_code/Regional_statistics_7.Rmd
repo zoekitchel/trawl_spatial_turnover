@@ -2,7 +2,7 @@
 title: "Regional statistics and trends in dissimilarity by region"
 output: html_notebook
 author: Zoë J. Kitchel
-date: May 6, 2024
+date: May 29, 2024
 ---
 
 Script 7 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
@@ -21,6 +21,7 @@ library(nlme)
 library(MuMIn)
 library(cowplot)
 library(lme4)
+library(lubridate)
 ```
 
 Load data
@@ -659,7 +660,7 @@ region_stats <- julian_region[region_stats, on = "survey_unit"]
 season_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = avg_julian, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = avg_julian , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
@@ -668,24 +669,57 @@ season_vs_coef <- ggplot() +
 
 season_vs_coef
 
-ggsave(season_vs_coef, path = here::here("figures","jaccard_vs_survey_characteristics"), filename = "season_vs_coef.jpg", height =3, width = 5, unit = "in")
+ggsave(season_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "season_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
 summary(lm(abs(jaccard_coef)~avg_julian, data = region_stats)) #significant
 summary(lm(jaccard_coef~avg_julian, data = region_stats)) #not significant
 
 
-saveRDS(spp_num_vs_coef, here::here("figures","jaccard_vs_survey_characteristics","spp_num_vs_coef.rds"))
+```
+
+####First year of sampling and trend
+```{r first year of sampling and trend}
+
+
+#table with first year of sampling and survey
+distances_dissimilarities_allyears[,first_year := min(year),.(survey_unit)]
+
+#simplified data frame
+first_year_by_survey <- unique(distances_dissimilarities_allyears[,.(first_year, survey_unit)])
+
+#merge
+region_stats <- first_year_by_survey[region_stats,on = "survey_unit"]
+
+#plot
+firstyear_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = first_year, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3, width = 0) + #add confidence intervals
+        geom_point(data = region_stats, aes(x = first_year , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
+  geom_hline(yintercept = 0, size = 0.5) +
+  #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
+  xlab("First year of survey") +
+  theme_classic()
+
+firstyear_vs_coef
+
+ggsave(firstyear_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "firstyear_vs_coef.jpg", height =3, width = 5, unit = "in")
+
+#linear model
+summary(lm(abs(jaccard_coef)~first_year, data = region_stats)) #significant
+summary(lm(jaccard_coef~first_year, data = region_stats)) #not significant
+
 
 ```
 
-
+####Number of species and trend
 ```{r spp num}
 
 spp_num_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = spp_num, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = spp_num , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
@@ -694,24 +728,24 @@ spp_num_vs_coef <- ggplot() +
 
 spp_num_vs_coef
 
-ggsave(spp_num_vs_coef, path = here::here("figures","jaccard_vs_survey_characteristics"), filename = "spp_num_vs_coef.jpg", height =3, width = 5, unit = "in")
+ggsave(spp_num_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "spp_num_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
 summary(lm(abs(jaccard_coef)~spp_num, data = region_stats)) #significant
 summary(lm(jaccard_coef~spp_num, data = region_stats)) #not significant
 
 
-saveRDS(spp_num_vs_coef, here::here("figures","jaccard_vs_survey_characteristics","spp_num_vs_coef.rds"))
+saveRDS(spp_num_vs_coef, here::here("figures","jaccard_coef_vs_survey_characteristics","spp_num_vs_coef.rds"))
 
 ```
 
-More likely to detect both homogenization and differentation for longer study periods
+####Study period and trend
 ```{r study period}
 
 study_period_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = study_period, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3, width = 0) + #add confidence intervals
         geom_point(data = region_stats, aes(x = study_period , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Survey period (years)") + #first minus last
@@ -725,6 +759,15 @@ ggsave(study_period_vs_coef, path = here::here("figures","jaccard_coef_vs_survey
 summary(lm(abs(jaccard_coef)~study_period, data = region_stats)) #not significant
 summary(lm(jaccard_coef~study_period, data = region_stats)) #not significant
 ```
+Merge previous two plots
+```{r}
+timeseries_characteristic_trend <- plot_grid(firstyear_vs_coef + theme(legend.position = "null"), study_period_vs_coef + theme(legend.position = "null", axis.title.y = element_blank(), axis.text.y = element_blank()), nrow = 1, rel_widths = c(1.2,1), labels = c("a.", "  b."))
+
+timeseries_characteristic_trend_legend <- plot_grid(get_legend(firstyear_vs_coef + theme(legend.position = "top", legend.direction = "horizontal")), timeseries_characteristic_trend, ncol = 1, rel_heights = c(1,5))
+
+ggsave(timeseries_characteristic_trend_legend, path = here::here("figures","jaccard_coef_vs_survey_characteristics"),file = "timeseries_characteristic_trend_legend.jpg", width = 6.5, height = 4.5, units = "in")
+```
+
 
 More likely to detect differentiation when fewer years are sampled and more likely to detect homogenization when more years are sampled
 ```{r study duration}
@@ -732,7 +775,7 @@ More likely to detect differentiation when fewer years are sampled and more like
 years_sampled_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = years_sampled, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3, width = 0) + #add confidence intervals
         geom_point(data = region_stats, aes(x = years_sampled , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Total years sampled") + #count of years sampled
@@ -756,7 +799,7 @@ More likely to detect differentiation when a small latitudinal range is sampled,
 lat_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = lat_range, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = lat_range , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Latitudinal range (\u00B0)") + #count of years sampled
@@ -780,7 +823,7 @@ summary(lm(jaccard_coef~mid_lat, data = region_stats))
 mid_lat_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mid_lat, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = mid_lat , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   geom_smooth(data = region_stats, aes(x = mid_lat, y = jaccard_coef), method = "lm", color = "black", se = T, size = 0.5,  linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
@@ -816,7 +859,7 @@ Areas that are differentiating tend to be smaller than areas that are homogenizi
 area_km_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = area_km/1000, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (area_km/1000) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Area (1000s of squared km)") + #area_km
@@ -837,7 +880,7 @@ summary(lm(jaccard_coef~area_km, data = region_stats)) #not significant
 avg_hauls_area_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mean_haul_density, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mean_haul_density) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   scale_x_continuous(breaks = seq(0,0.008,by = 0.002), labels = c("0","0.002","0.004","0.006","")) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
@@ -860,7 +903,7 @@ summary(lm(jaccard_coef~mean_haul_density, data = region_stats)) #not significan
 depth_range_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = depth_range, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (depth_range) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Depth range (m)") + #depth_range
@@ -880,7 +923,7 @@ summary(lm(jaccard_coef~depth_range, data = region_stats[survey_unit != "GSL-S",
 mid_depth_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mid_depth, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mid_depth) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average depth (m)") + #mid_depth
@@ -900,7 +943,7 @@ summary(lm(jaccard_coef~mid_depth, data = region_stats[survey_unit != "GSL-S"]))
 mean_temp_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mean_temp, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mean_temp) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   geom_smooth(data = region_stats, aes(x = mean_temp, y = jaccard_coef), method = "lm", color = "black", se = T, linetype = "solid", size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
@@ -922,7 +965,7 @@ saveRDS(mean_temp_vs_coef, here::here("figures","jaccard_coef_vs_survey_characte
 mean_landings_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = (mean_landings/1000), y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = (mean_landings/1000) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Mean landings (1000s of tonnes)") + #average annual landings
@@ -942,7 +985,7 @@ summary(lm(jaccard_coef~mean_landings, data = region_stats[survey_unit != "ROCKA
 mean_haul_id_count_annual_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = mean_haul_id_count_annual, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = mean_haul_id_count_annual , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
-    scale_color_manual(values = c("#FFC109", "#D81C60", "#1E88E5"), name = "Dissimilarity trend") +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average number of tows per year") + 
