@@ -707,7 +707,7 @@ GAM_LM_model_comparisons_jaccard_total
 numeric_cols <- names(GAM_LM_model_comparisons_jaccard_total)[sapply(GAM_LM_model_comparisons_jaccard_total, is.numeric)]
 
 # Apply signif() only to numeric columns
-GAM_LM_model_comparisons_jaccard_total[, (numeric_cols) := lapply(.SD, function(x) if (is.numeric(x)) signif(x, digits = 2) else x), .SDcols = numeric_cols]
+GAM_LM_model_comparisons_jaccard_total[, (numeric_cols) := lapply(.SD, function(x) if (is.numeric(x)) signif(x, digits = 3) else x), .SDcols = numeric_cols]
 
 GAM_LM_model_comparisons_jaccard_total.f <- GAM_LM_model_comparisons_jaccard_total[,-2]
 
