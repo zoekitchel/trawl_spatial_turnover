@@ -260,7 +260,7 @@ dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := 
 ```
 
 ###Full model
-~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls + julian day
+~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls + julian day + AR for year
 
 For temperature, we will look at:
 -mean (scaled across all regions)
@@ -269,10 +269,24 @@ For temperature, we will look at:
 -seas  (scaled across all regions)
 -SD
 
-Comparing temp variables
+Comparing temp variables AND the presence/absence of a temporal autocorrelation term
 ```{r fit global mod}
 
-global_mod_mean_temp <- lm(annual_dissimilarity_value ~ 
+global_mod_mean_temp_gls <- gls(annual_dissimilarity_value ~ 
+                             survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall +
+                             julian_scaled,
+                           correlation = corAR1(form=~year | survey_unit),
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_mean_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -285,7 +299,7 @@ global_mod_mean_temp <- lm(annual_dissimilarity_value ~
                              julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_max_temp <- lm(annual_dissimilarity_value ~ 
+global_mod_max_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_max_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -298,7 +312,21 @@ global_mod_max_temp <- lm(annual_dissimilarity_value ~
                             julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_min_temp <- lm(annual_dissimilarity_value ~ 
+global_mod_max_temp_gls <-gls(annual_dissimilarity_value ~ 
+                             survey_unit*yearly_max_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall +
+                            julian_scaled,
+                            correlation = corAR1(form=~year | survey_unit),
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_min_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_min_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -311,7 +339,21 @@ global_mod_min_temp <- lm(annual_dissimilarity_value ~
                             julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_seas_temp <- lm(annual_dissimilarity_value ~ 
+global_mod_min_temp_gls <-gls(annual_dissimilarity_value ~ 
+                             survey_unit*yearly_min_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall +
+                            julian_scaled,
+                            correlation = corAR1(form=~year | survey_unit),
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_seas_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_seas_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -324,7 +366,21 @@ global_mod_seas_temp <- lm(annual_dissimilarity_value ~
                              julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
-global_mod_SD_temp <- lm(annual_dissimilarity_value ~ 
+global_mod_seas_temp_gls <- gls(annual_dissimilarity_value ~ 
+                             survey_unit*yearly_seas_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall +
+                             julian_scaled,
+                             correlation = corAR1(form=~year | survey_unit),
+                             data = dissimilarity_covariates_dredge.dt)
+
+global_mod_SD_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_mean_bypoint_SD.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
                              area_km.scaledacrossall + #area
@@ -337,88 +393,44 @@ global_mod_SD_temp <- lm(annual_dissimilarity_value ~
                            julian_scaled,
                              data = dissimilarity_covariates_dredge.dt)
 
-View(AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp))
+global_mod_SD_temp_gls <- gls(annual_dissimilarity_value ~ 
+                             survey_unit*yearly_mean_bypoint_SD.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall +
+                           julian_scaled,
+                              correlation = corAR1(form=~year | survey_unit),
+                             data = dissimilarity_covariates_dredge.dt)
+
+View(AICc(global_mod_mean_temp_lm, global_mod_max_temp_lm, global_mod_min_temp_lm, global_mod_seas_temp_lm, global_mod_SD_temp_lm,
+          global_mod_mean_temp_gls, global_mod_max_temp_gls, global_mod_min_temp_gls, global_mod_seas_temp_gls, global_mod_SD_temp_gls))
 
 #build data table to report AICc
 global_mod_temp_table <- data.table(
-  `Model structure` = c(paste(
-              "Area",                   
-              "Average depth",                  
-              "Depth range",                
-              "Number of tows", 
-              "Average Julian day",
-              "Average latitude",               
-              "Latitude range",             
-              "Species count",                  
-              "Relative catch", #scaled within region                       
-              "Survey",                                       
-              "Average mean SBT",            
-              "Survey * relative catch",            
-              "Survey * avg mean SBT", sep = " + "),
-              paste(
-              "Area",                   
-              "Average depth",                  
-              "Depth range",                
-              "Number of tows",  
-              "Average Julian day",
-              "Average latitude",               
-              "Latitude range",             
-              "Species count",                  
-              "Relative catch", #scaled within region                       
-              "Survey",                                       
-              "Average maximum SBT",            
-              "Survey * relative catch",            
-              "Survey * avg max SBT", sep = " + "),
-                 paste(
-              "Area",                   
-              "Average depth",                  
-              "Depth range",                
-              "Number of tows",  
-              "Average Julian day",
-              "Average latitude",               
-              "Latitude range",             
-              "Species count",                  
-              "Relative catch", #scaled within region                       
-              "Survey",                                       
-              "Average minimum SBT",            
-              "Survey * relative catch",            
-              "Survey * avg min SBT", sep = " + "),
-                 paste(
-              "Area",                   
-              "Average depth",                  
-              "Depth range",                
-              "Number of tows",  
-              "Average Julian day",
-              "Average latitude",               
-              "Latitude range",             
-              "Species count",                  
-              "Relative catch", #scaled within region                       
-              "Survey",                                       
-              "Average SBT seasonality",            
-              "Survey * relative catch",            
-              "Survey * avg SBT seas", sep = " + "),
-                 paste(
-              "Area",                   
-              "Average depth",                  
-              "Depth range",                
-              "Number of tows",  
-              "Average Julian day",
-              "Average latitude",               
-              "Latitude range",             
-              "Species count",                  
-              "Relative catch", #scaled within region                       
-              "Survey",                                       
-              "SBT SD",            
-              "Survey * relative catch",            
-              "Survey * SBT SD", sep = " + ")),
-  deltaAICc = signif(min(AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp)[,2])-AICc(global_mod_mean_temp, global_mod_max_temp, global_mod_min_temp, global_mod_seas_temp, global_mod_SD_temp)[,2],2))
+  `Temporal autocorrelation` = c(
+    c(rep(F,5),rep(T,5))
+  ),
+  `Temperature variable` = rep(c(                  
+              "Average mean SBT",
+              "Average maximum SBT",                        
+              "Average minimum SBT",                  
+              "Average SBT seasonality",                 
+              "SBT SD"),2),
+  deltaAICc = signif(min(AICc(global_mod_mean_temp_lm, global_mod_max_temp_lm, global_mod_min_temp_lm, global_mod_seas_temp_lm, global_mod_SD_temp_lm,
+          global_mod_mean_temp_gls, global_mod_max_temp_gls, global_mod_min_temp_gls, global_mod_seas_temp_gls, global_mod_SD_temp_gls)[,2])-AICc(global_mod_mean_temp_lm, global_mod_max_temp_lm, global_mod_min_temp_lm, global_mod_seas_temp_lm, global_mod_SD_temp_lm,
+          global_mod_mean_temp_gls, global_mod_max_temp_gls, global_mod_min_temp_gls, global_mod_seas_temp_gls, global_mod_SD_temp_gls)[,2],2))
 
 #order by aicc
 setorder(global_mod_temp_table,cols = -"deltaAICc")
 
-global_mod_temp_table[,Rank := seq(1,5,by = 1)]
+global_mod_temp_table[,Rank := seq(1,10,by = 1)]
 
-global_mod_sbt_table <- global_mod_temp_table[,.(Rank,`Model structure`, deltaAICc)]
+global_mod_sbt_table <- global_mod_temp_table[,.(Rank,`Temporal autocorrelation`,`Temperature variable`, deltaAICc)]
 
 fwrite(global_mod_sbt_table, here::here("output","global_mod_sbt_table.csv"))
 
