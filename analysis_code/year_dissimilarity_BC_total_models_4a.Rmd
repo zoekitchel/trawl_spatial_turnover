@@ -145,7 +145,7 @@ bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients
   bray_curtis_total_coefs[,var := rownames(summary(bray_curtis_total_lm)$coefficients)]
   
   #limit to interactions only (check this if there are any model changes!) row 2 and rows 24:44
-  bray_curtis_total_coefs.r <- bray_curtis_total_coefs[c(2,24:44),]
+  bray_curtis_total_coefs.r <- bray_curtis_total_coefs[c(2,26:48),]
   
   #adjust survey unit name by deleting beginning of string
   bray_curtis_total_coefs.r[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
@@ -153,7 +153,7 @@ bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients
   #calculate interaction coefficients
   AI_estimate <- bray_curtis_total_coefs.r[1,Estimate]
   bray_curtis_total_coefs.r[1,survey_unit_coefficient := AI_estimate]
-  bray_curtis_total_coefs.r[2:22,survey_unit_coefficient := (AI_estimate + Estimate)]
+  bray_curtis_total_coefs.r[2:24,survey_unit_coefficient := (AI_estimate + Estimate)]
   
   #homogenizing vs differentiating
   bray_curtis_total_coefs.r[,differentiating := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient > 0),1,0)][,homogenizing := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient < 0),1,0)]
@@ -188,7 +188,7 @@ bray_curtis_total_relative_coefs <- data.table(summary(bray_curtis_total_relativ
   bray_curtis_total_relative_coefs[,var := rownames(summary(bray_curtis_total_relative_lm)$coefficients)]
   
   #limit to interactions only (check this if there are any model changes!) row 2 and rows 24:44
-  bray_curtis_total_relative_coefs.r <- bray_curtis_total_relative_coefs[c(2,24:44),]
+  bray_curtis_total_relative_coefs.r <- bray_curtis_total_relative_coefs[c(2,26:48),]
   
   #adjust survey unit name by deleting beginning of string
   bray_curtis_total_relative_coefs.r[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
@@ -196,7 +196,7 @@ bray_curtis_total_relative_coefs <- data.table(summary(bray_curtis_total_relativ
   #calculate interaction coefficients
   AI_estimate <- bray_curtis_total_relative_coefs.r[1,Estimate]
   bray_curtis_total_relative_coefs.r[1,survey_unit_coefficient := AI_estimate]
-  bray_curtis_total_relative_coefs.r[2:22,survey_unit_coefficient := (AI_estimate + Estimate)]
+  bray_curtis_total_relative_coefs.r[2:24,survey_unit_coefficient := (AI_estimate + Estimate)]
   
   #homogenizing vs differentiating
   bray_curtis_total_relative_coefs.r[,differentiating := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient > 0),1,0)][,homogenizing := ifelse((`Std. Error`< abs(survey_unit_coefficient) & survey_unit_coefficient < 0),1,0)]
@@ -234,7 +234,7 @@ jaccard_total_gls <- gls(annual_dissimilarity_value ~ year * survey_unit,correla
 #compare these two models
 AICc(jaccard_total_lm, jaccard_total_gls)
 
-AICc(jaccard_total_gls)-AICc(jaccard_total_lm) #397.0673
+AICc(jaccard_total_gls)-AICc(jaccard_total_lm) #615.1913
 
 jaccard_total_coefs <- data.table(summary(jaccard_total_lm)$coefficients)
   jaccard_total_coefs[,var := rownames(summary(jaccard_total_lm)$coefficients)]
