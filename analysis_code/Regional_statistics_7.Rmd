@@ -148,8 +148,6 @@ FishGlob_clean.singleseason[,survey:=factor(survey)][,survey_unit:=factor(survey
 #adjust years
 FishGlob_clean.singleseason[,year_adj := year-min(year)+1]
 
-#add column for yearly summed biomass (note that MEDITS doesn't have biomass, so it will be excluded from these plots)
-
 #add column for yearly summed # of hauls
 FishGlob_clean.singleseason[,haul_id_count_annual := uniqueN(haul_id),.(year, survey_unit)]
 
@@ -169,7 +167,7 @@ FishGlob_clean.singleseason[,latitude_annual_range := max(latitude, na.rm =T)-mi
 FishGlob_clean.singleseason[,depth_annual_range := max(depth, na.rm =T)-min(depth, na.rm =T),.(year, survey_unit)]
 
 #add column for average abundance CPUE per tow for those that have abundance data
-FishGlob_clean.singleseason[survey_unit %in% abun_subset,num_cpue_annual := my_sum(num_cpue), .(year, survey_unit)]
+FishGlob_clean.singleseason[,num_cpue_annual := sum(num_cpue), .(year, survey_unit)]
 
 
 #unique rows
@@ -558,6 +556,9 @@ for (i in 1:length(all_survey_units)) {
 
   
 fwrite(region_area_byyear, file = here::here("output","region_area_byyear.csv"))
+
+#or, read in
+region_area_byyear <- fread(file = here::here("output","region_area_byyear.csv"))
 ```
 
 Merge region stats with dissimilarities
@@ -576,17 +577,39 @@ dissimilarities_temp_fishing_regstats[,spp_count_annual.s := scale(spp_count_ann
 saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","dissimilarities","dissimilarities_temp_fishing_regstats.rds"))
 ```
 
+Add median Julian day
+```{r}
+
+FishGlob_clean.singleseason <- readRDS(here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
+
+dates_regions <- unique(FishGlob_clean.singleseason[,.(survey_unit, year, month, day, quarter, season)])
+dates_regions[,day := ifelse(is.na(day),1,day)][survey_unit == "MEDITS",day := 15][survey_unit == "MEDITS",month := 5]
+
+#calculate date, julian date, and avg julian date for survey
+dates_regions[,date := ymd(paste(year,month,day,sep = "/"))][,julian := yday(date)][,avg_julian := mean(julian),.(survey_unit)][,avg_julian_annual := mean(julian),.(survey_unit, year)]
+
+#save
+saveRDS(dates_regions, here::here("output","dates_regions.rds"))
+
+#reduce to survey and avg julian
+julian_region <- unique(dates_regions[,.(survey_unit, avg_julian)])
+
+#merge with region stats and coefficeitns in that data table
+region_stats <- julian_region[region_stats, on = "survey_unit"]
+```
+
+
 Format region_stats for paper supplement
 ```{r}
 region_stats.format <- copy(region_stats)
 
 region_stats.format <- region_stats[color_link, on = "survey_unit", nomatch = F]
 
-region_stats.format[,`Mean annual CPUE (num/km^2)`:=mean_annual_cpue][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Mean annual tow density (tows/km^2)` := round(mean_haul_density)][,`SD annual tow density (tows/km^2)` := round(SD_haul_density)][,`Latitude range (˚)`:= round(lat_range,0)][,`Longitude range (˚)`:=round(lon_range,0)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,0)][,`Depth range (m)`:= round(depth_range,0)][,`Mid-latitude (˚N)`:= round(mid_lat,0)][,`Mean bottom temperature (˚C)`:= round(mean_temp,1)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year]
+region_stats.format[,`Mean annual CPUE (num in 1000s/km^2)`:=round(mean_annual_cpue/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Mean annual tow density (tows/km^2)` := signif(mean_haul_density,2)][,`SD annual tow density (tows/km^2)` := signif(SD_haul_density,2)][,`Latitude range (˚)`:= round(lat_range,0)][,`Longitude range (˚)`:=round(lon_range,0)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,0)][,`Depth range (m)`:= round(depth_range,0)][,`Mid-latitude (˚N)`:= round(mid_lat,0)][,`Mean bottom temperature (˚C)`:= round(mean_temp,1)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year][,`Mean Julian day`:= round(avg_julian,0)]
 
 setorder(region_stats.format, survey_unit)
 
-region_stats.format <- region_stats.format[,.(Survey_Name_Season, `First year`,`Last year`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`,`Number of species across all years`,`Mean annual CPUE (num/km^2)`,`Mean annual tow count`,`Mean annual tow density (tows/km^2)`,`SD annual tow density (tows/km^2)`, `Mean annual fisheries landings (1000s of tonnes)`)]
+region_stats.format <- region_stats.format[,.(Survey_Name_Season, `First year`,`Last year`,`Mean Julian day`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`,`Number of species across all years`,`Mean annual CPUE (num in 1000s/km^2)`,`Mean annual tow count`,`Mean annual tow density (tows/km^2)`,`SD annual tow density (tows/km^2)`, `Mean annual fisheries landings (1000s of tonnes)`)]
 
 
 View(region_stats.format)
@@ -640,28 +663,11 @@ prop.test(differentiators,total_surveys) #p value =1, so groups are not differen
 ####Median day of survey and trend
 ```{r median day of survey}
 
-FishGlob_clean.singleseason <- readRDS(here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
-
-dates_regions <- unique(FishGlob_clean.singleseason[,.(survey_unit, year, month, day, quarter, season)])
-dates_regions[,day := ifelse(is.na(day),1,day)][survey_unit == "MEDITS",day := 15][survey_unit == "MEDITS",month := 5]
-
-#calculate date, julian date, and avg julian date for survey
-dates_regions[,date := ymd(paste(year,month,day,sep = "/"))][,julian := yday(date)][,avg_julian := mean(julian),.(survey_unit)][,avg_julian_annual := mean(julian),.(survey_unit, year)]
-
-#save
-saveRDS(dates_regions, here::here("output","dates_regions.rds"))
-
-#reduce to survey and avg julian
-julian_region <- unique(dates_regions[,.(survey_unit, avg_julian)])
-
-#merge with region stats and coefficeitns in that data table
-region_stats <- julian_region[region_stats, on = "survey_unit"]
-
 season_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = avg_julian, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = avg_julian , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
-  geom_hline(yintercept = 0, size = 0.5) +
+  geom_hline(yintercept = 0, linewidth = 0.5) +
   #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average Julian day of survey") +

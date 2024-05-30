@@ -137,8 +137,10 @@ Also, build a simple linear model with an interaction (instead of random slope a
 (Especially good because lmer didn't converge)
 ```{r linear model Bray}
 
+#traditional linear model
 bray_curtis_total_lm <- lm(annual_dissimilarity_value ~ year * survey_unit,data = distances_dissimilarities_allyears[dissimilarity_metric == "bray_curtis_dissimilarity_total_abundance"])
 
+#populate table of coefficients
 bray_curtis_total_coefs <- data.table(summary(bray_curtis_total_lm)$coefficients)
   bray_curtis_total_coefs[,var := rownames(summary(bray_curtis_total_lm)$coefficients)]
   
@@ -225,6 +227,14 @@ Same, but for Jaccard
 ```{r linear model Jaccard}
 
 jaccard_total_lm <- lm(annual_dissimilarity_value ~ year * survey_unit,data = distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total"])
+
+#alternative, what if we use GLS (allows us to include temporal autocorrelation term)
+jaccard_total_gls <- gls(annual_dissimilarity_value ~ year * survey_unit,correlation = corAR1(form=~year | survey_unit),data = distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total"])
+
+#compare these two models
+AICc(jaccard_total_lm, jaccard_total_gls)
+
+AICc(jaccard_total_gls)-AICc(jaccard_total_lm) #397.0673
 
 jaccard_total_coefs <- data.table(summary(jaccard_total_lm)$coefficients)
   jaccard_total_coefs[,var := rownames(summary(jaccard_total_lm)$coefficients)]

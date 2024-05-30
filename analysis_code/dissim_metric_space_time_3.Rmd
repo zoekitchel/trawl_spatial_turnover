@@ -149,7 +149,7 @@ abun_subset <- c(
 "IE-IGFS",
 "MEDITS",
 "NIGFS-1",
-"NS-IBTS-3",
+"NS-IBTS-1",
 "PT-IBTS",
 "ROCKALL",
 "SWC-IBTS-1",
@@ -165,7 +165,7 @@ abun_subset <- c(
 "NEUS-Fall",
 "Nor-BTS-3",
 "SCS-SUMMER",
-"SEUS-fall",
+"SEUS-summer",
 "WCANN"
 )
 
@@ -192,7 +192,7 @@ bio_subset <- c(
 "NEUS-Fall",
 "Nor-BTS-3",
 "SCS-SUMMER",
-"SEUS-fall",
+"SEUS-summer",
 "WCANN"
 )
 
@@ -720,7 +720,7 @@ for(i in 1:length(files)){
 
 saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
 
-#distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
+distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
 ```
  
 
