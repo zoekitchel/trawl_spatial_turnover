@@ -1797,13 +1797,17 @@ The following object is masked from ‘package:viridis’:
 library(concaveman)
 library(dplyr)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYZHBseXLigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpubG1l4oCZOlxuXG4gICAgY29sbGFwc2VcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOmRhdGEudGFibGXigJk6XG5cbiAgICBiZXR3ZWVuLCBmaXJzdCwgbGFzdFxuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6c3RhdHPigJk6XG5cbiAgICBmaWx0ZXIsIGxhZ1xuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6YmFzZeKAmTpcblxuICAgIGludGVyc2VjdCwgc2V0ZGlmZiwgc2V0ZXF1YWwsIHVuaW9uXG4ifQ== -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYZHBseXLigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpubG1l4oCZOlxuXG4gICAgY29sbGFwc2VcblxuVGhlIGZvbGxvd2luZyBvYmplY3RzIGFyZSBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOnJhc3RlcuKAmTpcblxuICAgIGludGVyc2VjdCwgc2VsZWN0LCB1bmlvblxuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6ZGF0YS50YWJsZeKAmTpcblxuICAgIGJldHdlZW4sIGZpcnN0LCBsYXN0XG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0cyBhcmUgbWFza2VkIGZyb20g4oCYcGFja2FnZTpzdGF0c+KAmTpcblxuICAgIGZpbHRlciwgbGFnXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0cyBhcmUgbWFza2VkIGZyb20g4oCYcGFja2FnZTpiYXNl4oCZOlxuXG4gICAgaW50ZXJzZWN0LCBzZXRkaWZmLCBzZXRlcXVhbCwgdW5pb25cbiJ9 -->
 <pre><code>
 Attaching package: ‘dplyr’
 
 The following object is masked from ‘package:nlme’:
 
     collapse
+
+The following objects are masked from ‘package:raster’:
+
+    intersect, select, union
 
 The following objects are masked from ‘package:data.table’:
 
@@ -1832,15 +1836,10 @@ The following object is masked from ‘package:data.table’:
 
     transpose</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShzZilcbmxpYnJhcnkocm5hdHVyYWxlYXJ0aClcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShzZilcbmxpYnJhcnkocm5hdHVyYWxlYXJ0aClcbmxpYnJhcnkocm5hdHVyYWxlYXJ0aGRhdGEpXG5gYGAifQ== -->
 <pre class="r"><code>library(sf)
-library(rnaturalearth)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiU3VwcG9ydCBmb3IgU3BhdGlhbCBvYmplY3RzIChgc3BgKSB3aWxsIGJlIGRlcHJlY2F0ZWQgaW4ge3JuYXR1cmFsZWFydGh9IGFuZCB3aWxsIGJlIHJlbW92ZWQgaW4gYSBmdXR1cmUgcmVsZWFzZSBvZiB0aGUgcGFja2FnZS4gUGxlYXNlIHVzZSBgc2ZgIG9iamVjdHMgd2l0aCB7cm5hdHVyYWxlYXJ0aH0uIEZvciBleGFtcGxlOiBgbmVfZG93bmxvYWQocmV0dXJuY2xhc3MgPSAnc2YnKWBcbiJ9 -->
-<pre><code>Support for Spatial objects (`sp`) will be deprecated in {rnaturalearth} and will be removed in a future release of the package. Please use `sf` objects with {rnaturalearth}. For example: `ne_download(returnclass = &#39;sf&#39;)`</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShybmF0dXJhbGVhcnRoZGF0YSlcbmBgYCJ9 -->
-<pre class="r"><code>library(rnaturalearthdata)</code></pre>
+library(rnaturalearth)
+library(rnaturalearthdata)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYcm5hdHVyYWxlYXJ0aGRhdGHigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpybmF0dXJhbGVhcnRo4oCZOlxuXG4gICAgY291bnRyaWVzMTEwXG4ifQ== -->
 <pre><code>
@@ -1971,13 +1970,17 @@ crosses = world_robinson %&gt;%
 
 library(magrittr)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYbWFncml0dHLigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpwdXJycuKAmTpcblxuICAgIHNldF9uYW1lc1xuIn0= -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5BdHRhY2hpbmcgcGFja2FnZTog4oCYbWFncml0dHLigJlcblxuVGhlIGZvbGxvd2luZyBvYmplY3QgaXMgbWFza2VkIGZyb20g4oCYcGFja2FnZTpwdXJycuKAmTpcblxuICAgIHNldF9uYW1lc1xuXG5UaGUgZm9sbG93aW5nIG9iamVjdCBpcyBtYXNrZWQgZnJvbSDigJhwYWNrYWdlOnJhc3RlcuKAmTpcblxuICAgIGV4dHJhY3RcbiJ9 -->
 <pre><code>
 Attaching package: ‘magrittr’
 
 The following object is masked from ‘package:purrr’:
 
-    set_names</code></pre>
+    set_names
+
+The following object is masked from ‘package:raster’:
+
+    extract</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-source-begin eyJkYXRhIjoiYGBgclxud29ybGRfcm9iaW5zb25bY3Jvc3NlcyxdICU8PiVcbiAgc3RfYnVmZmVyKDApIFxuXG5nZ3Bsb3Qod29ybGRfcm9iaW5zb24pICsgZ2VvbV9zZigpIFxuXG5gYGAifQ== -->
 <pre class="r"><code>world_robinson[crosses,] %&lt;&gt;%
