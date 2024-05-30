@@ -1,7 +1,7 @@
 ---
 title: "Figure Visualization Homogenization, Differentiation, and Stability"
 output: html_notebook
-Date: May 6, 2024
+Date: May 29, 2024
 ---
 
 Figure 1 script part 1 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
@@ -192,7 +192,7 @@ mds_contrast_noannotate <- ggplot(data = full_mds.dt) +
   geom_point(aes(x = NMDS1, y = NMDS2, fill = `Survey Unit`, color = factor(`Time period`)), size = 2, shape = 21) +
   stat_ellipse(aes(x = NMDS1, y = NMDS2,linetype=`Time period`)) +
   facet_wrap(vars(`Survey Unit`), nrow = 1) +
-  scale_fill_manual(values = c("#FFC109","#D81C60", "#1E88E5")) +
+  scale_fill_manual(values = c("#D81C60","#FFC109", "#1E88E5")) +
   scale_color_manual(values=c("white","black")) +
   scale_linetype_manual(values = c("dotted","solid")) +
   theme_classic() +
