@@ -127,7 +127,7 @@ ggsave(fishing_time_survey_facet_21_34, path = here::here("figures"), filename =
 
 Plot fishing and temperature vs. dissimilarity for all regions
 ```{r}
-
+#####MEAN TEMP
 (preds_sbt_mean_temp_survey_facet_1_20 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[1:20] & year > 1979]) +
   labs(x = "Mean bottom temperature (˚C)",  y = "β-diversity") +
   geom_point(aes(x = as.numeric(yearly_mean_bypoint_avg), y = annual_dissimilarity_value), alpha = 0.3) +
@@ -145,6 +145,25 @@ ggsave(preds_sbt_mean_temp_survey_facet_1_20, path = here::here("figures"), file
   theme_classic())
 
 ggsave(preds_sbt_mean_temp_survey_facet_21_34, path = here::here("figures"), filename = "preds_sbt_mean_temp_survey_facet_21_34.jpg", height = 12, width =9)
+
+#####MINIMUM TEMP
+(preds_sbt_min_temp_survey_facet_1_20 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[1:20] & year > 1979]) +
+  labs(x = "Minimum bottom temperature (˚C)",  y = "β-diversity") +
+  geom_point(aes(x = as.numeric(yearly_min_bypoint_avg), y = annual_dissimilarity_value), alpha = 0.3) +
+  geom_smooth(aes(x = as.numeric(yearly_min_bypoint_avg), y = annual_dissimilarity_value), method = "lm") +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
+  theme_classic())
+
+ggsave(preds_sbt_min_temp_survey_facet_1_20, path = here::here("figures"), filename = "preds_sbt_min_temp_survey_facet_1_20.jpg", height = 12, width =9)
+
+(preds_sbt_min_temp_survey_facet_21_34 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[21:34] & year > 1979]) +
+  labs(x = "Minimum bottom temperature (˚C)",  y = "β-diversity") +
+  geom_point(aes(x = as.numeric(yearly_min_bypoint_avg), y = annual_dissimilarity_value), alpha = 0.3) +
+  geom_smooth(aes(x = as.numeric(yearly_min_bypoint_avg), y = annual_dissimilarity_value), method = "lm") +
+  facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4) +
+  theme_classic())
+
+ggsave(preds_sbt_min_temp_survey_facet_21_34, path = here::here("figures"), filename = "preds_sbt_min_temp_survey_facet_21_34.jpg", height = 12, width =9)
 
 #######FISHING
 
@@ -170,6 +189,7 @@ ggsave(preds_sbt_mean_fishing_survey_facet_21_34, path = here::here("figures"), 
 
 
 ```
+
 ###Plot number of tows per year per region
 ```{r}
 tows_year <- unique(dissimilarities_temp_fishing_area.jaccard[,.(survey_unit, haul_id_count_annual, area_km, year, Survey_Name_Season)])
@@ -178,7 +198,7 @@ min_haul_density <- min(tows_year$haul_id_count_annual/tows_year$area_km)
 max_haul_density <- max(tows_year$haul_id_count_annual/tows_year$area_km)
 
 (tow_density_survey_facet_1_20 <- ggplot(data = tows_year[survey_unit %in% all_surveys[1:20]]) +
-  labs(x = "Year",  y = "Tow density (tows per km^2)") +
+  labs(x = "Year",  y = expression("Tow density (tows per km"^2*")")) +
   geom_point(aes(x = year, y = haul_id_count_annual/area_km)) +
   ylim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
   facet_wrap(~Survey_Name_Season, ncol = 4) +
@@ -187,7 +207,7 @@ max_haul_density <- max(tows_year$haul_id_count_annual/tows_year$area_km)
 ggsave(tow_density_survey_facet_1_20, path = here::here("figures"), filename = "tow_density_survey_facet_1_20.jpg", height = 12, width =9)
 
 (tow_density_survey_facet_21_34 <- ggplot(data = tows_year[survey_unit %in% all_surveys[21:34]]) +
-  labs(x = "Year",  y = "Tow density (tows per km^2)") +
+  labs(x = "Year",  y = expression("Tow density (tows per km"^2*")")) +
   geom_point(aes(x = year, y = haul_id_count_annual/area_km)) +
   ylim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
   facet_wrap(~Survey_Name_Season, ncol = 4) +
@@ -203,26 +223,26 @@ max_dissimilarity <- max(dissimilarities_temp_fishing_area.jaccard$annual_dissim
 tow_density_dissimilarity_1_20 <- 
   ggplot(data = dissimilarities_temp_fishing_area.jaccard[dissimilarity_metric == "jaccard_dissimilarity_total" & survey_unit %in% all_surveys[1:20]]) +
   geom_point(aes(x = (haul_id_count_annual/area_km), y = annual_dissimilarity_value, color = year), size = 2) +
-  scale_color_viridis() +
+  viridis::scale_color_viridis() +
   facet_wrap(~Survey_Name_Season, ncol = 4) +
-  labs(x = "Tow density (tows per km^2)", y = "β-diversity", color = "Year") +
+  labs(x = expression("Tow density (tows per km"^2*")"), y = "β-diversity", color = "Year") +
     xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
     ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
   theme_classic()
 
-ggsave(tow_density_dissimilarity_1_20, path = here::here("figures"), filename = "tow_density_dissimilarity_1_20.jpg", height = 7, width =9)
+ggsave(tow_density_dissimilarity_1_20, path = here::here("figures"), filename = "tow_density_dissimilarity_1_20.jpg", height = 12, width =9)
 
 tow_density_dissimilarity_21_34 <- 
   ggplot(data = dissimilarities_temp_fishing_area.jaccard[dissimilarity_metric == "jaccard_dissimilarity_total" & survey_unit %in% all_surveys[21:34]]) +
   geom_point(aes(x = (haul_id_count_annual/area_km), y = annual_dissimilarity_value, color = year), size = 2) +
-  scale_color_viridis() +
+  viridis::scale_color_viridis() +
   facet_wrap(~Survey_Name_Season, ncol = 4) +
-  labs(x = "Tow density (tows per km^2)", y = "β-diversity") +
+  labs(x = expression("Tow density (tows per km"^2*")"), y = "β-diversity", color = "Year") +
     xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
     ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
   theme_classic()
 
-ggsave(tow_density_dissimilarity_21_34, path = here::here("figures"), filename = "tow_density_dissimilarity_21_34.jpg", height = 7, width =9)
+ggsave(tow_density_dissimilarity_21_34, path = here::here("figures"), filename = "tow_density_dissimilarity_21_34.jpg", height = 12, width =9)
 ```
 
 
