@@ -224,10 +224,10 @@ tow_density_dissimilarity_1_20 <-
   ggplot(data = dissimilarities_temp_fishing_area.jaccard[dissimilarity_metric == "jaccard_dissimilarity_total" & survey_unit %in% all_surveys[1:20]]) +
   geom_point(aes(x = (haul_id_count_annual/area_km), y = annual_dissimilarity_value, color = year), size = 2) +
   viridis::scale_color_viridis() +
-  facet_wrap(~Survey_Name_Season, ncol = 4) +
+  facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
   labs(x = expression("Tow density (tows per km"^2*")"), y = "β-diversity", color = "Year") +
-    xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
-    ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
+   # xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
+   # ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
   theme_classic()
 
 ggsave(tow_density_dissimilarity_1_20, path = here::here("figures"), filename = "tow_density_dissimilarity_1_20.jpg", height = 12, width =9)
@@ -236,10 +236,10 @@ tow_density_dissimilarity_21_34 <-
   ggplot(data = dissimilarities_temp_fishing_area.jaccard[dissimilarity_metric == "jaccard_dissimilarity_total" & survey_unit %in% all_surveys[21:34]]) +
   geom_point(aes(x = (haul_id_count_annual/area_km), y = annual_dissimilarity_value, color = year), size = 2) +
   viridis::scale_color_viridis() +
-  facet_wrap(~Survey_Name_Season, ncol = 4) +
+  facet_wrap(~Survey_Name_Season, ncol = 4, scales = "free") +
   labs(x = expression("Tow density (tows per km"^2*")"), y = "β-diversity", color = "Year") +
-    xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
-    ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
+   # xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
+   # ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
   theme_classic()
 
 ggsave(tow_density_dissimilarity_21_34, path = here::here("figures"), filename = "tow_density_dissimilarity_21_34.jpg", height = 12, width =9)
