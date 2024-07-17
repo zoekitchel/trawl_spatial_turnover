@@ -361,8 +361,8 @@ dissimilarities_SSTtemp_fishing[,mean_reg_temp_allyears := mean(yearly_mean_bypo
 
 #merge dissimilarities with spp counts
 
-dissimilarities_temp_fishing <- dissimilarities_temp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range")]
-dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range")]
+dissimilarities_temp_fishing <- dissimilarities_temp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]
+dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]
 
 fwrite(dissimilarities_temp_fishing, here::here("output","dissimilarities_temp_fishing.csv"))
 
@@ -577,7 +577,7 @@ dissimilarities_temp_fishing_regstats[,spp_count_annual.s := scale(spp_count_ann
 saveRDS(dissimilarities_temp_fishing_regstats, here::here("output","dissimilarities","dissimilarities_temp_fishing_regstats.rds"))
 ```
 
-Add median Julian day
+Add median Julian day and season
 ```{r}
 
 FishGlob_clean.singleseason <- readRDS(here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
@@ -587,6 +587,65 @@ dates_regions[,day := ifelse(is.na(day),1,day)][survey_unit == "MEDITS",day := 1
 
 #calculate date, julian date, and avg julian date for survey
 dates_regions[,date := ymd(paste(year,month,day,sep = "/"))][,julian := yday(date)][,avg_julian := mean(julian),.(survey_unit)][,avg_julian_annual := mean(julian),.(survey_unit, year)]
+
+#calculate season
+so_hemis <- c("CHL","NAM","NZ-CHAT","NZ-ECSI","NZ-SUBA","NZ-WCSI","S-GEORG","ZAF-ATL","ZAF-IND")
+
+#function for season
+# Function to classify dates into seasons for Northern Hemisphere
+get_season_northern <- function(date) {
+  y <- year(date)
+  winter_start <- as.Date(paste0(y-1, "-12-21"))
+  spring_start <- as.Date(paste0(y, "-03-21"))
+  summer_start <- as.Date(paste0(y, "-06-21"))
+  autumn_start <- as.Date(paste0(y, "-09-21"))
+  autumn_end <- as.Date(paste0(y, "-12-20"))
+  
+  if (date >= winter_start & date < spring_start) {
+    return("Winter")
+  } else if (date >= spring_start & date < summer_start) {
+    return("Spring")
+  } else if (date >= summer_start & date < autumn_start) {
+    return("Summer")
+  } else if (date >= autumn_start & date < autumn_end) {
+    return("Fall")
+  } else {
+    return("Winter")
+  }
+}
+
+# Function to classify dates into seasons for southern Hemisphere
+get_season_southern <- function(date) {
+  y <- year(date)
+  winter_start <- as.Date(paste0(y-1, "-12-21"))
+  spring_start <- as.Date(paste0(y, "-03-21"))
+  summer_start <- as.Date(paste0(y, "-06-21"))
+  autumn_start <- as.Date(paste0(y, "-09-21"))
+  autumn_end <- as.Date(paste0(y, "-12-20"))
+  
+  if (date >= winter_start & date < spring_start) {
+    return("Summer")
+  } else if (date >= spring_start & date < summer_start) {
+    return("Fall")
+  } else if (date >= summer_start & date < autumn_start) {
+    return("Winter")
+  } else if (date >= autumn_start & date < autumn_end) {
+    return("Spring")
+  } else {
+    return("Summer")
+  }
+}
+  
+
+#get season
+dates_regions[, season := mapply(function(date, survey_unit) {
+  if (survey_unit %in% so_hemis) {
+    get_season_southern(date)
+  } else {
+    get_season_northern(date)
+  }
+}, date, survey_unit)]
+
 
 #save
 saveRDS(dates_regions, here::here("output","dates_regions.rds"))

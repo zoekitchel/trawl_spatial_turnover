@@ -228,7 +228,8 @@ tow_density_dissimilarity_1_20 <-
   labs(x = expression("Tow density (tows per km"^2*")"), y = "β-diversity", color = "Year") +
    # xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
    # ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
-  theme_classic()
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 
 ggsave(tow_density_dissimilarity_1_20, path = here::here("figures"), filename = "tow_density_dissimilarity_1_20.jpg", height = 12, width =9)
 
@@ -240,7 +241,8 @@ tow_density_dissimilarity_21_34 <-
   labs(x = expression("Tow density (tows per km"^2*")"), y = "β-diversity", color = "Year") +
    # xlim(c(min_haul_density-0.0001, max_haul_density+0.0001)) +
    # ylim(c(min_dissimilarity-0.01,max_dissimilarity+0.01)) +
-  theme_classic()
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 
 ggsave(tow_density_dissimilarity_21_34, path = here::here("figures"), filename = "tow_density_dissimilarity_21_34.jpg", height = 12, width =9)
 
