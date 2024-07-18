@@ -295,10 +295,13 @@ data_loss <- data.table(survey_unit=all_survey_units,
 
 FishGlob.wellsampledyearscells_complete <- data.table()
 
-#empty vector for plots with years excluded
+#empty vector for plots with years excluded (by cell)
+fishglob_exclude_years_plots_bycell <- list()
+#empty vector for plots with years excluded (by tow)
 fishglob_exclude_years_plots <- list()
 #empty vector for plots with cells excluded
 fishglob_exclude_cells_plots <- list()
+
 
 for (i in 1:length(all_survey_units)) {
       
@@ -354,6 +357,17 @@ for (i in 1:length(all_survey_units)) {
        scale_fill_manual(values = c("grey","turquoise")) +
   theme_classic() +
        ggtitle(paste0(all_survey_units[i], ", ",percent_tows_removed_year, "% tows excluded" ))
+     
+     
+         #plot cells that are removed
+     fishglob_exclude_years_plots_bycell[[i]] <- 
+       ggplot() +
+  geom_col(data = year_cells_sampled, aes(x = year, y = yearly_cell_count, fill = benchmark)) +
+       geom_hline(yintercept =   benchmark_value, linetype = "dashed",color = "black") +
+       labs(x = "Year",y = "Cells sampled per year") +
+       scale_fill_manual(values = c("turquoise","grey")) +
+  theme_classic() +
+       ggtitle(paste0(all_survey_units[i], ", ", years_deleted_percent, "% years excluded" ))
       
       #identify any cells that are not sampled in 70% of years
       FishGlob.cells.subset.wellsampledyears[,year_cell_count := length(unique(haul_id)),.(year,cell_ID)] # unique haul ids per cell per year
@@ -393,7 +407,7 @@ for (i in 1:length(all_survey_units)) {
       fishglob_exclude_cells_plots[[i]] <- 
         fishglob_cell_plots[[i]] +
         geom_sf(data= cell_remove_polygon_sf, fill = "turquoise",color = "turquoise", alpha = 0.2)  +
-       ggtitle(paste0(all_survey_units[i], ", ",tows_removed_yearcell, "% tows excluded" ))
+       ggtitle(paste0(all_survey_units[i], ", ", cells_deleted_percent,"% cells excluded, ",tows_removed_yearcell, "% tows excluded" ))
       
       #What percent of observations does this remove?
       obs_removed_yearcell <- round((nrow(FishGlob.cells.subset)-nrow(FishGlob.cells.subset.wellsampledyearscells))/nrow(FishGlob.cells.subset)*100,1)
@@ -523,9 +537,9 @@ summary(FishGlob_clean$wgt_cpue)
 ```
 Visualize standardization procedure
 ```{r}
-merged_ebs_standardization_plot <- cowplot::plot_grid(fishglob_exclude_years_plots[[36]]+theme(legend.position = "null"), fishglob_exclude_cells_plots[[36]], ncol = 1, labels = c("a.","b."), rel_heights = c(1,1.3))
+merged_neus_standardization_plot <- cowplot::plot_grid(fishglob_exclude_years_plots_bycell[[36]] + theme(legend.position = "null"),fishglob_exclude_years_plots[[36]]+theme(legend.position = "null"), fishglob_exclude_cells_plots[[36]], ncol = 1, labels = c("a.","b.","c."), rel_heights = c(1,1,1.3), align = "v")
 
-ggsave(merged_ebs_standardization_plot, path = here::here("figures","standardization"),filename ="merged_ebs_standardization_plot.jpg", height = 6.5, width = 6.5, unit = "in")
+ggsave(merged_neus_standardization_plot, path = here::here("figures","standardization"),filename ="merged_neus_standardization_plot.jpg", height = 8, width = 6.5, unit = "in")
 ```
 
 We will only keep one season per region, based on the largest # of observations

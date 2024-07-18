@@ -41,16 +41,24 @@ dissimilarities_temp_fishing_area <- dissimilarities_temp_fishing[region_area_by
 dissimilarities_temp_fishing_area.jaccard <- dissimilarities_temp_fishing_area[dissimilarity_metric == "jaccard_dissimilarity_total",]
 ```
 
-Add in average Julian day
+Add in season
 ```{r}
 #load up julian days
 dates_regions <- readRDS(here::here("output","dates_regions.rds"))
 
-#simplify
-dates_regions.annual <- unique(dates_regions[,.(survey_unit, year, avg_julian_annual)])
+#most common season per year
+# Function to get the most frequent value
+get_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Apply the function to each group
+dates_regions.r <- dates_regions[, .(season = get_mode(season)), by = c("survey_unit","year")]
+
 
 #merge
-dissimilarities_temp_fishing_area.jaccard <- dates_regions.annual[dissimilarities_temp_fishing_area.jaccard, on = c("survey_unit","year")]
+dissimilarities_temp_fishing_area.jaccard <- dates_regions.r[dissimilarities_temp_fishing_area.jaccard, on = c("survey_unit","year")]
 ```
 
  
@@ -272,6 +280,16 @@ ggplot(data = result) +
 
 ```
 
+Dissimilarity by season of sampling
+```{r}
+dissimilarities_temp_fishing_area.jaccard[,season := factor(season, levels = c("Spring","Summer","Fall","Winter"))]
+
+ggplot(dissimilarities_temp_fishing_area.jaccard) +
+  geom_boxplot(aes(x = season, y = annual_dissimilarity_value)) +
+  theme_classic()
+```
+
+
 
 ###Set up dredge to identify best performing models
 ```{r}
@@ -287,7 +305,7 @@ dissimilarity_covariates_dredge.dt <- dissimilarities_temp_fishing_area.jaccard[
                     haul_id_count_annual,
                     spp_count_annual, depth_annual_avg,
                     depth_annual_range, latitude_annual_avg,
-                    latitude_annual_range, area_km, avg_julian_annual, summed_tonnes_scaled_byreg)]
+                    latitude_annual_range, area_km, season, summed_tonnes_scaled_byreg)]
 
 #merge in with colors for plotting predictions by survey
 dissimilarity_covariates_dredge.dt <- color_link[dissimilarity_covariates_dredge.dt, on = "survey_unit"]
@@ -301,13 +319,13 @@ View(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt <- dissimilarity_covariates_dredge.dt[complete.cases(dissimilarity_covariates_dredge.dt)]
 
 
-dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)][,julian_scaled := scale(avg_julian_annual)]
+dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)]
 
 
 ```
 
 ###Full model
-~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls + julian day + AR for year
+~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls + season + AR for year
 
 For temperature, we will look at:
 -mean (scaled across all regions)
@@ -329,7 +347,7 @@ global_mod_mean_temp_gls <- gls(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                             julian_scaled,
+                            season,
                            correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
@@ -343,7 +361,7 @@ global_mod_mean_temp_lm <- lm(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                             julian_scaled,
+                             season,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_max_temp_lm <- lm(annual_dissimilarity_value ~ 
@@ -356,7 +374,7 @@ global_mod_max_temp_lm <- lm(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                            julian_scaled,
+                            season,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_max_temp_gls <-gls(annual_dissimilarity_value ~ 
@@ -369,7 +387,7 @@ global_mod_max_temp_gls <-gls(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                            julian_scaled,
+                            season,
                             correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
@@ -383,7 +401,7 @@ global_mod_min_temp_lm <- lm(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                            julian_scaled,
+                            season,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_min_temp_gls <-gls(annual_dissimilarity_value ~ 
@@ -396,7 +414,7 @@ global_mod_min_temp_gls <-gls(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                            julian_scaled,
+                            season,
                             correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
@@ -410,7 +428,7 @@ global_mod_seas_temp_lm <- lm(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                             julian_scaled,
+                             season,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_seas_temp_gls <- gls(annual_dissimilarity_value ~ 
@@ -423,7 +441,7 @@ global_mod_seas_temp_gls <- gls(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                             julian_scaled,
+                             season,
                              correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
@@ -437,7 +455,7 @@ global_mod_SD_temp_lm <- lm(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                           julian_scaled,
+                           season,
                              data = dissimilarity_covariates_dredge.dt)
 
 global_mod_SD_temp_gls <- gls(annual_dissimilarity_value ~ 
@@ -450,7 +468,7 @@ global_mod_SD_temp_gls <- gls(annual_dissimilarity_value ~
                              depth_annual_avg.scaledacrossall + #depth avg
                              spp_count_annual.scaledacrossall + #spp #
                              haul_id_count_annual.scaledacrossall +
-                           julian_scaled,
+                           season,
                               correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
@@ -483,7 +501,7 @@ fwrite(global_mod_sbt_table, here::here("output","global_mod_sbt_table.csv"))
 
 ```
 
-Best performing global model includes minimum temperature (centered and scaled) (Still the case as of May 6, 2024)
+Best performing global model includes minimum temperature (centered and scaled) (Still the case as of July 17, 2024)
 
 Now, look at different combinations of all predictors (min temp) using dredge
 
@@ -491,7 +509,7 @@ Global model: global_mod_min_temp
 
 ```{r}
 options(na.action = "na.fail") #  prevent fitting sub-models to different datasets
-dd <- dredge(global_mod_min_temp)
+dd <- dredge(global_mod_min_temp_lm)
 dd.dt <- data.table(dd)
 View(dd)
 
@@ -505,7 +523,7 @@ dd.dt.2.formatted <- dd.dt.2[,Rank := as.numeric(rownames(dd.dt.2))][,.(Rank,
                                 `summed_tonnes_scaled_byreg:survey_unit`,
                                 `survey_unit:yearly_min_bypoint_avg.scaledacrossall`,
                                 delta,
-                                weight, survey_unit
+                                weight, survey_unit, season
                                 )]
 
 #add r-squared values
@@ -548,7 +566,7 @@ model_coef_se_fill.w <- dcast(model_coef_se_fill, formula = Rank ~ coef_name, va
 #merge model_coef_se_fill with dd.dt.2.formatted
 model_coef_se_AIC <- dd.dt.2.formatted[model_coef_se_fill.w, on = "Rank"]
 
-#model average all models with delta < 4 (50 models)
+#model average all models with delta < 4 (8 models)
 model_avg_delta4 <-model.avg(dd, subset = delta < 4, fit = T) #NB: The ‘subset’ (or ‘conditional’) average only   averages over the models where the parameter appears. An alternative, the ‘full’ average assumes that a variable is included in every model, but in some models the corresponding coefficient (and its respective variance) is set to zero. Unlike the ‘subset average’, it does not have a tendency of biasing the value away from zero. The ‘full’ average is a type of shrinkage estimator, and for variables with a weak relationship to the response it is smaller than ‘subset’ estimators., fit = T fits the component models again
 
 model_avg_values <- as.data.table(coefTable(model_avg_delta4,fill = T)) # with SE
@@ -571,11 +589,11 @@ best_model_sbt_jaccard_table_formatted.r <- best_model_sbt_jaccard_table_formatt
                                 depth_annual_avg.scaledacrossall,
                                 depth_annual_range.scaledacrossall,
                                 haul_id_count_annual.scaledacrossall,
-                                julian_scaled,
                                 latitude_annual_avg.scaledacrossall,
                                 latitude_annual_range.scaledacrossall,
                                 spp_count_annual.scaledacrossall,
                                 summed_tonnes_scaled_byreg,
+                                season,
                                 survey_unit,
                                 yearly_min_bypoint_avg.scaledacrossall,
                                 `summed_tonnes_scaled_byreg:survey_unit`,
@@ -601,11 +619,11 @@ colnames(best_model_sbt_jaccard_table_formatted.r) <- c(
 "Average depth",                  
 "Depth range",                
 "Number of tows",     
-"Average Julian day",
 "Average latitude",               
 "Latitude range",             
 "Species count",                  
-"Relative catch", #scaled within region                       
+"Relative catch", #scaled within region    
+"Season",
 "Survey",                                       
 "Average minimum temperature",            
 "Survey * relative catch",            
@@ -625,11 +643,10 @@ fwrite(best_model_sbt_jaccard_table_formatted.r,here::here("output","best_model_
 Take aways
 Dissimilarity increases with increasing avg # tows
 Dissimilarity decreases with increasing avg latitude
-Dissimilarity decreases with increasing Julian day of sampling
 Dissimilarity increases with increasing latitude range
 Dissimilarity increases with increasing fishing effort
 Dissimilarity decreases with increasing depth range
-Dissimilarity  increases with increasing average depth
+Dissimilarity increases with increasing average depth
 Dissimilarity increases with increasing area
 Dissimilarity  decreases with increasing minimum temperature
 Dissimilarity increases with increasing # spp
@@ -1009,7 +1026,7 @@ model_avg_values
 ```{r}
 model_avg_values
 
-interaction_avg_model_coef <- model_avg_values[c(5,37:99),.(coef_name, coef, se)]
+interaction_avg_model_coef <- model_avg_values[c(7,39:101),.(coef_name, coef, se)]
 
 #insert AI
 interaction_avg_model_coef[1:2,survey_unit := "AI"][1:2,coef_true := coef][1:2,predictor := c("Relative fishing catch","Minimum temperature")]
@@ -1050,16 +1067,16 @@ theme_classic()
 ```
 Plot all other coefficients in averaged model
 ```{r}
-model_avg_values.nonfishortemp <- model_avg_values[c(2,3,4,100:104),]
+model_avg_values.nonfishortemp <- model_avg_values[c(2,6,102:106),]
 
 #mark significance
 model_avg_values.nonfishortemp[,Significant := ifelse((coef-se > 0 & coef+se > 0) | (coef-se < 0 & coef+se < 0),T,F)]
 
 #more helpful names for variables
-model_avg_values.nonfishortemp[,Variable := c("Area","Julian day","Species count","Number of tows","Latitude range","Depth","Latitude","Depth range")]
+model_avg_values.nonfishortemp[,Variable := c("Area","Species count","Depth","Number of tows","Latitude","Depth range","Latitude range")]
 
 #make factor with order
-model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Area","Julian day","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
+model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Area","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
 
 
 #plot
@@ -1104,3 +1121,53 @@ ggsave(model_coef_summary_sbt_jaccard, path = here::here("figures"),filename = "
 
 ```
 
+
+#Show intercepts by region and season
+
+```{r}
+
+#survey intercepts
+survey_intercepts <- model_avg_values[c(1,8:38),.(coef_name, coef, se)]
+survey_intercepts[1,survey_unit := "AI"][1,coef_true := coef]
+survey_intercepts[2:32,survey_unit := substr(coef_name, 12, str_length(coef_name))][2:32,coef_true := survey_intercepts[1,coef_true]+coef]
+survey_intercepts <- color_link[survey_intercepts, on = "survey_unit"]
+survey_intercepts[,Survey_Name_Season := reorder(Survey_Name_Season, coef_true)]
+
+
+#season_intercepts
+season_intercepts <- model_avg_values[c(1,3:5),.(coef_name, coef, se)]
+season_intercepts[1,season := "Spring"][1,coef_true := coef]
+season_intercepts[2:4,season := substr(coef_name, 7, str_length(coef_name))][2:4,coef_true := season_intercepts[1,coef_true]+coef]
+season_intercepts[,season := reorder(season, coef_true)]
+
+
+#survey intercepts
+survey_model_coef <- ggplot() +
+geom_point(data = survey_intercepts, aes(x = Survey_Name_Season, y = coef_true)) +  
+geom_errorbar(data = survey_intercepts, aes(x = Survey_Name_Season, ymin = coef_true-se, ymax = coef_true+se), width = 0) +
+scale_x_discrete(limits = rev) +
+#  ylim(0.35,1) +
+  labs(y = "Intercept", x = "") +
+coord_flip() +
+theme_classic()
+  
+#season intercepts
+season_model_coef <- ggplot() +
+geom_point(data = season_intercepts, aes(x = season, y = coef_true)) +  
+geom_errorbar(data = season_intercepts, aes(x = season, ymin = coef_true-se, ymax = coef_true+se), width = 0) +
+scale_x_discrete(limits = rev) +
+ # ylim(0.35,1) +
+  labs(y = "Intercept", x = "") +
+coord_flip() +
+theme_classic()
+
+#merge into single plot
+
+model_intercept_jaccard <- cowplot::plot_grid(survey_model_coef+theme(axis.title.x = element_blank()),
+                                                     season_model_coef, ncol = 1, labels = c("a.","b."), label_y = 0.99, rel_heights = c(3,1), align = "v")
+
+ggsave(model_intercept_jaccard, path = here::here("figures"),filename = "model_intercept_jaccard.jpg", height = 6.5, width = 6.5, unit = "in")
+
+
+
+```
