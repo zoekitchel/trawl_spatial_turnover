@@ -651,7 +651,7 @@ dates_regions[, season := mapply(function(date, survey_unit) {
 saveRDS(dates_regions, here::here("output","dates_regions.rds"))
 
 #reduce to survey and avg julian
-julian_region <- unique(dates_regions[,.(survey_unit, avg_julian)])
+julian_region <- unique(dates_regions[,.(survey_unit, avg_julian, season)])
 
 #merge with region stats and coefficeitns in that data table
 region_stats <- julian_region[region_stats, on = "survey_unit"]
@@ -722,7 +722,7 @@ prop.test(differentiators,total_surveys) #p value =1, so groups are not differen
 ####Median day of survey and trend
 ```{r median day of survey}
 
-season_vs_coef <- ggplot() +
+julian_vs_coef <- ggplot() +
     geom_errorbar(data = region_stats, aes(x = avg_julian, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_point(data = region_stats, aes(x = avg_julian , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
@@ -730,11 +730,12 @@ season_vs_coef <- ggplot() +
   #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average Julian day of survey") +
-  theme_classic()
+  theme_classic() +
+  theme(legend.position = c(0.3, 0.2))
 
-season_vs_coef
+julian_vs_coef
 
-ggsave(season_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "season_vs_coef.jpg", height =3, width = 5, unit = "in")
+ggsave(julian_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "julian_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
 summary(lm(abs(jaccard_coef)~avg_julian, data = region_stats)) #significant
@@ -742,7 +743,34 @@ summary(lm(jaccard_coef~avg_julian, data = region_stats)) #not significant
 
 
 ```
+####Season of survey and trend
+```{r median day of survey}
 
+season_vs_coef <- ggplot() +
+   # geom_errorbar(data = region_stats, aes(x = season, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+        geom_boxplot(data = region_stats, aes(x = season , y = jaccard_coef)) +
+    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
+  geom_hline(yintercept = 0, linewidth = 0.5) +
+  #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
+  ylab("β-diversity trend") + #balanced BC dissimiliarity
+  xlab("Primary season of survey") +
+  theme_classic()
+
+season_vs_coef
+
+ggsave(season_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "season_vs_coef.jpg", height =3, width = 5, unit = "in")
+
+#merge with Julian day
+season_julian_coef <- plot_grid(julian_vs_coef, season_vs_coef + theme(axis.title.y = element_blank()), ncol = 2, align = "h", labels = c("a.","b."), label_x = c(0,-.07))
+
+ggsave(season_julian_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "season_julian_coef.jpg", height =4, width = 7, unit = "in")
+
+#linear model
+summary(lm(abs(jaccard_coef)~season, data = region_stats)) #significant
+summary(lm(jaccard_coef~season, data = region_stats)) #not significant
+
+
+```
 ####First year of sampling and trend
 ```{r first year of sampling and trend}
 
@@ -823,14 +851,6 @@ ggsave(study_period_vs_coef, path = here::here("figures","jaccard_coef_vs_survey
 #linear model
 summary(lm(abs(jaccard_coef)~study_period, data = region_stats)) #not significant
 summary(lm(jaccard_coef~study_period, data = region_stats)) #not significant
-```
-Merge previous two plots
-```{r}
-timeseries_characteristic_trend <- plot_grid(firstyear_vs_coef + theme(legend.position = "null"), study_period_vs_coef + theme(legend.position = "null", axis.title.y = element_blank(), axis.text.y = element_blank()), nrow = 1, rel_widths = c(1.2,1), labels = c("a.", "  b."))
-
-timeseries_characteristic_trend_legend <- plot_grid(get_legend(firstyear_vs_coef + theme(legend.position = "top", legend.direction = "horizontal")), timeseries_characteristic_trend, ncol = 1, rel_heights = c(1,5))
-
-ggsave(timeseries_characteristic_trend_legend, path = here::here("figures","jaccard_coef_vs_survey_characteristics"),file = "timeseries_characteristic_trend_legend.jpg", width = 6.5, height = 4.5, units = "in")
 ```
 
 
@@ -927,7 +947,7 @@ area_km_vs_coef <- ggplot() +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
-  xlab("Area (1000s of squared km)") + #area_km
+  xlab(expression("Area (1000s of km"^2*")")) + #area_km
   theme_classic()
 
 area_km_vs_coef
@@ -943,13 +963,12 @@ summary(lm(jaccard_coef~area_km, data = region_stats)) #not significant
 ```{r number of hauls vs area}
 
 avg_hauls_area_vs_coef <- ggplot() +
-    geom_errorbar(data = region_stats, aes(x = mean_haul_density, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
-        geom_point(data = region_stats, aes(x = (mean_haul_density) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
+    geom_errorbar(data = region_stats, aes(x = mean_haul_density*1000, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+        geom_point(data = region_stats, aes(x = (mean_haul_density*1000) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
-  scale_x_continuous(breaks = seq(0,0.008,by = 0.002), labels = c("0","0.002","0.004","0.006","")) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
-  xlab("Tows per area (per squared km)") + #avg_hauls_area
+  xlab(expression("Sample density (tows per 1000 km"^2*")")) + #avg_hauls_area
   theme_classic()
 
 avg_hauls_area_vs_coef
@@ -960,6 +979,19 @@ ggsave(avg_hauls_area_vs_coef, path = here::here("figures","jaccard_coef_vs_surv
 summary(lm(abs(jaccard_coef)~mean_haul_density, data = region_stats)) #significant
 summary(lm(jaccard_coef~mean_haul_density, data = region_stats)) #not significant
 
+```
+
+Merge time series plots with area plot!!!
+```{r}
+timeseries_area_characteristic_trend <- plot_grid(firstyear_vs_coef + theme(legend.position = "null"),
+                                                  study_period_vs_coef + theme(legend.position = "null", axis.title.y = element_blank(), axis.text.y = element_blank()),
+                                                  area_km_vs_coef + theme(legend.position = "null"),
+                                                  avg_hauls_area_vs_coef + theme(legend.position = "null", axis.title.y = element_blank(), axis.text.y = element_blank()),
+                                                  nrow = 2, rel_widths = c(1.2,1,1.2,1), labels = c("a.", "b.","c.","d."), label_x = c(0,-0.07,0,-0.07))
+
+timeseries_area_characteristic_trend_legend <- plot_grid(get_legend(firstyear_vs_coef + theme(legend.position = "top", legend.direction = "horizontal")), timeseries_area_characteristic_trend, ncol = 1, rel_heights = c(1,8))
+
+ggsave(timeseries_area_characteristic_trend_legend, path = here::here("figures","jaccard_coef_vs_survey_characteristics"),file = "timeseries_area_characteristic_trend_legend.jpg", width = 7, height = 7, units = "in")
 ```
 
 
