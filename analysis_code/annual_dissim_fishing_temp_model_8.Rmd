@@ -2,7 +2,7 @@
 title: "Model annual dissimilarity with temperature, fishing, and survey identity"
 output: html_notebook
 author: Zoë J. Kitchel
-date: May 6, 2025
+date: May 6, 2024
 ---
 
 Script 8 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
@@ -15,6 +15,7 @@ library(ggplot2)
 library(cowplot)
 library(lme4)
 library(stringr)
+library(nlme)
 ```
 
 ###Predicts annual dissimilarity with annual characteristics, temperature and fishing values
@@ -1026,13 +1027,22 @@ model_avg_values
 ```{r}
 model_avg_values
 
+#covariance matrix
+cov_m <- vcov(model_avg_delta4)
+
+#extract coefficients
 interaction_avg_model_coef <- model_avg_values[c(7,39:101),.(coef_name, coef, se)]
 
-#insert AI
+#interaction standard error = sqrt(var(b1) + var(b2) + 2cov(b1~b2))
+                              #sqrt(var(summed_tonnes SE^2) + var(Aleutian Islands SE^2) + 2cov(summed_tonnes ~ intercept (-8.131722e-03)))
+
+#insert AI values
 interaction_avg_model_coef[1:2,survey_unit := "AI"][1:2,coef_true := coef][1:2,predictor := c("Relative fishing catch","Minimum temperature")]
 
-#Other summed_tonnes_scaled_byreg
-interaction_avg_model_coef[3:33,survey_unit := substr(coef_name, 39, str_length(coef_name))][3:33,coef_true := interaction_avg_model_coef[1,coef_true]+coef][3:33,predictor := "Relative fishing catch"]
+#Other summed_tonnes_scaled_byreg (edit both coefficient and )
+interaction_avg_model_coef[3:33,survey_unit := substr(coef_name, 39, str_length(coef_name))]
+interaction_avg_model_coef[3:33,coef_true := interaction_avg_model_coef[1,coef_true]+coef]
+interaction_avg_model_coef[3:33,predictor := "Relative fishing catch"]
 
 #Other yearly_min_bypoint_avg.scaledacrossall
 interaction_avg_model_coef[34:64,survey_unit := substr(coef_name, str_length("survey_unit")+1, str_length(coef_name)-str_length("yearly_min_bypoint_avg.scaledacrossall")-1)][34:64,coef_true := interaction_avg_model_coef[2,coef_true]+coef][34:64,predictor := "Minimum temperature"]

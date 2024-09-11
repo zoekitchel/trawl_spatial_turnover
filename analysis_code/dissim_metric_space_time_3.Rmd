@@ -140,8 +140,7 @@ for (i in 1:length(all_survey_units)) {
 }
 ```
 
-
-###Biomass and Abundance subsets
+###Identify biomass and abundance subsets
 ```{r}
 abun_subset <- c(
 "BITS-1",
@@ -199,9 +198,477 @@ bio_subset <- c(
 
 ```
 
+##Jaccard abundance calculations and regular Jaccard using VEGAN package 
+Calculate dissimilarity using Jaccard for both abundance and biomass
+```{r loop through all regions and years for jaccard indices}
+
+jaccard_index_allyears <- data.table("survey" = character(), 
+                                                 "survey_unit" = character(),
+                                                "year" = integer(),
+                                                "dissimilarity_metric" = character(),
+                                                "annual_dissimilarity_value" = numeric())
+
+for (i in 1:length(all_survey_units)) {
+  
+  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason[survey_unit == all_survey_units[i], ]
+  
+  jaccard_index_onereg <- data.table("survey" = character(), 
+                                                 "survey_unit" = character(),
+                                                "year" = integer(),
+                                                "dissimilarity_metric" = character(),
+                                                "annual_dissimilarity_value" = numeric())
+  
+   #list years
+  FishGlob_clean.singleseason_subset[, year:= as.numeric(year)] #make numeric
+  setorder(FishGlob_clean.singleseason_subset,  year)
+  years <- unique(FishGlob_clean.singleseason_subset[, year])
+  
+  #haul id keys
+  haul_ids <- unique(FishGlob_clean.singleseason_subset[, haul_id])
+  haul_ids_key <- data.table(haul_id = haul_ids,  key_ID = seq(1, length(haul_ids),  by = 1))
+  
+  
+  #convert haul_ids to numeric key_ids
+  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason_subset[haul_ids_key,  on = "haul_id"]
+
+          for (j in 1:length(years)) {
+            reduced_year <- FishGlob_clean.singleseason_subset[year == years[j], ]
+            
+            #make sure that haul_id, survey_unit, latitude, longitude, key_id, wgt_cpue, num_cpue, year, month, accepted name and day are unique (this is an issue with Namibia, where there is somehow repetition for just 5 observations of one species (Yarrella blackfordi, fixed by this step))
+            reduced_year.u <- unique(reduced_year[,.(haul_id, survey_unit, latitude, longitude, key_ID, wgt_cpue, num_cpue, Present, year, month, day, accepted_name)])
+            
+            #distances among cells
+            setorder(reduced_year.u,  key_ID)
+            
+            latitude_longitude_haul_id <- unique(reduced_year.u[, .(latitude, longitude, key_ID)])
+            distances <- distm(latitude_longitude_haul_id[, .(longitude, latitude)])
+            key_IDs <- latitude_longitude_haul_id[, key_ID]
+          
+            colnames(distances) <- rownames(distances) <- key_IDs
+          
+            #wide to long
+            haul_id_distances.l <- reshape2::melt(distances, varnames = (c("haul_id1",  "haul_id2")),  value.name = "distance")
+            
+            #make into data table
+            haul_id_distances.l <- data.table(haul_id_distances.l)
+            
+########################################################################
+########################################################################
+  #First, BINARY Jaccard based on presence absence for all regions
+            
+             #Only include rows where presence = 1
+            reduced_year_occurence <- copy(reduced_year.u[Present == 1, ])
+            
+              reduced_year_wide <- dcast(reduced_year_occurence,  key_ID + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+              
+              
+              ncols <- ncol(reduced_year_wide)
+              communitymatrix.occurence <- reduced_year_wide[, 3:ncols] #community matrix
+            
+              #list of haul_id keys
+              key_IDs_subset <- reduced_year_wide[,key_ID]
+            
+              #Calculate Jaccard index values
+              Jaccard_index_binary <- vegdist(communitymatrix.occurence,  method = "jaccard", binary = TRUE) #Jaccard index
+            
+             
+              #make into matrix
+              Jaccard_index_binary.m <- as.matrix(Jaccard_index_binary,  labels=TRUE) 
+            
+              
+              colnames(Jaccard_index_binary.m) <- rownames(Jaccard_index_binary.m) <- key_IDs_subset
+            
+            
+            
+              #reshape dissimilarities
+              Jaccard_index_binary.l <- reshape2::melt(Jaccard_index_binary.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_binary")
+            
+              
+              #and then to data table format
+              Jaccard_index_binary.l <- data.table(Jaccard_index_binary.l)
+              
+              Jaccard_index_binary.l[,dissimilarity_metric := "jaccard_dissimilarity_index_binary"]
+       
+              #again, wide to long
+               Jaccard_index_binary.long <- reshape2::melt(Jaccard_index_binary.l,
+              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value", measure.vars = c("jaccard_dissimilarity_index_binary"))
+            
+              #merge distance with dissimilarity for this year with both metrics of dissimilarity
+              dissimilarities_full <- haul_id_distances.l[Jaccard_index_binary.long,  on = c("haul_id1",  "haul_id2")]
+              
+              
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
+            
+              #take averages
+              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
+                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
+
+                  #unique rows
+                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
+
+              #add survey survey unit
+              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
+              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
+              #add year for these values
+              dissimilarities_full.r[,  "year" := years[j]]
+              
+              #reorder
+              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
+   
+              #remove full dataset
+              rm(dissimilarities_full)
+              rm(Jaccard_index_binary, Jaccard_index_binary.m, Jaccard_index_binary.long, Jaccard_index_binary.l)
+              
+              #bind with full for this reg
+              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)
+########################################################################
+########################################################################
+  #Second, if data are available, calculate Jaccard index based on biomass (abundance based Jaccard = (2 * Bray Curtis)/(1+Bray Curtis))
+          
+          if(all_survey_units[i] %in% bio_subset) { #BIOMASS BASED BRAY CURTIS CALCULATIONS
+            
+            #if some rows have wgt_cpue missing,get rid of these rows
+            reduced_year_bio <- copy(reduced_year.u[complete.cases(reduced_year.u[, wgt_cpue]), ])
+            
+              reduced_year_wide <- dcast(reduced_year_bio,  key_ID + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+              
+              
+              ncols <- ncol(reduced_year_wide)
+              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
+
+            
+              #list of haul_id keys
+              key_IDs_subset <- reduced_year_wide[,key_ID]
+            
+              #Calculate Jaccard index values
+              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") #Jaccard index
+            
+             
+              #make into matrix
+              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance,  labels=TRUE) 
+            
+              
+              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
+            
+            
+            
+              #reshape dissimilarities
+              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_biomass")
+            
+              
+              #and then to data table format
+              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
+              
+              Jaccard_index_abundance.l[,dissimilarity_metric := jaccard_dissimilarity_index_biomass]
+       
+              #again, wide to long
+               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
+              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value", measure.vars = c("jaccard_dissimilarity_index_biomass"))
+            
+              #merge distance with dissimilarity for this year with both metrics of dissimilarity
+              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
+              
+              
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
+            
+              #take averages
+              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
+                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
+
+                  #unique rows
+                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
+
+              #add survey survey unit
+              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
+              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
+              #add year for these values
+              dissimilarities_full.r[,  "year" := years[j]]
+              
+              #reorder
+              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
+   
+              #remove full dataset
+              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
+              
+              #bind with full for this reg
+              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)
+            
+          } #closes if it's in bio subset
+              
+              ########################################################################
+########################################################################
+  #Third, if data are available, calculate Jaccard index based on *relative* biomass 
+          
+          if(all_survey_units[i] %in% bio_subset) { #RELATIVE BIOMASS BASED JACCARD ABUNDANCE CALCUALTIONS
+            
+            #if some rows have wgt_cpue missing,get rid of these rows
+            reduced_year_bio <- copy(reduced_year.u[complete.cases(reduced_year.u[, wgt_cpue]), ])
+            
+            #if some rows have 0 wgt_cpue, get rid of these rows 
+            reduced_year_bio <- reduced_year_bio[wgt_cpue>0, ]
+            
+            #transition from true biomass to relative biomass of tow
+            
+            #total biomass per tow
+            reduced_year_bio[,summed_tow_biomass := sum(wgt_cpue),.(haul_id)]
+            reduced_year_bio[,rel_biomass := wgt_cpue/summed_tow_biomass]
+            
+            #cast long to wide for community matrix
+            
+              reduced_year_wide <- dcast(reduced_year_bio,  key_ID + year ~ accepted_name,  value.var = "rel_biomass",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+              
+              
+              ncols <- ncol(reduced_year_wide)
+              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
+              
+              #check to make sure all row sums = 1 (relative abundance)
+              stopifnot(sum(communitymatrix) == nrow(communitymatrix))
+
+            
+              #list of haul_id keys
+              key_IDs_subset <- reduced_year_wide[,key_ID]
+            
+              #Calculate Jaccard index
+              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") #Jaccard index
+             
+              #make into matrix
+              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance, labels=TRUE) 
+              
+              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
+            
+            
+              #reshape dissimilarities
+              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_relative_biomass")
+              
+              #and then to data table format
+              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
+                            
+              #again, wide to long
+               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
+              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value")
+            
+              #merge distance with dissimilarity for this year with both metrics of dissimilarity
+              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
+              
+              
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
+            
+              #take averages
+              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
+                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
+
+                  #unique rows
+                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
+
+              #add survey survey unit
+              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
+              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
+              #add year for these values
+              dissimilarities_full.r[,  "year" := years[j]]
+              
+              #reorder
+              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
+   
+              #remove full dataset
+              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
+              
+              #bind with full for this reg
+              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)
+            
+          } #closes if it's in bio subset, calculating relative biomass based metrics
+              
+########################################################################
+########################################################################
+  #Fourth, if data are available, calculate Jaccard index based on abundance (counts)
+              
+    if(all_survey_units[i] %in% abun_subset) { #if abundance data is available
+            
+            #if some rows have num_cpue missing,get rid of these rows
+            reduced_year_abun <- copy(reduced_year.u[complete.cases(reduced_year.u[, num_cpue]), ])
+            
+            #long to wide for community matrix
+            
+              reduced_year_wide <- dcast(reduced_year_abun,  key_ID + year ~ accepted_name,  value.var = "num_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+              
+              
+              ncols <- ncol(reduced_year_wide)
+              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
+            
+
+              #list of haul_id keys
+              key_IDs_subset <- reduced_year_wide[,key_ID]
+            
+              #Calculate Jaccard index values
+              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") 
+             
+              #make into matrix
+              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance,  labels=TRUE) #total
+              
+              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
+            
+            
+              #reshape dissimilarities
+              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_abundance")
+              
+              #and then to data table format
+              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
+          
+                            
+              #again, wide to long
+               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
+              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value")
+            
+              #merge distance with dissimilarity for this year with both metrics of dissimilarity
+              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
+              
+              
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
+            
+              #take averages
+              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
+                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
+
+                  #unique rows
+                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
+
+              #add survey survey unit
+              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
+              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
+              #add year for these values
+              dissimilarities_full.r[,  "year" := years[j]]
+              
+              #reorder
+              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
+   
+              #remove full dataset
+              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
+              
+              #bind with full for this reg
+              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)    
+              
+          
+              } #closes if it is abundance based
+              
+########################################################################
+########################################################################
+  #Fifth, if data are available, calculate Jaccard dissimilarity metrics based on **relative abundance**
+              
+    if(all_survey_units[i] %in% abun_subset) { #if abundance data is available
+            
+            #if some rows have num_cpue missing,get rid of these rows
+            reduced_year_abun <- copy(reduced_year.u[complete.cases(reduced_year.u[, num_cpue]), ])
+            
+            #delete rows if num_cpue is 0
+            reduced_year_abun <- reduced_year_abun[num_cpue > 0, ]
+            
+            #transition to relative abundance
+               #total biomass per tow
+            reduced_year_abun[,summed_tow_abundance := sum(num_cpue),.(haul_id)]
+            reduced_year_abun[,rel_abundance := num_cpue/summed_tow_abundance]
+            
+              reduced_year_wide <- dcast(reduced_year_abun,  key_ID + year ~ accepted_name,  value.var = "rel_abundance",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
+              
+              
+              ncols <- ncol(reduced_year_wide)
+              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
+              
+              #make sure all rows sum to 1
+              stopifnot(sum(communitymatrix ) == nrow(communitymatrix ))
+
+            
+              #list of haul_id keys
+              key_IDs_subset <- reduced_year_wide[,key_ID]
+            
+              #Calculate Jaccard index values
+              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") 
+             
+              #make into matrix
+              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance,  labels=TRUE) #total
+
+              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
+            
+            
+              #reshape dissimilarities
+              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_relative_abundance")
+              
+              #and then to data table format
+              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
+                            
+              #again, wide to long
+               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
+              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value")
+            
+              #merge distance with dissimilarity for this year with both metrics of dissimilarity
+              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
+              
+              
+              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
+              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
+            
+              #take averages
+              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
+                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
+
+                  #unique rows
+                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
+
+              #add survey survey unit
+              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
+              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
+              #add year for these values
+              dissimilarities_full.r[,  "year" := years[j]]
+              
+              #reorder
+              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
+   
+              #remove full dataset
+              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
+              
+              #bind with full for this reg
+              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)    
+              
+          
+              } #closes if it is abundance based
+      
+    
+              print(paste0(j, "/", length(years))) #print year that we're on
+  
+         } #closes year
+  
+  #save the output from this region
+  filename <- paste0(all_survey_units[i],"_jaccard_index.rds")
+  saveRDS(jaccard_index_onereg, here::here("output","jaccard_index_VEGAN","by_region",filename))
+  rm(jaccard_index_onereg) #attempt to save some memory here
+  
+  print(paste0("We have cycled through ",  i, " of ", length(all_survey_units),  " surveys"))
+  
+  } #closes survey/region
+
+#merge all years into distances_dissimilarities_allyears
+files <- list.files(here::here("output","jaccard_index_VEGAN","by_region"))
+
+for(i in 1:length(files)){
+  jaccard_index_byreg <- readRDS(here::here("output","jaccard_index_VEGAN","by_region",files[i]))
+  jaccard_index_allyears <- rbind(jaccard_index_allyears, jaccard_index_byreg)
+}
+
+
+#Be sure to check which one of these you actually want to un-hash!
+
+saveRDS(jaccard_index_allyears,  here::here("output","jaccard_index_VEGAN", "jaccard_index_allyears.rds"))
+
+#jaccard_index_allyears <- readRDS(here::here("output","jaccard_index_VEGAN", "jaccard_index_allyears.rds"))
+```
+
+Note that this outputs some NA biomass dissimilarity values for SCS and NEUS, and some 0 biomass values for NZ WCSI and ECSI . I will NOT be using biomass going forward, so it's okay.
+
 ##Calculate Beta Dissimilarity between all sampling sites within every survey unit (Jaccard, Bray Curtis, Hill & Jaccard abundance (see chunks below))
 
-Calculate dissimilarity using jaccard, and bray curtis for both abundance and biomass
+Calculate dissimilarity using Jaccard, and Bray Curtis for both abundance and biomass
 ```{r loop through all regions and years}
 
 distances_dissimilarities_allyears <- data.table("survey" = character(), 
@@ -731,876 +1198,55 @@ saveRDS(distances_dissimilarities_allyears,  here::here("output","dissimilaritie
 distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears.rds"))
 ```
  
+Note that this outputs some NA biomass dissimilarity values for SCS and NEUS, and some 0 biomass values for NZ WCSI and ECSI . I will NOT be using biomass going forward, so it's okay.
 
-
-Note that this outputs some NA biomass dissimilarity values for SCS and NEUS, and some 0 biomass balues for NZ WCSI and ECSI . I will NOT be using biomass going forward, so it's okay.
-
-
-
-##Add in Hill numbers!
-Calculate dissimilarity using Hill for both abundance and biomass
-```{r loop through all regions and years for hill numbers}
-
-hill_numbers_allyears <- data.table("survey" = character(), 
-                                                 "survey_unit" = character(),
-                                                "year" = integer(),
-                                                "dissimilarity_metric" = character(),
-                                                "annual_dissimilarity_value" = numeric())
-
-for (i in 1:length(all_survey_units)) {
-  
-  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason[survey_unit == all_survey_units[i], ]
-  
-  hill_numbers_onereg <- data.table("survey" = character(), 
-                                                 "survey_unit" = character(),
-                                                "year" = integer(),
-                                                "dissimilarity_metric" = character(),
-                                                "annual_dissimilarity_value" = numeric())
-  
-   #list years
-  FishGlob_clean.singleseason_subset[, year:= as.numeric(year)] #make numeric
-  setorder(FishGlob_clean.singleseason_subset,  year)
-  years <- unique(FishGlob_clean.singleseason_subset[, year])
-  
-  #haul id keys
-  haul_ids <- unique(FishGlob_clean.singleseason_subset[, haul_id])
-  haul_ids_key <- data.table(haul_id = haul_ids,  key_ID = seq(1, length(haul_ids),  by = 1))
-  
-  
-  #convert haul_ids to numeric key_ids
-  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason_subset[haul_ids_key,  on = "haul_id"]
-
-          for (j in 1:length(years)) {
-            reduced_year <- FishGlob_clean.singleseason_subset[year == years[j], ]
-            
-            #make sure that haul_id, survey_unit, latitude, longitude, key_id, wgt_cpue, num_cpue, year, month, accepted name and day are unique (this is an issue with Namibia, where there is somehow repetition for just 5 observations of one species (Yarrella blackfordi, fixed by this step))
-            reduced_year.u <- unique(reduced_year[,.(haul_id, survey_unit, latitude, longitude, key_ID, wgt_cpue, num_cpue, Present, year, month, day, accepted_name)])
-            
-            #distances among cells
-            setorder(reduced_year.u,  key_ID)
-            
-            latitude_longitude_haul_id <- unique(reduced_year.u[, .(latitude, longitude, key_ID)])
-            distances <- distm(latitude_longitude_haul_id[, .(longitude, latitude)])
-            key_IDs <- latitude_longitude_haul_id[, key_ID]
-          
-            colnames(distances) <- rownames(distances) <- key_IDs
-          
-            #wide to long
-            haul_id_distances.l <- reshape2::melt(distances, varnames = (c("haul_id1",  "haul_id2")),  value.name = "distance")
-            
-            #make into data table
-            haul_id_distances.l <- data.table(haul_id_distances.l)
-########################################################################
-########################################################################
-  #Calculate Hill #s based on BIOMASS
-          
-          if(all_survey_units[i] %in% bio_subset) { #BIOMASS BASED Hill # Calculations
-            
-            #if some rows have wgt_cpue missing,get rid of these rows
-            reduced_year_bio <- copy(reduced_year.u[complete.cases(reduced_year.u[, wgt_cpue]), ])
-            
-              reduced_year_wide <- dcast(reduced_year_bio,  key_ID + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
-              
-              
-              ncols <- ncol(reduced_year_wide)
-              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
-
-            
-              #list of haul_id keys
-              key_IDs_subset <- reduced_year_wide[,key_ID]
-              
-              #Calculate Hill #s
-              dissimilarities_abundance_hill_num3 <- hill_taxa_parti_pairwise(communitymatrix, output = "matrix",pairs = c("full"), q = 2)
-             
-              #make into matrix
-              dissimilarities_abundance_hill_num3.m <- dissimilarities_abundance_hill_num3$TD_beta
-
-              #add row and column names as haul ids
-              colnames(dissimilarities_abundance_hill_num3.m) <- rownames(dissimilarities_abundance_hill_num3.m) <- key_IDs_subset
-            
-            
-              #reshape dissimilarities
-              dissimilarities_abundance_hill_num3.l <- reshape2::melt(dissimilarities_abundance_hill_num3.m, varnames = c("haul_id1","haul_id2"), value.name = "hill_number_biomass_q3")
-              
-              #and then to data table format
-              dissimilarities_abundance_hill_num3.l <- data.table(dissimilarities_abundance_hill_num3.l)
-              
-              #new column with dissim metric
-              dissimilarities_abundance_hill_num3.l[,dissimilarity_metric := "hill_number_biomass_q3"]
-              
-              #reorder columns
-              dissimilarities_abundance_hill_num3.l <- dissimilarities_abundance_hill_num3.l[,.(haul_id1, haul_id2, dissimilarity_metric, hill_number_biomass_q3)]
-              
-              #change colnames
-              colnames(dissimilarities_abundance_hill_num3.l) <- c("haul_id1","haul_id2","dissimilarity_metric","value")
-            
-              #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance_hill_num3.l,  on = c("haul_id1",  "haul_id2")]
-              
-              
-              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
-            
-              #take averages
-              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
-                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
-
-                  #unique rows
-                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
-
-              #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
-              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
-              #add year for these values
-              dissimilarities_full.r[,  "year" := years[j]]
-              
-              #reorder
-              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
-   
-              #remove full dataset
-              rm(dissimilarities_full)
-              
-              #bind with full for this reg
-              hill_numbers_onereg <- rbind(hill_numbers_onereg, dissimilarities_full.r)
-            
-          } #closes if it's in bio subset
-              
-########################################################################
-########################################################################
-  #Calculate Hill #s based on ABUNDANCE
-              
-    if(all_survey_units[i] %in% abun_subset) { #if abundance data is available
-            
-            #if some rows have num_cpue missing,get rid of these rows
-            reduced_year_abun <- copy(reduced_year.u[complete.cases(reduced_year.u[, num_cpue]), ])
-            
-            #long to wide for community matrix
-            
-              reduced_year_wide <- dcast(reduced_year_abun,  key_ID + year ~ accepted_name,  value.var = "num_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
-              
-              
-              ncols <- ncol(reduced_year_wide)
-              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
-            
-
-              #list of haul_id keys
-              key_IDs_subset <- reduced_year_wide[,key_ID]
-            
-   #Calculate Hill #s
-              dissimilarities_abundance_hill_num3 <- hill_taxa_parti_pairwise(communitymatrix, output = "matrix",pairs = c("full"), q = 2)
-             
-              #make into matrix
-              dissimilarities_abundance_hill_num3.m <- dissimilarities_abundance_hill_num3$TD_beta
- #add column names
-              colnames(dissimilarities_abundance_hill_num3.m) <- rownames(dissimilarities_abundance_hill_num3.m) <- key_IDs_subset
-            
-            
-              #reshape dissimilarities
-              dissimilarities_abundance_hill_num3.l <- reshape2::melt(dissimilarities_abundance_hill_num3.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "hill_number_abundance_q3")
-            
-              
-              #and then to data table format
-               dissimilarities_abundance_hill_num3.l <- data.table(dissimilarities_abundance_hill_num3.l)
-               
-             #new column with dissim metric
-              dissimilarities_abundance_hill_num3.l[,dissimilarity_metric := "hill_number_abundance_q3"]
-              
-              #reorder columns
-              dissimilarities_abundance_hill_num3.l <- dissimilarities_abundance_hill_num3.l[,.(haul_id1, haul_id2, dissimilarity_metric, hill_number_abundance_q3)]
-              
-              #change colnames
-              colnames(dissimilarities_abundance_hill_num3.l) <- c("haul_id1","haul_id2","dissimilarity_metric","value")
-            
-              #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[dissimilarities_abundance_hill_num3.l,  on = c("haul_id1",  "haul_id2")]
-              
-              
-              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
-            
-              #take averages
-              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
-                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
-
-                  #unique rows
-                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
-
-              #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
-              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
-              #add year for these values
-              dissimilarities_full.r[,  "year" := years[j]]
-              
-              #reorder
-              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
-   
-              #remove full dataset
-              rm(dissimilarities_full)
-              
-              #bind with full for this reg
-              hill_numbers_onereg <- rbind(hill_numbers_onereg, dissimilarities_full.r)
-              
-          
-              } #closes if it is abundance based
-              
-    
-              print(paste0(j, "/", length(years))) #print year that we're on
-
-  
-         } #closes year
-  
-  #save the output from this region
-  filename <- paste0(all_survey_units[i],"_hill_number.rds")
-  saveRDS(hill_numbers_onereg, here::here("output","hill_numbers","by_region",filename))
-  rm(hill_numbers_onereg) #attempt to save some memory here
-  
-  print(paste0("We have cycled through ",  i, " of ", length(all_survey_units),  " surveys"))
-  
-  } #closes survey/region
-
-#merge all years into distances_dissimilarities_allyears
-files <- list.files(here::here("output","hill_numbers","by_region"))
-
-for(i in 1:length(files)){
-  hill_numbers_byreg <- readRDS(here::here("output","hill_numbers","by_region",files[i]))
-  hill_numbers_allyears <- rbind(hill_numbers_allyears, hill_numbers_byreg)
-}
-
-
-#Be sure to check which one of these you actually want to un-hash!
-
-saveRDS(hill_numbers_allyears,  here::here("output","hill_numbers", "hill_numbers_allyears.rds"))
-
-hill_numbers_allyears <- readRDS(here::here("output","hill_numbers", "hill_numbers_allyears.rds"))
-```
-
-
-Merge hill #s with dissimilarities
+Compare dissimilarity metrics
 ```{r}
+jaccard_betapart_occurrence <- distances_dissimilarities_allyears[dissimilarity_metric == "jaccard_dissimilarity_total"]
 
+
+distances_dissimilarities_allyears.wjaccard <- rbind(distances_dissimilarities_allyears, jaccard_index_allyears)
+
+#metrics to view in plot
+metrics_keep <- c(
+"jaccard_dissimilarity_total",                      
+"bray_curtis_dissimilarity_total_abundance",           
+"bray_curtis_dissimilarity_total_relative_abundance",
+"jaccard_dissimilarity_index_binary",     
+"jaccard_dissimilarity_index_abundance",
+"jaccard_dissimilarity_index_relative_abundance")
+
+distances_dissimilarities_allyears.wjaccard.subset <- distances_dissimilarities_allyears.wjaccard[dissimilarity_metric %in% metrics_keep]
+
+#link with better names
+source(here::here("analysis_code","color_links.R"))
+distances_dissimilarities_allyears.wjaccard.subset <- color_link[distances_dissimilarities_allyears.wjaccard.subset, on = "survey_unit"]
+
+#change factor order and labels for metric
+distances_dissimilarities_allyears.wjaccard.subset[,dissimilarity_metric := 
+                                                     factor(dissimilarity_metric, 
+                                                            levels = c(
+"jaccard_dissimilarity_total",  
+"jaccard_dissimilarity_index_binary",     
+"jaccard_dissimilarity_index_abundance",
+"jaccard_dissimilarity_index_relative_abundance",
+"bray_curtis_dissimilarity_total_abundance",           
+"bray_curtis_dissimilarity_total_relative_abundance"),
+labels = c("Jaccard dissimilarity (betapart pkg)",  
+"Jaccard dissimilarity (vegan pkg)",     
+"Abundance-based Jaccard (abundance)",
+"Abundance-based Jaccard (relative abundance)",
+"Bray Curtis (abundance)",           
+"Bray Curtis (relative abundance)")
+)]
+
+ggplot(distances_dissimilarities_allyears.wjaccard.subset) +
+  geom_line(aes(x = year, y = annual_dissimilarity_value, linetype = dissimilarity_metric, color = dissimilarity_metric)) +
+  scale_linetype_manual(values = c("twodash","dotted","longdash","dotdash","dashed","dotted")) +
+  facet_wrap(~Survey_Name_Season, scales = "free") +
+  labs(x = "Year",y = "Value", color = "Dissimilarity metric",linetype = "Dissimilarity metric") +
+  theme_classic()
+  
+  
 ```
 
-
-
-##Add in Jaccard abundance calculations, and regular Jaccard using VEGAN package while you're at it
-Calculate dissimilarity using Jaccard for both abundance and biomass
-```{r loop through all regions and years for jaccard indices}
-
-jaccard_index_allyears <- data.table("survey" = character(), 
-                                                 "survey_unit" = character(),
-                                                "year" = integer(),
-                                                "dissimilarity_metric" = character(),
-                                                "annual_dissimilarity_value" = numeric())
-
-for (i in 1:length(all_survey_units)) {
-  
-  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason[survey_unit == all_survey_units[i], ]
-  
-  jaccard_index_onereg <- data.table("survey" = character(), 
-                                                 "survey_unit" = character(),
-                                                "year" = integer(),
-                                                "dissimilarity_metric" = character(),
-                                                "annual_dissimilarity_value" = numeric())
-  
-   #list years
-  FishGlob_clean.singleseason_subset[, year:= as.numeric(year)] #make numeric
-  setorder(FishGlob_clean.singleseason_subset,  year)
-  years <- unique(FishGlob_clean.singleseason_subset[, year])
-  
-  #haul id keys
-  haul_ids <- unique(FishGlob_clean.singleseason_subset[, haul_id])
-  haul_ids_key <- data.table(haul_id = haul_ids,  key_ID = seq(1, length(haul_ids),  by = 1))
-  
-  
-  #convert haul_ids to numeric key_ids
-  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason_subset[haul_ids_key,  on = "haul_id"]
-
-          for (j in 1:length(years)) {
-            reduced_year <- FishGlob_clean.singleseason_subset[year == years[j], ]
-            
-            #make sure that haul_id, survey_unit, latitude, longitude, key_id, wgt_cpue, num_cpue, year, month, accepted name and day are unique (this is an issue with Namibia, where there is somehow repetition for just 5 observations of one species (Yarrella blackfordi, fixed by this step))
-            reduced_year.u <- unique(reduced_year[,.(haul_id, survey_unit, latitude, longitude, key_ID, wgt_cpue, num_cpue, Present, year, month, day, accepted_name)])
-            
-            #distances among cells
-            setorder(reduced_year.u,  key_ID)
-            
-            latitude_longitude_haul_id <- unique(reduced_year.u[, .(latitude, longitude, key_ID)])
-            distances <- distm(latitude_longitude_haul_id[, .(longitude, latitude)])
-            key_IDs <- latitude_longitude_haul_id[, key_ID]
-          
-            colnames(distances) <- rownames(distances) <- key_IDs
-          
-            #wide to long
-            haul_id_distances.l <- reshape2::melt(distances, varnames = (c("haul_id1",  "haul_id2")),  value.name = "distance")
-            
-            #make into data table
-            haul_id_distances.l <- data.table(haul_id_distances.l)
-            
-########################################################################
-########################################################################
-  #First, BINARY Jaccard based on presence absence for all regions
-            
-             #Only include rows where presence = 1
-            reduced_year_occurence <- copy(reduced_year.u[Present == 1, ])
-            
-              reduced_year_wide <- dcast(reduced_year_occurence,  key_ID + year ~ accepted_name,  value.var = "Present",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
-              
-              
-              ncols <- ncol(reduced_year_wide)
-              communitymatrix.occurence <- reduced_year_wide[, 3:ncols] #community matrix
-            
-              #list of haul_id keys
-              key_IDs_subset <- reduced_year_wide[,key_ID]
-            
-              #Calculate Jaccard index values
-              Jaccard_index_binary <- vegdist(communitymatrix.occurence,  method = "jaccard", binary = TRUE) #Jaccard index
-            
-             
-              #make into matrix
-              Jaccard_index_binary.m <- as.matrix(Jaccard_index_binary,  labels=TRUE) 
-            
-              
-              colnames(Jaccard_index_binary.m) <- rownames(Jaccard_index_binary.m) <- key_IDs_subset
-            
-            
-            
-              #reshape dissimilarities
-              Jaccard_index_binary.l <- reshape2::melt(Jaccard_index_binary.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_binary")
-            
-              
-              #and then to data table format
-              Jaccard_index_binary.l <- data.table(Jaccard_index_binary.l)
-              
-              Jaccard_index_binary.l[,dissimilarity_metric := "jaccard_dissimilarity_index_binary"]
-       
-              #again, wide to long
-               Jaccard_index_binary.long <- reshape2::melt(Jaccard_index_binary.l,
-              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value", measure.vars = c("jaccard_dissimilarity_index_binary"))
-            
-              #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[Jaccard_index_binary.long,  on = c("haul_id1",  "haul_id2")]
-              
-              
-              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
-            
-              #take averages
-              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
-                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
-
-                  #unique rows
-                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
-
-              #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
-              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
-              #add year for these values
-              dissimilarities_full.r[,  "year" := years[j]]
-              
-              #reorder
-              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
-   
-              #remove full dataset
-              rm(dissimilarities_full)
-              rm(Jaccard_index_binary, Jaccard_index_binary.m, Jaccard_index_binary.long, Jaccard_index_binary.l)
-              
-              #bind with full for this reg
-              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)
-########################################################################
-########################################################################
-  #Second, if data are available, calculate Jaccard index based on biomass (abundance based Jaccard = (2 * Bray Curtis)/(1+Bray Curtis))
-          
-          if(all_survey_units[i] %in% bio_subset) { #BIOMASS BASED BRAY CURTIS CALCULATIONS
-            
-            #if some rows have wgt_cpue missing,get rid of these rows
-            reduced_year_bio <- copy(reduced_year.u[complete.cases(reduced_year.u[, wgt_cpue]), ])
-            
-              reduced_year_wide <- dcast(reduced_year_bio,  key_ID + year ~ accepted_name,  value.var = "wgt_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
-              
-              
-              ncols <- ncol(reduced_year_wide)
-              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
-
-            
-              #list of haul_id keys
-              key_IDs_subset <- reduced_year_wide[,key_ID]
-            
-              #Calculate Jaccard index values
-              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") #Jaccard index
-            
-             
-              #make into matrix
-              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance,  labels=TRUE) 
-            
-              
-              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
-            
-            
-            
-              #reshape dissimilarities
-              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_biomass")
-            
-              
-              #and then to data table format
-              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
-              
-              Jaccard_index_abundance.l[,dissimilarity_metric := jaccard_dissimilarity_index_biomass]
-       
-              #again, wide to long
-               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
-              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value", measure.vars = c("jaccard_dissimilarity_index_biomass"))
-            
-              #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
-              
-              
-              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
-            
-              #take averages
-              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
-                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
-
-                  #unique rows
-                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
-
-              #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
-              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
-              #add year for these values
-              dissimilarities_full.r[,  "year" := years[j]]
-              
-              #reorder
-              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
-   
-              #remove full dataset
-              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
-              
-              #bind with full for this reg
-              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)
-            
-          } #closes if it's in bio subset
-              
-              ########################################################################
-########################################################################
-  #Third, if data are available, calculate Jaccard index based on *relative* biomass 
-          
-          if(all_survey_units[i] %in% bio_subset) { #RELATIVE BIOMASS BASED JACCARD ABUNDANCE CALCUALTIONS
-            
-            #if some rows have wgt_cpue missing,get rid of these rows
-            reduced_year_bio <- copy(reduced_year.u[complete.cases(reduced_year.u[, wgt_cpue]), ])
-            
-            #if some rows have 0 wgt_cpue, get rid of these rows 
-            reduced_year_bio <- reduced_year_bio[wgt_cpue>0, ]
-            
-            #transition from true biomass to relative biomass of tow
-            
-            #total biomass per tow
-            reduced_year_bio[,summed_tow_biomass := sum(wgt_cpue),.(haul_id)]
-            reduced_year_bio[,rel_biomass := wgt_cpue/summed_tow_biomass]
-            
-            #cast long to wide for community matrix
-            
-              reduced_year_wide <- dcast(reduced_year_bio,  key_ID + year ~ accepted_name,  value.var = "rel_biomass",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
-              
-              
-              ncols <- ncol(reduced_year_wide)
-              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
-              
-              #check to make sure all row sums = 1 (relative abundance)
-              stopifnot(sum(communitymatrix) == nrow(communitymatrix))
-
-            
-              #list of haul_id keys
-              key_IDs_subset <- reduced_year_wide[,key_ID]
-            
-              #Calculate Jaccard index
-              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") #Jaccard index
-             
-              #make into matrix
-              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance, labels=TRUE) 
-              
-              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
-            
-            
-              #reshape dissimilarities
-              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_relative_biomass")
-              
-              #and then to data table format
-              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
-                            
-              #again, wide to long
-               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
-              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value")
-            
-              #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
-              
-              
-              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
-            
-              #take averages
-              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
-                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
-
-                  #unique rows
-                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
-
-              #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
-              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
-              #add year for these values
-              dissimilarities_full.r[,  "year" := years[j]]
-              
-              #reorder
-              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
-   
-              #remove full dataset
-              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
-              
-              #bind with full for this reg
-              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)
-            
-          } #closes if it's in bio subset, calculating relative biomass based metrics
-              
-########################################################################
-########################################################################
-  #Fourth, if data are available, calculate Jaccard index based on abundance (counts)
-              
-    if(all_survey_units[i] %in% abun_subset) { #if abundance data is available
-            
-            #if some rows have num_cpue missing,get rid of these rows
-            reduced_year_abun <- copy(reduced_year.u[complete.cases(reduced_year.u[, num_cpue]), ])
-            
-            #long to wide for community matrix
-            
-              reduced_year_wide <- dcast(reduced_year_abun,  key_ID + year ~ accepted_name,  value.var = "num_cpue",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
-              
-              
-              ncols <- ncol(reduced_year_wide)
-              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
-            
-
-              #list of haul_id keys
-              key_IDs_subset <- reduced_year_wide[,key_ID]
-            
-              #Calculate Jaccard index values
-              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") 
-             
-              #make into matrix
-              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance,  labels=TRUE) #total
-              
-              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
-            
-            
-              #reshape dissimilarities
-              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_abundance")
-              
-              #and then to data table format
-              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
-          
-                            
-              #again, wide to long
-               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
-              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value")
-            
-              #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
-              
-              
-              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
-            
-              #take averages
-              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
-                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
-
-                  #unique rows
-                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
-
-              #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
-              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
-              #add year for these values
-              dissimilarities_full.r[,  "year" := years[j]]
-              
-              #reorder
-              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
-   
-              #remove full dataset
-              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
-              
-              #bind with full for this reg
-              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)    
-              
-          
-              } #closes if it is abundance based
-              
-########################################################################
-########################################################################
-  #Fifth, if data are available, calculate Bray Curtis dissimilarity metrics based on relative abundance
-              
-    if(all_survey_units[i] %in% abun_subset) { #if abundance data is available
-            
-            #if some rows have num_cpue missing,get rid of these rows
-            reduced_year_abun <- copy(reduced_year.u[complete.cases(reduced_year.u[, num_cpue]), ])
-            
-            #delete rows if num_cpue is 0
-            reduced_year_abun <- reduced_year_abun[num_cpue > 0, ]
-            
-            #transition to relative abundance
-               #total biomass per tow
-            reduced_year_abun[,summed_tow_abundance := sum(num_cpue),.(haul_id)]
-            reduced_year_abun[,rel_abundance := num_cpue/summed_tow_abundance]
-            
-              reduced_year_wide <- dcast(reduced_year_abun,  key_ID + year ~ accepted_name,  value.var = "rel_abundance",  fun.aggregate = sum) #longitude to wide data for community matrix,  column names are cell then species
-              
-              
-              ncols <- ncol(reduced_year_wide)
-              communitymatrix <- reduced_year_wide[, 3:ncols] #community matrix
-              
-              #make sure all rows sum to 1
-              stopifnot(sum(communitymatrix ) == nrow(communitymatrix ))
-
-            
-              #list of haul_id keys
-              key_IDs_subset <- reduced_year_wide[,key_ID]
-            
-              #Calculate Jaccard index values
-              Jaccard_index_abundance <- vegdist(communitymatrix,  method = "jaccard") 
-             
-              #make into matrix
-              Jaccard_index_abundance.m <- as.matrix(Jaccard_index_abundance,  labels=TRUE) #total
-
-              colnames(Jaccard_index_abundance.m) <- rownames(Jaccard_index_abundance.m) <- key_IDs_subset
-            
-            
-              #reshape dissimilarities
-              Jaccard_index_abundance.l <- reshape2::melt(Jaccard_index_abundance.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_relative_abundance")
-              
-              #and then to data table format
-              Jaccard_index_abundance.l <- data.table(Jaccard_index_abundance.l)
-                            
-              #again, wide to long
-               Jaccard_index_abundance.long <- reshape2::melt(Jaccard_index_abundance.l,
-              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value")
-            
-              #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[Jaccard_index_abundance.long,  on = c("haul_id1",  "haul_id2")]
-              
-              
-              #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
-              dissimilarities_full <- dissimilarities_full[haul_id2 < haul_id1]
-            
-              #take averages
-              #yearly means, deleted a few rogue NAs for balanced changes and abundance gradients
-                dissimilarities_full[,annual_dissimilarity_value := mean(value),.(dissimilarity_metric)]
-
-                  #unique rows
-                  dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
-
-              #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
-              dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
-              #add year for these values
-              dissimilarities_full.r[,  "year" := years[j]]
-              
-              #reorder
-              dissimilarities_full.r <-  dissimilarities_full.r[,.(survey, survey_unit, year, dissimilarity_metric, annual_dissimilarity_value)]
-   
-              #remove full dataset
-              rm(dissimilarities_full, Jaccard_index_abundance.long, Jaccard_index_abundance.m, Jaccard_index_abundance.l)
-              
-              #bind with full for this reg
-              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)    
-              
-          
-              } #closes if it is abundance based
-      
-    
-              print(paste0(j, "/", length(years))) #print year that we're on
-  
-         } #closes year
-  
-  #save the output from this region
-  filename <- paste0(all_survey_units[i],"_jaccard_index.rds")
-  saveRDS(jaccard_index_onereg, here::here("output","jaccard_index_VEGAN","by_region",filename))
-  rm(jaccard_index_onereg) #attempt to save some memory here
-  
-  print(paste0("We have cycled through ",  i, " of ", length(all_survey_units),  " surveys"))
-  
-  } #closes survey/region
-
-#merge all years into distances_dissimilarities_allyears
-files <- list.files(here::here("output","jaccard_index_VEGAN","by_region"))
-
-for(i in 1:length(files)){
-  jaccard_index_byreg <- readRDS(here::here("output","jaccard_index_VEGAN","by_region",files[i]))
-  jaccard_index_allyears <- rbind(jaccard_index_allyears, jaccard_index_byreg)
-}
-
-
-#Be sure to check which one of these you actually want to un-hash!
-
-saveRDS(jaccard_index_allyears,  here::here("output","jaccard_index_VEGAN", "jaccard_index_allyears.rds"))
-
-jaccard_index_allyears <- readRDS(here::here("output","jaccard_index_VEGAN", "jaccard_index_allyears.rds"))
-```
-
-
-
-
-
-
-
-
-
-
-
-
-###SCRATCH BELOW (Probably can be deleted)
-
-
-
-
-
-Box plot for each region
-```{r box plot each region}
-box_plots_jaccard <- list()
-box_plots_bray <- list()
-
-bray_model_outputs <- data.table()
-
-bray_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-bray_model_outputs[,  survey:=as.character(V1)][,  season:=as.character(V1)][,  season_survey:=as.character(V1)][,  bray_coef:=as.numeric(V1)][,  bray_intercept := as.numeric(V1)][, bray_coef_pvalue := as.numeric(V1)][, bray_r_squared := as.numeric(V1)]
-bray_model_outputs[,  V1 := NULL]
-
-jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-
-jaccard_model_outputs <- as.data.table(matrix(nrow = length(all_survey_units)))
-jaccard_model_outputs[,  survey:=as.character(V1)][,  season:=as.character(V1)][,  season_survey:=as.character(V1)][,  jaccard_coef:=as.numeric(V1)][,  jaccard_intercept := as.numeric(V1)][, jaccard_coef_pvalue := as.numeric(V1)][, jaccard_r_squared := as.numeric(V1)]
-jaccard_model_outputs[,  V1 := NULL]
-
-
-distances_dissimilarities_allyears[, year_f := as.factor(year)]
-
-#in case you didn't make it earlier
-all_survey_units <- unique(distances_dissimilarities_allyears[, survey_unit])
-
-for (i in 1:length(all_survey_units)) {
-      distances_dissimilarities_allyears_subset <- distances_dissimilarities_allyears[season_survey == all_survey_units[i]]
-      
-    #jaccard similarity
-#    box_plots_jaccard[[i]] <- ggplot(distances_dissimilarities_allyears_subset, aes(year_f,  #jaccard_dissimilarity_turnover)) +
-#      geom_boxplot(outlier.shape = NA,  lwd = 0.2) +
-#      labs(x="Year",  y = "Jaccard Dissimilarity") +
-#      geom_smooth(method = "lm",  se=FALSE,  color="red",  aes(group=1),  lwd = 0.3) +
-#      stat_regline_equation() +
-#      theme_classic() +
-#      theme(axis.text.x = element_text(angle = 90))
-#    
-#    #bray curtis similarity
-#    box_plots_bray[[i]] <- ggplot(distances_dissimilarities_allyears_subset, aes(year_f, bray_curtis_dissimilari#ty_balanced)) +
-#      geom_boxplot(outlier.shape = NA,  lwd = 0.2) +
-#      labs(x="Year",  y = "Bray Curtis Dissimilarity") +
-#      geom_smooth(method = "lm",  se=FALSE,  color="red",  aes(group=1),  lwd = 0.3) +
-#      stat_regline_equation() +
-#      theme_classic() +
-#      theme(axis.text.x = element_text(angle = 90))
-    #START HERE GET THESE TO ACTUALLY SAVE
-    #corresponding models
-    avg_jaccard_mod <- lm(data = distances_dissimilarities_allyears_subset,  formula = jaccard_dissimilarity_turnover ~ as.numeric(year))
-    
-    jaccard_model_outputs[i,  "survey"] <- distances_dissimilarities_allyears_subset[1,  survey]
-    jaccard_model_outputs[i,  "season"] <- distances_dissimilarities_allyears_subset[1,  season]
-    jaccard_model_outputs[i,  "season_survey"] <- distances_dissimilarities_allyears_subset[1,  season_survey]
-    
-    #coef
-    
-    jaccard_model_outputs[i, "jaccard_coef"] <- avg_jaccard_mod$coefficients[[2]]
-    
-    #intercept
-    jaccard_model_outputs[i, "jaccard_intercept"] <- avg_jaccard_mod$coefficients[[1]]
-    
-    #p-value
-     jaccard_model_outputs[i, "jaccard_coef_pvalue"] <- summary(avg_jaccard_mod)$coefficients[2, 4]  
-    
-    #R^2
-    jaccard_model_outputs[i, "jaccard_r_squared"] <- summary(avg_jaccard_mod)$r.squared
-    
-    #bray
-    
-    avg_bray_mod <- lm(data = distances_dissimilarities_allyears_subset,  formula = bray_curtis_dissimilarity_balanced ~ as.numeric(year))
-    
-    bray_model_outputs[i,  "survey"] <- distances_dissimilarities_allyears_subset[1,  survey]
-    bray_model_outputs[i,  "season"] <- distances_dissimilarities_allyears_subset[1,  season]
-    bray_model_outputs[i,  "season_survey"] <- distances_dissimilarities_allyears_subset[1,  season_survey]
-    
-    #coef
-    
-    bray_model_outputs[i, "bray_coef"] <- avg_bray_mod$coefficients[[2]]
-    #intercept
-    bray_model_outputs[i, "bray_intercept"] <- avg_bray_mod$coefficients[[1]]
-    
-    #p-value
-    bray_model_outputs[i, "bray_coef_pvalue"] <- summary(avg_bray_mod)$coefficients[2, 4]  
-    
-    #R^2
-    bray_model_outputs[i, "bray_r_squared"] <- summary(avg_bray_mod)$r.squared
-    
-
-
-}
-
-
-
-#save plots and models as objects
-saveRDS(jaccard_model_outputs,  here::here("output", "distance_decay", "jaccard_model_outputs.rds"))
-saveRDS(bray_model_outputs,  here::here("output", "distance_decay", "bray_model_outputs.rds"))
-
-saveRDS(box_plots_jaccard,  here::here("output", "distance_decay", "box_plots_jaccard.rds"))
-saveRDS(box_plots_bray,  here::here("output", "distance_decay", "box_plots_bray.rds"))
-
-#save plots as images
-
-for (i in 1:length(all_survey_units)) {
-  filename_jaccard <- paste0(all_survey_units[i],  "_jaccard_box_plot.jpg")
-  ggsave(box_plots_jaccard[[i]],  path = here::here("figures",  "distance_decay"),  filename = filename_jaccard)
-  
-  filename_bray <- paste0(all_survey_units[i],  "_bray_box_plot.jpg")
-  ggsave(box_plots_bray[[i]],  path = here::here("figures",  "distance_decay"),  filename = filename_bray)
-}
-```
-
-Overall slope
-
-Dornelas 2014: "To estimate the global long-term trends in diversity,  to each of the 14 metrics (10 community structure and 4 composition turnover metrics),  
-
-- we first fit a linear model with a single slope but a different intercept and a residual variance for each time series,  by using generalized least squares (GLS). Additionally,  
-
-- we fit a linear model to each time series allowing a different slope and an intercept,  by using ordinary least squares (OLS). 
-
-The R squared value and the p-value of each slope coefficient (the OLS estimate) are also calculated. However,  the provided p-value may be overly confident due to the unknown correlated structure so a careful interpretation is required. These statistics are included to provide intuitive information of the fitted linear trend of each time series,  rather than in a classical hypothesis-testing context."
-
-GLS: John Fox & Sanford Weisberg 2019
-https://socialsciences.mcmaster.ca/jfox/Books/Companion/appendices/Appendix-Timeseries-Regression.pdf
-- The gls() function in the nlme package (Pinheiro et al.,  2018), 
-
-Linear model with single slope but different interceept and residual variance for each time series
-
-First,  just linear model 
-```{r}
-overall_mod <- gls(bray_curtis_dissimilarity_balanced ~ year + season_survey,  data = distances_dissimilarities_allyears)
-```
-
-
-
-Averages for each survey_unit
-```{r}
-colnames(distances_dissimilarities_allyears)
-
-
-distances_dissimilarities_allyears[, mean_jaccard := mean(jaccard_dissimilarity_turnover),  .(survey,  season,  year)]
-distances_dissimilarities_allyears[, mean_bray := mean(bray_curtis_dissimilarity_balanced),  .(survey,  season,  year)]
-```
