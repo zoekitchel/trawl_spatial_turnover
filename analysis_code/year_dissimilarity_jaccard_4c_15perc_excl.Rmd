@@ -1,0 +1,323 @@
+---
+title: "Dissimilarity time series analysis excluding 15% of species with lowest biomass"
+author: Zoë J. Kitchel
+date: May 9, 2024
+output: html_notebook
+---
+
+Script 4c for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
+
+```{r setup}
+library(data.table)
+library(vegan)
+library(sf)
+library(concaveman) #polygon around points
+library(betapart) #allows us to partition beta diversity
+library(geosphere)
+library(ggpubr) #stat_regline_equation
+library(nlme)
+library(mgcv) #to make gam
+library(cowplot)
+library(lme4)
+library(stringr)
+
+#pull in function to calculate model estimates and standard errors
+source(here::here("analysis_code","extract_coefficients_function.R"))
+```
+
+
+Pull dissimilarity table
+```{r pull outputs from previous scripts}
+#Pull Dissimilarity Means
+jaccard_index_allyears_15perc_excluded <- readRDS(here::here("output", "jaccard_index_VEGAN", "jaccard_index_allyears_15perc_excluded.rds"))
+
+#make survey and survey unit factors
+jaccard_index_allyears_15perc_excluded[,survey:=factor(survey)][,survey_unit:=factor(survey_unit)]
+
+#adjust years
+jaccard_index_allyears_15perc_excluded[,year_adj := year-min(year)+1]
+
+#add new variable for year in sequence per region
+jaccard_index_allyears_15perc_excluded[,first_year := min(year),.(survey_unit)]
+jaccard_index_allyears_15perc_excluded[,last_year := max(year),.(survey_unit)]
+
+#jaccard_index_allyears_15perc_excluded[,year_in_seq := year-first_year+1]
+
+jaccard_index_allyears_15perc_excluded[,years_sampled := last_year-first_year+1]
+
+
+```
+
+List of surveys
+```{r}
+#list of surveys
+survey_unit.list <- levels(factor(jaccard_index_allyears_15perc_excluded$survey_unit))
+```
+
+ 
+ Pull in palette and name helper
+```{r}
+source(here::here("analysis_code","color_links.R"))
+```
+
+
+##Make GAM (Generalized Additive Models)
+
+Jaccard
+```{r jaccard gams}
+jaccard_total_gam <- gam(annual_dissimilarity_value ~ year + s(survey_unit, year, bs = "fs", m = 1),#random smooth
+                            data = jaccard_index_allyears_15perc_excluded[dissimilarity_metric == "jaccard_dissimilarity_index_binary"])
+
+```
+
+##Make LMERS
+
+Jaccard
+*These all converged*
+```{r jaccard}
+#running with lme instead of lmer gave same results, but allowed for calculation of p-value
+
+#Jaccard total with lme
+jaccard_total_lme <- lme(annual_dissimilarity_value ~ year_adj, random = (~1 + year_adj|survey_unit),data = jaccard_index_allyears_15perc_excluded[dissimilarity_metric == "jaccard_dissimilarity_index_binary"])
+
+#Jaccard total with lmer
+jaccard_total_lmer <- lmer(annual_dissimilarity_value ~ year_adj + (1 + year_adj|survey_unit),data = jaccard_index_allyears_15perc_excluded[dissimilarity_metric == "jaccard_dissimilarity_index_binary"]) #FYI doesn't converge
+
+summary(jaccard_total_lme)
+anova(jaccard_total_lme)
+
+#EXPORT JACCARD COEFFICIENTS
+jaccard_total_coefs <- data.table(coef(jaccard_total_lme))
+jaccard_total_coefs[,survey_unit := rownames(coef(jaccard_total_lme))][,Year := round(year_adj,5)][,Intercept := round(`(Intercept)`,2)]
+#View(jaccard_total_coefs)
+
+jaccard_total_coefs <- jaccard_total_coefs[color_link, on = "survey_unit"]
+
+jaccard_total_coefs.exp_15perc_excluded <- jaccard_total_coefs[,.(Survey_Name_Season, Intercept, Year)]
+
+#export this table
+fwrite(jaccard_total_coefs.exp_15perc_excluded, file = here::here("output","jaccard_total_coefs.exp_15perc_excluded.csv"))
+```
+##Linear Model
+
+Also, build a simple linear model with an interaction (instead of random slope and intercept for survey)
+**THIS IS HOW WE CLASSIFY SURVEYS as of fall 2023 (update from before, where we classified surveys from LMER)**
+(Especially good because lmer didn't converge)
+
+Same, but for Jaccard
+```{r linear model Jaccard}
+
+jaccard_total_lm <- lm(annual_dissimilarity_value ~ year * survey_unit,data = jaccard_index_allyears_15perc_excluded[dissimilarity_metric == "jaccard_dissimilarity_index_binary"])
+
+#Use linear algebra to calculate coefficients and standard errors
+jaccard_total_coefs.r_15perc_excluded <- data.table(lm_interaction_coefficients_se(jaccard_total_lm))
+
+#Add survey names
+jaccard_total_coefs.r_15perc_excluded[,survey_unit := sort(unique(jaccard_index_allyears_15perc_excluded$survey_unit))]
+  
+  #homogenizing vs differentiating
+  jaccard_total_coefs.r_15perc_excluded[,differentiating := ifelse((se< abs(estimate) & estimate > 0),1,0)][,homogenizing := ifelse((se< abs(estimate) & estimate < 0),1,0)]
+  
+  #lower and upper CI
+    jaccard_total_coefs.r_15perc_excluded[,lwr := estimate-se][,upr:= estimate+se]
+    
+    #save as output
+    fwrite(jaccard_total_coefs.r_15perc_excluded, here::here("output","jaccard_total_coefs.r_15perc_excluded.csv"))
+  
+  jaccard_total_coefs_sum <- data.table(differentiating = sum(  jaccard_total_coefs.r_15perc_excluded$differentiating), homogenizing = sum(  jaccard_total_coefs.r_15perc_excluded$homogenizing))
+  
+  #hex by trend
+  jaccard_total_coefs.r_15perc_excluded[,trend_color_jaccard := ifelse(homogenizing == 1,"#FFC109", ifelse(differentiating == 1,"#D81C60","#1E88E5"))]
+  
+  #link to color link
+  jaccard_total_coefs.r_15perc_excluded <- color_link[jaccard_total_coefs.r_15perc_excluded, on = "survey_unit"]
+  
+  color_link_trend_jaccard <- jaccard_total_coefs.r_15perc_excluded[,.(survey_unit,Survey_Name_Season, hex,  trend_color_jaccard)]
+
+```
+
+##Get LMER models as predictions
+
+```{r new data}
+
+#new data for lmer
+lmer_year <- seq(min(jaccard_index_allyears_15perc_excluded[,year]), max(jaccard_index_allyears_15perc_excluded[,year]), by = 0.1)
+
+lmer_year_adj <- seq(min(jaccard_index_allyears_15perc_excluded[,year_adj]), max(jaccard_index_allyears_15perc_excluded[,year_adj]), by = 0.1)
+
+```
+
+
+```{r total jaccard}
+
+#predict average lmer
+lmer_jaccard_total_predictions <- data.table(year = lmer_year, year_adj = lmer_year_adj)
+
+#confidence intervals
+jaccard_total_lmer_confint <- confint(jaccard_total_lmer)
+
+#populate data table of lmer predictions
+lmer_jaccard_total_predictions[,jaccard_lmer_preds := fixef(jaccard_total_lmer)[[1]] + fixef(jaccard_total_lmer)[[2]] * year_adj][,jaccard_lmer_preds_lowerCI := jaccard_total_lmer_confint[5] + jaccard_total_lmer_confint[6] * year_adj][,jaccard_lmer_preds_upperCI := jaccard_total_lmer_confint[11] + jaccard_total_lmer_confint[12] * year_adj]
+```
+
+
+##Lollipop SE plot by linear trend experienced
+
+Jaccard total dissimilarity
+```{r lollipop figure jaccard total dissimilarity}
+
+
+jaccard_total_coefs.r_15perc_excluded[,Directional_Change_sig := ifelse(differentiating > 0, "Differentiation",ifelse(homogenizing > 0 , "Homogenization", "No β-diversity trend"))]
+years_sampled <- unique(jaccard_index_allyears_15perc_excluded[,.(survey_unit, years_sampled)])
+jaccard_total_coefs.r_15perc_excluded <- years_sampled[jaccard_total_coefs.r_15perc_excluded, on = "survey_unit"]
+
+(jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_15perc_excluded <- ggplot(data = jaccard_total_coefs.r_15perc_excluded, aes(x = reorder(Survey_Name_Season, estimate) , y = estimate), label = Survey_Name_Season) +
+    geom_errorbar(aes(ymin = lwr, ymax = upr), fill = "grey", width = 0) + #add confidence intervals
+  geom_point(aes(size = years_sampled, color = Directional_Change_sig), stat = 'identity') +
+  scale_color_manual(values = c("#D81C60","#FFC109","#1E88E5"), name = "β-diversity trend\nTotal Jaccard dissimilarity", guide="none") +
+  scale_size_binned(range = c(1,8), name = "Survey period length\n(years)") +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(breaks = seq(-0.0075, 0.0075, by = 0.0025), labels = c("-0.0075","","-0.0025","0", "0.0025", "",  "")) +
+  xlab("Survey unit") +
+  ylab("β-diversity trend\nTotal Jaccard dissimilarity") + #total jaccard dissimilarity trend
+  coord_flip() +
+  theme_classic() +
+  theme(axis.text.y = element_text(face = "bold"), axis.title.y = element_blank(), axis.text.x = element_text(size = 15), axis.title.x = element_text(size = 15), legend.position = c(0.3,0.8), legend.direction = "vertical", legend.text = element_text(size = 15), legend.title = element_text(size = 16)))
+
+ggsave(jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_15perc_excluded, 
+       path = here::here("figures"), filename = "jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_15perc_excluded.jpg", height = 7, width = 7)
+
+```
+
+#Figure to merge three metrics for supplement
+
+##Wavy Line Plot for GAMs (Figure 2a)
+
+Generate predicted values (this datatable will hold both jaccard and bray curtis total dissimilarities)
+```{r generate predicted values GAM}
+#generate list again, as for some reason it doesn't stay in environment
+survey_unit.list <- levels(factor(jaccard_index_allyears_15perc_excluded$survey_unit))
+
+#generate new data to smooth lines (need year and season survey combinations)
+year_survey_unit_expand.dt <- data.table(survey_unit = as.character(NULL), year = as.numeric(NULL), year_adj = as.numeric(NULL ))
+
+for (i in 1:length(survey_unit.list)) {
+  #generate year vectors
+  survey_unit_years <- unique(jaccard_index_allyears_15perc_excluded[survey_unit == survey_unit.list[i],.(survey_unit, year, year_adj)])
+  
+  years <- seq(min(survey_unit_years[,year]), max(survey_unit_years[,year]), by = 0.1)
+  
+  year_adjust <- seq(min(survey_unit_years[,year_adj]), max(survey_unit_years[,year_adj]), by = 0.1)
+  
+  year_survey_unit_expand.dt_addition <- data.table(survey_unit = survey_unit.list[i], year = years, year_adj = year_adjust)
+  
+  year_survey_unit_expand.dt <- rbind(year_survey_unit_expand.dt, year_survey_unit_expand.dt_addition)
+}
+
+
+#add colors and names to full year and survey unit combination table
+year_survey_unit_expand_jaccard.dt <- year_survey_unit_expand.dt[color_link_trend_jaccard, on = "survey_unit"]
+```
+
+Jaccard
+Get model as predictions
+```{r}
+#for plotting, get model as predictions
+jaccard_total_gam_predictions <- predict(jaccard_total_gam, se.fit = TRUE, newdata = year_survey_unit_expand_jaccard.dt)
+
+#merge into table
+year_survey_unit_expand_jaccard.dt[,jaccard_glm_mod_fit := jaccard_total_gam_predictions$fit][,jaccard_glm_mod_fit_SE := jaccard_total_gam_predictions$se.fit]
+
+```
+
+
+##Color GAMs by trend (year vs dissimilarity)
+###Jaccard dissimilarity
+```{r color wavy lines by trend Jaccard dissimilarity}
+
+#link distances dissimilarities with trend color hex
+jaccard_index_allyears_15perc_excluded_jaccard <- jaccard_index_allyears_15perc_excluded[color_link_trend_jaccard, on = "survey_unit"]
+jaccard_index_allyears_15perc_excluded_jaccard <- jaccard_index_allyears_15perc_excluded_jaccard[dissimilarity_metric == "jaccard_dissimilarity_index_binary_abundance"]
+#and again for jaccard
+jaccard_index_allyears_15perc_excluded_jaccard <- jaccard_index_allyears_15perc_excluded[color_link_trend_jaccard, on = "survey_unit"]
+jaccard_index_allyears_15perc_excluded_jaccard<- jaccard_index_allyears_15perc_excluded_jaccard[dissimilarity_metric == "jaccard_dissimilarity_index_binary"]
+
+#change survey_unit to factor
+jaccard_index_allyears_15perc_excluded_jaccard[,survey_unit := factor(survey_unit)]
+year_survey_unit_expand_jaccard.dt[,survey_unit := factor(survey_unit)]
+
+#check that survey_unit in alpha order
+sort(unique(jaccard_index_allyears_15perc_excluded_jaccard$survey_unit)) == levels(jaccard_index_allyears_15perc_excluded_jaccard$survey_unit)
+sort(unique(year_survey_unit_expand_jaccard.dt$survey_unit)) == levels(year_survey_unit_expand_jaccard.dt$survey_unit)
+
+#get list of colors in the right order
+trend_colors_jaccard.dt <- unique(jaccard_index_allyears_15perc_excluded_jaccard[dissimilarity_metric == "jaccard_dissimilarity_index_binary",.(survey_unit, Survey_Name_Season, trend_color_jaccard)])
+
+#make sure it matches year_survey_unit_expand.dt
+all(trend_colors_jaccard.dt == unique(year_survey_unit_expand_jaccard.dt[,.(survey_unit, Survey_Name_Season, trend_color_jaccard)]))
+
+setorder(trend_colors_jaccard.dt, survey_unit)
+
+
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_15perc_excluded <- ggplot() +
+  #full LMER predictions (black)
+  geom_ribbon(data = lmer_jaccard_total_predictions, aes(x = year, ymin = jaccard_lmer_preds_lowerCI, ymax = jaccard_lmer_preds_upperCI), fill = "grey", alpha = 0.3) +
+    geom_line(data = lmer_jaccard_total_predictions, aes(x = year, y = jaccard_lmer_preds), color = "black") +
+  #points by trend
+  geom_point(data = jaccard_index_allyears_15perc_excluded[dissimilarity_metric =="jaccard_dissimilarity_index_binary"], cols = "year_adj",
+             aes(x = year,
+                 y = annual_dissimilarity_value,
+                 fill = survey_unit), alpha = 0.4, size = 1, shape = 21, color = "white") +
+  #squiggly lines by survey unit based GAM and colored by trend
+    geom_line(data = year_survey_unit_expand_jaccard.dt, cols = "year_adj",
+             aes(x = year,
+                 y = jaccard_glm_mod_fit,
+                 color = survey_unit), alpha = 0.6) +
+  #confidence intervals for individual GAM
+  geom_ribbon(data = year_survey_unit_expand_jaccard.dt, cols = "year_adj", 
+              aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE, fill =  survey_unit), alpha=0.1) + #add standard error
+  #set color by survey
+    scale_color_manual(values = trend_colors_jaccard.dt$trend_color, name = "Survey Unit") +
+  scale_fill_manual(values =trend_colors_jaccard.dt$trend_color, guide = "none") +
+  theme_classic() +
+  lims(x = c(min(jaccard_index_allyears_15perc_excluded[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year]),max(jaccard_index_allyears_15perc_excluded[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year]))
+       ) +
+  xlab("Year\n") +
+ylab("β-diversity\n(Jaccard dissimilarity)") +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_15perc_excluded
+
+ggsave(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_15perc_excluded, path = here::here("figures"), filename ="points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_15perc_excluded.jpg", height = 6, width = 11, unit = "in")
+
+#plot for legend
+directional_change_legend_plot_colorbytrend <- jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_15perc_excluded + 
+  theme(legend.position = "right", legend.background = element_rect(fill= "transparent"), 
+         legend.text = element_text(size = 15), legend.title = element_text(size = 16)) +
+  guides(colour = guide_legend(override.aes = list(size=6)), size = "none")
+
+```
+
+###Merge BC versus Year plot with GAMS and Region vs. coefficient plot for LMs
+
+```{r merge lollipop and wiggly lines}
+
+######################################################
+##################JACCARDTOTAL
+jaccard_total_GAM_LM_merge_legend_colorbytrend_15perc_excluded <- ggdraw(xlim = c(0, 40.5), ylim = c(0, 21)) +
+    draw_plot(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_15perc_excluded + theme(axis.text = element_text(size = 14)),
+                                         x = 1, y = 1, width = 20, height = 20) +
+    draw_plot(jaccard_total_Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_15perc_excluded +
+        theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+              axis.text = element_text(size = 8)), #change legend text font size),
+                                         x = 20, y = 1, width = 19, height = 20) +
+    draw_plot(get_legend(directional_change_legend_plot_colorbytrend + 
+      theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+        legend.title = element_text(size=16), #change legend title font size
+        legend.text = element_text(size=15))), #change legend text font size)
+                                x = 26, y = 8, width = 3, height = 2) +
+  geom_text(aes(x = 2, y = 20.7), label = ("a."), size =8, fontface = "bold") +
+  geom_text(aes(x =20, y = 20.7), label = ("b."), size =8, fontface = "bold")
+
+ggsave(jaccard_total_GAM_LM_merge_legend_colorbytrend_15perc_excluded, path = here::here("figures"), filename = "jaccard_total_GAM_LM_merge_legend_colorbytrend_15perc_excluded.png", height = 8, width = 14, units = "in")
+```

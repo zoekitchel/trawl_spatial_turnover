@@ -164,10 +164,11 @@ length(unique(FishGlob_clean.singleseason_15perc_excluded[,accepted_name]))
 
 ##Calculate Beta Dissimilarity between all sampling sites within every survey unit
 
-Calculate dissimilarity using jaccard, and bray curtis for both abundance and biomass
-```{r loop through all regions and years}
+##Jaccard abundance calculations and regular Jaccard using VEGAN package 
+Calculate dissimilarity using Jaccard for both abundance and biomass
+```{r loop through all regions and years for jaccard indices}
 
-distances_dissimilarities_allyears_15perc_excluded <- data.table("survey" = character(), 
+jaccard_index_allyears <- data.table("survey" = character(), 
                                                  "survey_unit" = character(),
                                                 "year" = integer(),
                                                 "dissimilarity_metric" = character(),
@@ -175,36 +176,29 @@ distances_dissimilarities_allyears_15perc_excluded <- data.table("survey" = char
 
 for (i in 1:length(all_survey_units)) {
   
-  FishGlob_clean.singleseason_15perc_excluded_subset <- FishGlob_clean.singleseason_15perc_excluded[survey_unit == all_survey_units[i], ]
+  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason_15perc_excluded[survey_unit == all_survey_units[i], ]
   
-  distances_dissimilarities_onereg <- data.table("survey" = character(), 
+  jaccard_index_onereg <- data.table("survey" = character(), 
                                                  "survey_unit" = character(),
                                                 "year" = integer(),
                                                 "dissimilarity_metric" = character(),
                                                 "annual_dissimilarity_value" = numeric())
   
-  #map
-  ####unique lat lon
-  #add column with adjusted longitude for few surveys that cross dateline (NZ-CHAT and AI)
-  FishGlob_clean.singleseason_15perc_excluded_subset[,longitude_adj := ifelse((survey_unit %in% c("AI","NZ-CHAT") & longitude > 0),longitude-360,longitude)]
-
-    lat_lon <- unique(FishGlob_clean.singleseason_15perc_excluded_subset[, .(latitude,  longitude_adj)])
-
    #list years
-  FishGlob_clean.singleseason_15perc_excluded_subset[, year:= as.numeric(year)] #make numeric
-  setorder(FishGlob_clean.singleseason_15perc_excluded_subset,  year)
-  years <- unique(FishGlob_clean.singleseason_15perc_excluded_subset[, year])
+  FishGlob_clean.singleseason_subset[, year:= as.numeric(year)] #make numeric
+  setorder(FishGlob_clean.singleseason_subset,  year)
+  years <- unique(FishGlob_clean.singleseason_subset[, year])
   
   #haul id keys
-  haul_ids <- unique(FishGlob_clean.singleseason_15perc_excluded_subset[, haul_id])
+  haul_ids <- unique(FishGlob_clean.singleseason_subset[, haul_id])
   haul_ids_key <- data.table(haul_id = haul_ids,  key_ID = seq(1, length(haul_ids),  by = 1))
   
   
   #convert haul_ids to numeric key_ids
-  FishGlob_clean.singleseason_15perc_excluded_subset <- FishGlob_clean.singleseason_15perc_excluded_subset[haul_ids_key,  on = "haul_id"]
+  FishGlob_clean.singleseason_subset <- FishGlob_clean.singleseason_subset[haul_ids_key,  on = "haul_id"]
 
           for (j in 1:length(years)) {
-            reduced_year <- FishGlob_clean.singleseason_15perc_excluded_subset[year == years[j], ]
+            reduced_year <- FishGlob_clean.singleseason_subset[year == years[j], ]
             
             #make sure that haul_id, survey_unit, latitude, longitude, key_id, wgt_cpue, num_cpue, year, month, accepted name and day are unique (this is an issue with Namibia, where there is somehow repetition for just 5 observations of one species (Yarrella blackfordi, fixed by this step))
             reduced_year.u <- unique(reduced_year[,.(haul_id, survey_unit, latitude, longitude, key_ID, wgt_cpue, num_cpue, Present, year, month, day, accepted_name)])
@@ -223,10 +217,11 @@ for (i in 1:length(all_survey_units)) {
             
             #make into data table
             haul_id_distances.l <- data.table(haul_id_distances.l)
+            
 ########################################################################
 ########################################################################
-  #First, calculate Jaccard dissimilarity metrics (this metric can be calculated for all regions)
-               
+  #First, BINARY Jaccard based on presence absence for all regions
+            
              #Only include rows where presence = 1
             reduced_year_occurence <- copy(reduced_year.u[Present == 1, ])
             
@@ -238,40 +233,34 @@ for (i in 1:length(all_survey_units)) {
             
               #list of haul_id keys
               key_IDs_subset <- reduced_year_wide[,key_ID]
-
-              #calculate Jaccard pair-wise dissimilarity
-              dissimilarities_occurrence <- beta.pair(communitymatrix.occurence,  index.family = "jaccard") #dissimilarity
             
+              #Calculate Jaccard index values
+              Jaccard_index_binary <- vegdist(communitymatrix.occurence,  method = "jaccard", binary = TRUE) #Jaccard index
+            
+             
               #make into matrix
-              dissimilarities_occurrence_turnover.m <- as.matrix(dissimilarities_occurrence$beta.jtu,  labels=TRUE) #jtu = turnover
-              dissimilarities_occurrence_nestedness.m <- as.matrix(dissimilarities_occurrence$beta.jne,  labels=TRUE) #jne = nestedness
-              dissimilarities_occurrence_total.m <- as.matrix(dissimilarities_occurrence$beta.jac,  labels=TRUE) #total
-              #make column names link to key IDs 
-              colnames(dissimilarities_occurrence_turnover.m) <- rownames(dissimilarities_occurrence_turnover.m) <- key_IDs_subset
-              colnames(dissimilarities_occurrence_nestedness.m) <- rownames(dissimilarities_occurrence_nestedness.m) <- key_IDs_subset
-              colnames(dissimilarities_occurrence_total.m) <- rownames(dissimilarities_occurrence_total.m) <- key_IDs_subset
+              Jaccard_index_binary.m <- as.matrix(Jaccard_index_binary,  labels=TRUE) 
             
-              #reshape dissimilarities from wide to long
-              dissimilarities_occurrence_turnover.l <- reshape2::melt(dissimilarities_occurrence_turnover.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_turnover")
-              dissimilarities_occurrence_nestedness.l <- reshape2::melt(dissimilarities_occurrence_nestedness.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_nestedness")
-              dissimilarities_occurrence_total.l <- reshape2::melt(dissimilarities_occurrence_total.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_total")
+              
+              colnames(Jaccard_index_binary.m) <- rownames(Jaccard_index_binary.m) <- key_IDs_subset
+            
+            
+            
+              #reshape dissimilarities
+              Jaccard_index_binary.l <- reshape2::melt(Jaccard_index_binary.m,  varnames = c("haul_id1",  "haul_id2"),  value.name = "jaccard_dissimilarity_index_binary")
+            
               
               #and then to data table format
-              dissimilarities_occurrence_turnover.l <- data.table(dissimilarities_occurrence_turnover.l)
-              dissimilarities_occurrence_nestedness.l <- data.table(dissimilarities_occurrence_nestedness.l)
-              dissimilarities_occurrence_total.l <- data.table(dissimilarities_occurrence_total.l)
+              Jaccard_index_binary.l <- data.table(Jaccard_index_binary.l)
               
-              #merge into single data table
-              dissimilarities_occurrence_all <- dissimilarities_occurrence_turnover.l[dissimilarities_occurrence_nestedness.l, on = c("haul_id1","haul_id2")]
-              
-               dissimilarities_occurrence_all <- dissimilarities_occurrence_all[dissimilarities_occurrence_total.l, on = c("haul_id1","haul_id2")]
-                            
+              Jaccard_index_binary.l[,dissimilarity_metric := "jaccard_dissimilarity_index_binary"]
+       
               #again, wide to long
-               dissimilarities_occurrence_all.l <- reshape2::melt(dissimilarities_occurrence_all,
-              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value")
+               Jaccard_index_binary.long <- reshape2::melt(Jaccard_index_binary.l,
+              id.vars = c("haul_id1",  "haul_id2"), variable.name = "dissimilarity_metric", value.name = "value", measure.vars = c("jaccard_dissimilarity_index_binary"))
             
               #merge distance with dissimilarity for this year with both metrics of dissimilarity
-              dissimilarities_full <- haul_id_distances.l[dissimilarities_occurrence_all.l,  on = c("haul_id1",  "haul_id2")]
+              dissimilarities_full <- haul_id_distances.l[Jaccard_index_binary.long,  on = c("haul_id1",  "haul_id2")]
               
               
               #delete if haul_id2 < haul_id1 (deletes comparisons between same site (0 inflated) and any duplicate comparisons)
@@ -285,7 +274,7 @@ for (i in 1:length(all_survey_units)) {
                   dissimilarities_full.r <- unique(dissimilarities_full[,.(dissimilarity_metric, annual_dissimilarity_value)])
 
               #add survey survey unit
-              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_15perc_excluded_subset[1, survey]]
+              dissimilarities_full.r[, "survey" := FishGlob_clean.singleseason_subset[1, survey]]
               dissimilarities_full.r[, "survey_unit" := all_survey_units[i]]
               #add year for these values
               dissimilarities_full.r[,  "year" := years[j]]
@@ -295,37 +284,37 @@ for (i in 1:length(all_survey_units)) {
    
               #remove full dataset
               rm(dissimilarities_full)
+              rm(Jaccard_index_binary, Jaccard_index_binary.m, Jaccard_index_binary.long, Jaccard_index_binary.l)
               
               #bind with full for this reg
-              distances_dissimilarities_onereg <- rbind(distances_dissimilarities_onereg, dissimilarities_full.r)
-    
-              print(paste0(j, "/", length(years))) #print year that we're on
+              jaccard_index_onereg <- rbind(jaccard_index_onereg, dissimilarities_full.r)
 
+              print(paste0(j, "/", length(years))) #print year that we're on
   
          } #closes year
   
   #save the output from this region
-  filename <- paste0(all_survey_units[i],"_dissimilarity.rds")
-  saveRDS(distances_dissimilarities_onereg, here::here("output","dissimilarities","by_region_15perc_excluded",filename))
-  rm(distances_dissimilarities_onereg) #attempt to save some memory here
+  filename <- paste0(all_survey_units[i],"_jaccard_index.rds")
+  saveRDS(jaccard_index_onereg, here::here("output","jaccard_index_VEGAN","by_region_15perc_excluded",filename))
+  rm(jaccard_index_onereg) #attempt to save some memory here
   
   print(paste0("We have cycled through ",  i, " of ", length(all_survey_units),  " surveys"))
   
   } #closes survey/region
 
-#merge all years into distances_dissimilarities_allyears_15perc_excluded
-files <- list.files(here::here("output","dissimilarities","by_region_15perc_excluded"))
+#merge all years into distances_dissimilarities_allyears
+files <- list.files(here::here("output","jaccard_index_VEGAN","by_region_15perc_excluded"))
 
 for(i in 1:length(files)){
-  regional_dissimilarity <- readRDS(here::here("output","dissimilarities","by_region_15perc_excluded",files[i]))
-  distances_dissimilarities_allyears_15perc_excluded <- rbind(distances_dissimilarities_allyears_15perc_excluded, regional_dissimilarity)
+  jaccard_index_byreg <- readRDS(here::here("output","jaccard_index_VEGAN","by_region_15perc_excluded",files[i]))
+  jaccard_index_allyears <- rbind(jaccard_index_allyears, jaccard_index_byreg)
 }
 
 
 #Be sure to check which one of these you actually want to un-hash!
 
-saveRDS(distances_dissimilarities_allyears_15perc_excluded,  here::here("output","dissimilarities", "distances_dissimilarities_allyears_15perc_excluded.rds"))
+saveRDS(jaccard_index_allyears,  here::here("output","jaccard_index_VEGAN", "jaccard_index_allyears_15perc_excluded.rds"))
 
-#distances_dissimilarities_allyears_15perc_excluded <- readRDS(here::here("output","dissimilarities", "distances_dissimilarities_allyears_15perc_excluded.rds"))
+#jaccard_index_allyears <- readRDS(here::here("output","jaccard_index_VEGAN", "jaccard_index_allyears_15perc_excluded.rds"))
 ```
- 
+

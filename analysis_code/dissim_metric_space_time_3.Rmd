@@ -9,6 +9,7 @@ Script 3 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
 ###UPDATE
 May 4 Transitioned to single season only for each region
 May 4 Added another analysis for regions with ONLY abundance or ONLY biomass
+Sep 11 ONLY USING JACCARD
 
 ```{r setup}
 library(data.table)

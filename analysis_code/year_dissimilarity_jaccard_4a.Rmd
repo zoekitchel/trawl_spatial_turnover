@@ -88,9 +88,9 @@ jaccard_abundance_relative_gam <- gam(annual_dissimilarity_value ~ year + s(surv
 
 ##Make linear mixed effect models (allow random dissimilarity vs time slope for survey unit)
 
-Bray
+
 *These all converged*
-```{r bray}
+```{r jaccard}
 #running with lme instead of lmer gave same results, but allowed for calculation of p-value
 
 #Jaccard total with lme
