@@ -1,7 +1,7 @@
 ---
 title: "Figure Visualization Homogenization, Differentiation, and Stability"
 output: html_notebook
-Date: May 29, 2024
+Date: September 12, 2024
 ---
 
 Figure 1 script part 1 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.

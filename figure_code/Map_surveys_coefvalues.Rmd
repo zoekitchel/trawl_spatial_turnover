@@ -1,11 +1,11 @@
 ---
 title: "Map of Surveys with Coefficient Values and Classifications"
 author: Zoe Kitchel
-date: October 19 2023
+date: September 12, 2024
 output: html_notebook
 ---
 
-Figure 1 script part 2 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
+Figure 1 script part 2 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
 
 Here, I plan to make a global map showing how each survey region is classified (homogenization, differentiation, no significant change.)
 Run visualization_homogenization_differentiation.Rmd first!
