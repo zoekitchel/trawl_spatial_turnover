@@ -22,6 +22,9 @@ library(MuMIn)
 library(cowplot)
 library(lme4)
 library(lubridate)
+
+#pull in function to calculate model estimates and standard errors
+source(here::here("analysis_code","extract_coefficients_function.R"))
 ```
 
 Load data
@@ -29,16 +32,18 @@ Load data
 #raw data
 FishGlob_clean.singleseason <- readRDS(here::here("data", "cleaned", "FishGlob_clean.singleseason.rds"))
 
-#model coefficients from year_dissimilarity_BC_total_models_4a.Rmd
-bray_curtis_total_coefs.r <- fread(here::here("output","bray_curtis_total_coefs.r.csv"))
-bray_curtis_total_coefs.r[,`Significant Trends`:= ifelse(differentiating == 1, "differentiating",ifelse(homogenizing == 1,"homogenizing","no trend"))]
-
+#model coefficients from year_dissimilarity_jaccard_4a.Rmd
 jaccard_total_coefs.r <- fread(here::here("output","jaccard_total_coefs.r.csv"))
 jaccard_total_coefs.r[,`Significant Trends`:= ifelse(differentiating == 1, "differentiating",ifelse(homogenizing == 1,"homogenizing","no trend"))]
 
+jaccard_abundance_total_coefs.r <- fread(here::here("output","jaccard_abundance_total_coefs.r.csv"))
+jaccard_abundance_total_coefs.r[,`Significant Trends`:= ifelse(differentiating == 1, "differentiating",ifelse(homogenizing == 1,"homogenizing","no trend"))]
+
+
 #NB: years sampled = last_year-first_year+1
 
-distances_dissimilarities_allyears <- readRDS(here::here("output","dissimilarities","distances_dissimilarities_allyears.rds"))
+#Dissimilarity values
+jaccard_index_allyears <- readRDS(here::here("output","jaccard_index_VEGAN","jaccard_index_allyears.rds"))
 
 ```
  
@@ -192,21 +197,13 @@ ggplot(data = FishGlob_richness_year_survey) +
 #simple lm
 richness_trend_lm <- lm(spp_count_annual ~ year*survey_unit, data = FishGlob_richness_year_survey)
 
-spp_richness_coefs <- data.table(summary(richness_trend_lm)$coefficients)
-  spp_richness_coefs[,var := rownames(summary(richness_trend_lm)$coefficients)]
+#Use linear algebra to calculate coefficients and standard errors
+spp_richness_coefs.r <- data.table(lm_interaction_coefficients_se(richness_trend_lm))
+
+#Add survey names
+spp_richness_coefs.r[,survey_unit := sort(unique(jaccard_index_allyears$survey_unit))]
   
-  #limit to interactions only (check this if there are any model changes!) row 2 and rows 44:84
-  spp_richness_coefs.r <- spp_richness_coefs[c(2,36:68),]
-  
-  #adjust survey unit name by deleting beginning of string
-  spp_richness_coefs.r[,survey_unit := substr(var, 17, str_length(var))][var == "year",survey_unit := "AI"]
-  
-  #calculate interaction coefficients
-  AI_estimate <- spp_richness_coefs.r[1,Estimate]
-  spp_richness_coefs.r[1,survey_unit_richness_coefficient := AI_estimate]
-  spp_richness_coefs.r[2:34,survey_unit_richness_coefficient := (AI_estimate + Estimate)]
-  
-  setnames(spp_richness_coefs.r, "Std. Error", "richness_coefficient_error")
+  colnames(spp_richness_coefs.r) <- c("term","survey_unit_richness_coefficient","richness_coefficient_error","t-value","p-value","survey_unit")
   
   spp_richness_coefs.r <- spp_richness_coefs.r[,.(survey_unit, survey_unit_richness_coefficient, richness_coefficient_error)]
 
@@ -223,9 +220,7 @@ trend_coefs_jaccard <- spp_richness_coefs.r[jaccard_total_coefs.r, on = c("surve
 
 trend_coefs_jaccard <- color_link[trend_coefs_jaccard, on = "survey_unit"]
 
-
-
-trends_beta_gamma_jaccard <- ggplot(data = trend_coefs_jaccard, aes(x = survey_unit_richness_coefficient, y = survey_unit_coefficient)) +
+trends_beta_gamma_jaccard <- ggplot(data = trend_coefs_jaccard, aes(x = survey_unit_richness_coefficient, y = estimate)) +
   geom_hline(yintercept = 0, color = "grey", linetype = "dashed") +
   geom_vline(xintercept = 0, color = "grey", linetype = "dashed") +
   geom_point() +
@@ -236,34 +231,34 @@ trends_beta_gamma_jaccard <- ggplot(data = trend_coefs_jaccard, aes(x = survey_u
 ggsave(trends_beta_gamma_jaccard, path = here::here("figures"), filename = "trends_beta_gamma_jaccard.jpg", height = 7, width = 7)
 
  #linear model?
-summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs_jaccard))
+summary(lm(estimate~survey_unit_richness_coefficient, data = trend_coefs_jaccard))
 
 #and when rockall removed
-summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs_jaccard[survey_unit != "ROCKALL",]))
+summary(lm(estimate~survey_unit_richness_coefficient, data = trend_coefs_jaccard[survey_unit != "ROCKALL",]))
 
-##BRAY
-trend_coefs_bray_curtis <- spp_richness_coefs.r[bray_curtis_total_coefs.r, on = c("survey_unit")]
+##JACCARD ABUNDANCE
+trend_coefs_jaccard_abundance <- spp_richness_coefs.r[jaccard_abundance_total_coefs.r, on = c("survey_unit")]
 
-trend_coefs_bray_curtis <- color_link[trend_coefs_bray_curtis, on = "survey_unit"]
+trend_coefs_jaccard_abundance <- color_link[trend_coefs_jaccard_abundance, on = "survey_unit"]
 
-trends_beta_gamma_bray_curtis <- ggplot(data = trend_coefs_bray_curtis, aes(x = survey_unit_richness_coefficient, y = survey_unit_coefficient)) +
+trends_beta_gamma_jaccard_abundance <- ggplot(data = trend_coefs_jaccard_abundance, aes(x = survey_unit_richness_coefficient, y = estimate)) +
   geom_hline(yintercept = 0, color = "grey", linetype = "dashed") +
   geom_vline(xintercept = 0, color = "grey", linetype = "dashed") +
   geom_point() +
   geom_text_repel(aes(label = Survey_Name_Season), size = 2.5) + # Use geom_text_repel
-  labs(x = "Trend in γ-diversity", y = "Trend in β-diversity\n(Bray-Curtis dissimilarity)") +
+  labs(x = "Trend in γ-diversity", y = "Trend in β-diversity\n(Abundance-based Jaccard dissimilarity)") +
   theme_classic()
 
-ggsave(trends_beta_gamma_bray_curtis, path = here::here("figures"), filename = "trends_beta_gamma_bray_curtis.jpg", height = 7, width = 7)
+ggsave(trends_beta_gamma_jaccard_abundance, path = here::here("figures"), filename = "trends_beta_gamma_jaccard_abundance.jpg", height = 7, width = 7)
 
  #linear model?
-summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs_bray_curtis))
+summary(lm(estimate~survey_unit_richness_coefficient, data = trend_coefs_jaccard_abundance))
 
 #and when rockall removed
-summary(lm(survey_unit_coefficient~survey_unit_richness_coefficient, data = trend_coefs_bray_curtis[survey_unit != "ROCKALL",]))
+summary(lm(estimate~survey_unit_richness_coefficient, data = trend_coefs_jaccard_abundance[survey_unit != "ROCKALL",]))
 
-#Merge jaccard and Bray plots
-trends_beta_gamma <- cowplot::plot_grid(trends_beta_gamma_jaccard, trends_beta_gamma_bray_curtis, ncol = 1, labels = c("a.","b."))
+#Merge jaccard and jaccard abundance plots
+trends_beta_gamma <- cowplot::plot_grid(trends_beta_gamma_jaccard, trends_beta_gamma_jaccard_abundance, ncol = 1, labels = c("a.","b."))
 
 ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_gamma.jpg", height = 10, width = 6.5)
 ```
@@ -271,15 +266,15 @@ ggsave(trends_beta_gamma, path = here::here("figures"), filename = "trends_beta_
 Beta vs. gamma raw
 ```{r}
 #link names and colors
-distances_dissimilarities_allyears <- color_link[distances_dissimilarities_allyears, on = "survey_unit"]
+jaccard_index_allyears <- color_link[jaccard_index_allyears, on = "survey_unit"]
 
-distances_dissimilarities_allyears <- FishGlob_richness_year_survey[distances_dissimilarities_allyears, on = c("year","survey_unit")]
+jaccard_index_allyears <- FishGlob_richness_year_survey[jaccard_index_allyears, on = c("year","survey_unit")]
 
 setkey(color_link, survey_unit)
 
-setkey(distances_dissimilarities_allyears,  survey_unit)
+setkey(jaccard_index_allyears,  survey_unit)
 #jaccard
-beta_gamma_raw_plot_jaccard <- ggplot(data = distances_dissimilarities_allyears[dissimilarity_metric=="jaccard_dissimilarity_total"], aes(x = spp_count_annual, y = annual_dissimilarity_value)) +
+beta_gamma_raw_plot_jaccard <- ggplot(data = jaccard_index_allyears[dissimilarity_metric=="jaccard_dissimilarity_index_binary"], aes(x = spp_count_annual, y = annual_dissimilarity_value)) +
   geom_point(aes(color = survey_unit), alpha = 0.4) +
   labs(x = "γ-diversity", y = "β-diversity\n(Jaccard dissimilarity)") +
   scale_color_manual(values = color_link$hex, labels = color_link$Survey_Name_Season) +
@@ -289,23 +284,23 @@ beta_gamma_raw_plot_jaccard <- ggplot(data = distances_dissimilarities_allyears[
 
 ggsave(beta_gamma_raw_plot_jaccard, path = here::here("figures"), filename = "beta_gamma_raw_plot_jaccard.jpg", width = 7, unit = "in", height = 7)
 
-#bray_curtis
+#Abundance based Jaccard
 #jaccard
-beta_gamma_raw_plot_bray_curtis <- ggplot(data = distances_dissimilarities_allyears[dissimilarity_metric=="bray_curtis_dissimilarity_total_abundance"], aes(x = spp_count_annual, y = annual_dissimilarity_value)) +
+beta_gamma_raw_plot_jaccard_abundance <- ggplot(data = jaccard_index_allyears[dissimilarity_metric=="jaccard_dissimilarity_index_abundance"], aes(x = spp_count_annual, y = annual_dissimilarity_value)) +
   geom_point(aes(color = survey_unit), alpha = 0.4) +
-  labs(x = "γ-diversity", y = "β-diversity\n(Bray-Curtis dissimilarity)") +
+  labs(x = "γ-diversity", y = "β-diversity\n(Abundance-based Jaccard dissimilarity)") +
   scale_color_manual(values = color_link$hex, labels = color_link$Survey_Name_Season) +
   guides(color = guide_legend(override.aes = list(size=3))) +
   theme_classic() +
   theme(legend.position = "bottom", legend.text = element_text(size = 6),  legend.title = element_blank())
 
-ggsave(beta_gamma_raw_plot_bray_curtis, path = here::here("figures"), filename = "beta_gamma_raw_plot_bray_curtis.jpg", width = 7, unit = "in", height = 7)
+ggsave(beta_gamma_raw_plot_jaccard_abundance, path = here::here("figures"), filename = "beta_gamma_raw_plot_jaccard_abundance.jpg", width = 7, unit = "in", height = 7)
 
 #Pull out legend
 legend <- get_legend(beta_gamma_raw_plot_jaccard)
 
-#Merge jaccard and Bray plots
-beta_gamma_raw_plot <- cowplot::plot_grid(beta_gamma_raw_plot_jaccard + theme(legend.position = "null"), beta_gamma_raw_plot_bray_curtis + theme(legend.position = "null"), ncol = 1, labels = c("a.","b."), align = "v")
+#Merge jaccard and jaccard abundance plots
+beta_gamma_raw_plot <- cowplot::plot_grid(beta_gamma_raw_plot_jaccard + theme(legend.position = "null"), beta_gamma_raw_plot_jaccard_abundance + theme(legend.position = "null"), ncol = 1, labels = c("a.","b."), align = "v")
 
 #add legend on top
 beta_gamma_raw_plot_wlegend <- cowplot::plot_grid(beta_gamma_raw_plot, legend, ncol = 1, rel_heights = c(5,1))
@@ -343,12 +338,12 @@ SAU_summed_tonnes.r <- readRDS(here::here("data","sea_around_us","SAU_summed_ton
 Merge with temp and fishing values
 ```{r}
 #temp
-distances_dissimilarities_allyears.temp <- SODA_data_temp_avgs_full[distances_dissimilarities_allyears, on = c("year","survey_unit")]
-distances_dissimilarities_allyears.SST.temp <- OISST_data_temp_avgs_full[distances_dissimilarities_allyears, on = c("year","survey_unit")]
+jaccard_index_allyears.temp <- SODA_data_temp_avgs_full[jaccard_index_allyears, on = c("year","survey_unit")]
+jaccard_index_allyears.SST.temp <- OISST_data_temp_avgs_full[jaccard_index_allyears, on = c("year","survey_unit")]
 
 #fishing
-dissimilarities_temp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.temp, on = c("year", "survey_unit")]
-dissimilarities_SSTtemp_fishing <- SAU_summed_tonnes.r[distances_dissimilarities_allyears.SST.temp, on = c("year", "survey_unit")]
+dissimilarities_temp_fishing <- SAU_summed_tonnes.r[jaccard_index_allyears.temp, on = c("year", "survey_unit")]
+dissimilarities_SSTtemp_fishing <- SAU_summed_tonnes.r[jaccard_index_allyears.SST.temp, on = c("year", "survey_unit")]
 
 ```
 
@@ -384,17 +379,17 @@ setorder(dissimilarities_temp_fishing, survey_unit)
 
 dissimilarities_temp_fishing[, Survey_Name_Season := factor(Survey_Name_Season, levels=unique(dissimilarities_temp_fishing$Survey_Name_Season), ordered=TRUE)]
 
-Fishglob_gamma_beta_1_20 <- ggplot(dissimilarities_temp_fishing[survey_unit %in% all_survey_units[1:20] & dissimilarity_metric %in% c("jaccard_dissimilarity_total","bray_curtis_dissimilarity_total_abundance")]) +
+Fishglob_gamma_beta_1_20 <- ggplot(dissimilarities_temp_fishing[survey_unit %in% all_survey_units[1:20] & dissimilarity_metric %in% c("jaccard_dissimilarity_index_binary","jaccard_dissimilarity_index_abundance")]) +
   geom_point(aes(x = spp_count_annual, y = annual_dissimilarity_value, color = dissimilarity_metric), size = 1) +
-  scale_color_manual(values = c("slateblue","orange"), labels = c("Jaccard","Bray-Curtis")) +
+  scale_color_manual(values = c("slateblue","orange"), labels = c("Jaccard","Abundance-based Jaccard")) +
   facet_wrap(~Survey_Name_Season, scales = "free") +
   labs(y = "β-diversity", x = "γ-diversity", color = "β-diversity metric") +
   theme_classic() +
   theme(legend.position = "top", legend.direction = "horizontal")
 
-Fishglob_gamma_beta_21_34 <- ggplot(dissimilarities_temp_fishing[survey_unit %in% all_survey_units[21:34] & dissimilarity_metric %in% c("jaccard_dissimilarity_total","bray_curtis_dissimilarity_total_abundance")]) +
+Fishglob_gamma_beta_21_34 <- ggplot(dissimilarities_temp_fishing[survey_unit %in% all_survey_units[21:34] & dissimilarity_metric %in% c("jaccard_dissimilarity_index_binary","jaccard_dissimilarity_index_abundance")]) +
   geom_point(aes(x = spp_count_annual, y = annual_dissimilarity_value, color = dissimilarity_metric), size = 1) +
-  scale_color_manual(values = c("slateblue","orange"), labels = c("Jaccard","Bray-Curtis")) +
+  scale_color_manual(values = c("slateblue","orange"), labels = c("Jaccard","Abundance-based Jaccard")) +
   facet_wrap(~Survey_Name_Season, scales = "free") +
   labs(y = "β-diversity", x = "γ-diversity", color = "β-diversity metric") +
   theme_classic() +
@@ -420,7 +415,7 @@ Calculate stats of all regions
 #survey_unit
 region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_haul_id_count_annual := as.numeric()][,mean_haul_density := as.numeric()][,SD_haul_density := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mean_annual_cpue := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,jaccard_coef := as.numeric()][,jaccard_coef_upr := as.numeric()][,jaccard_coef_lwr := as.numeric()][,Trend_jaccard := as.character()][,bray_coef := as.numeric()][,bray_coef_upr := as.numeric()][,bray_coef_lwr := as.numeric()][,Trend_bray := as.character()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_haul_id_count_annual := as.numeric()][,mean_haul_density := as.numeric()][,SD_haul_density := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mean_annual_cpue := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,jaccard_coef := as.numeric()][,jaccard_coef_upr := as.numeric()][,jaccard_coef_lwr := as.numeric()][,Trend_jaccard := as.character()][,jaccard_abun_coef := as.numeric()][,jaccard_abun_coef_upr := as.numeric()][,jaccard_abun_coef_lwr := as.numeric()][,Trend_jaccard_abun := as.character()]
 
   region_stats[,V1:=NULL]
 
@@ -467,21 +462,21 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"mid_depth"] <- my_mean(reduced_FishGlob_clean.singleseasoned.10year$depth)
                   region_stats[i,"mean_temp"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_temp_allyears]
                   region_stats[i,"mean_landings"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_fishing_allyears]
-                  region_stats[i,"jaccard_coef"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],survey_unit_coefficient]
+                  region_stats[i,"jaccard_coef"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],estimate]
                   region_stats[i,"jaccard_coef_lwr"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],lwr]
                   region_stats[i,"jaccard_coef_upr"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],upr]
                   region_stats[i,"Trend_jaccard"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],`Significant Trends`]
                   
                   if(all_survey_units[i] %in% abun_subset){
-                  region_stats[i,"bray_coef"] <- trend_coefs_bray_curtis[survey_unit == all_survey_units[i],survey_unit_coefficient]
-                  region_stats[i,"bray_coef_lwr"] <- trend_coefs_bray_curtis[survey_unit == all_survey_units[i],lwr]
-                  region_stats[i,"bray_coef_upr"] <- trend_coefs_bray_curtis[survey_unit == all_survey_units[i],upr]
-                  region_stats[i,"Trend_bray"] <- trend_coefs_bray_curtis[survey_unit == all_survey_units[i],`Significant Trends`]
+                  region_stats[i,"jaccard_abun_coef"] <- trend_coefs_jaccard_abundance[survey_unit == all_survey_units[i],estimate]
+                  region_stats[i,"jaccard_abun_coef_lwr"] <- trend_coefs_jaccard_abundance[survey_unit == all_survey_units[i],lwr]
+                  region_stats[i,"jaccard_abun_coef_upr"] <- trend_coefs_jaccard_abundance[survey_unit == all_survey_units[i],upr]
+                  region_stats[i,"Trend_jaccard_abun"] <- trend_coefs_jaccard_abundance[survey_unit == all_survey_units[i],`Significant Trends`]
                   }else{
-                    region_stats[i,"bray_coef"] <- NA
-                  region_stats[i,"bray_coef_lwr"] <- NA
-                  region_stats[i,"bray_coef_upr"] <- NA
-                  region_stats[i,"Trend_bray"] <- NA
+                    region_stats[i,"jaccard_abun_coef"] <- NA
+                  region_stats[i,"jaccard_abun_coef_lwr"] <- NA
+                  region_stats[i,"jaccard_abun_coef_upr"] <- NA
+                  region_stats[i,"Trend_jaccard_abun"] <- NA
                     
                   }
                   
@@ -696,23 +691,19 @@ A:  The alternative is that this proportion is different in at
 
 For Jaccard:
    Differentiation was more common in the southern hemisphere (four out of eight surveys), while homogenization was more common in the northern hemisphere (eight out of 29 surveys).
-
+START HERE
 ```{r prop test}
 
 #JACCARD
 
                 #N, S
-homogenizers <- c(9,0)
-differentiators <- c(8,3)
+homogenizers <- c(10,0)
+differentiators <- c(9,3)
 total_surveys <- c(25,9)
 
 
-prop.test(homogenizers,total_surveys) #p value >> 0.09, so groups are not different
+prop.test(homogenizers,total_surveys) #p value = 0.06, so groups are not different
 prop.test(differentiators,total_surveys) #p value =1, so groups are not different
-
-#Bray Curtis
-#Can't do, all of southern hemisphere is missing abundance data
-
 
 ```
 
@@ -727,7 +718,7 @@ julian_vs_coef <- ggplot() +
         geom_point(data = region_stats, aes(x = avg_julian , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, linewidth = 0.5) +
-  #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
+  geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = T, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average Julian day of survey") +
   theme_classic() +
@@ -738,8 +729,8 @@ julian_vs_coef
 ggsave(julian_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "julian_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
-summary(lm(abs(jaccard_coef)~avg_julian, data = region_stats)) #significant
-summary(lm(jaccard_coef~avg_julian, data = region_stats)) #not significant
+summary(lm(abs(jaccard_coef)~avg_julian, data = region_stats)) #not significant
+summary(lm(jaccard_coef~avg_julian, data = region_stats)) #significant (lower dissimilarity later in the year)
 
 
 ```
@@ -766,7 +757,7 @@ season_julian_coef <- plot_grid(julian_vs_coef, season_vs_coef + theme(axis.titl
 ggsave(season_julian_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "season_julian_coef.jpg", height =4, width = 7, unit = "in")
 
 #linear model
-summary(lm(abs(jaccard_coef)~season, data = region_stats)) #significant
+summary(lm(abs(jaccard_coef)~season, data = region_stats)) #Spring significantly higher than summer & winter
 summary(lm(jaccard_coef~season, data = region_stats)) #not significant
 
 
@@ -776,10 +767,10 @@ summary(lm(jaccard_coef~season, data = region_stats)) #not significant
 
 
 #table with first year of sampling and survey
-distances_dissimilarities_allyears[,first_year := min(year),.(survey_unit)]
+jaccard_index_allyears[,first_year := min(year),.(survey_unit)]
 
 #simplified data frame
-first_year_by_survey <- unique(distances_dissimilarities_allyears[,.(first_year, survey_unit)])
+first_year_by_survey <- unique(jaccard_index_allyears[,.(first_year, survey_unit)])
 
 #merge
 region_stats <- first_year_by_survey[region_stats,on = "survey_unit"]
@@ -910,7 +901,7 @@ mid_lat_vs_coef <- ggplot() +
         geom_point(data = region_stats, aes(x = mid_lat , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
-  geom_smooth(data = region_stats, aes(x = mid_lat, y = jaccard_coef), method = "lm", color = "black", se = T, size = 0.5,  linetype = "dashed") +
+ # geom_smooth(data = region_stats, aes(x = mid_lat, y = jaccard_coef), method = "lm", color = "black", se = T, size = 0.5,  linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab(paste0("Latitude (\u00B0N)")) + #middle latitude
   theme_classic()
@@ -923,7 +914,7 @@ ggsave(mid_lat_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_char
 
 #linear model
 summary(lm(abs(jaccard_coef)~mid_lat, data = region_stats)) #not significant
-summary(lm(jaccard_coef~mid_lat, data = region_stats)) #nearly significant
+summary(lm(jaccard_coef~mid_lat, data = region_stats)) #nearly significant (0.07)
 
       
 ```
@@ -1074,7 +1065,7 @@ ggsave(mean_landings_vs_coef, path = here::here("figures","jaccard_coef_vs_surve
 
 #linear model
 summary(lm(abs(jaccard_coef)~mean_landings, data = region_stats[survey_unit != "ROCKALL"])) #not significant
-summary(lm(jaccard_coef~mean_landings, data = region_stats[survey_unit != "ROCKALL"])) #not significant
+summary(lm(jaccard_coef~mean_landings, data = region_stats[survey_unit != "ROCKALL"])) #nearly significant (0.07)
 ```
 
 #Avg number of tows per year
