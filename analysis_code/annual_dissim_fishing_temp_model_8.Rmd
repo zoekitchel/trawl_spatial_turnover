@@ -95,7 +95,7 @@ dissimilarities_temp_fishing_area.jaccard[,Survey_Name_Season:=factor(Survey_Nam
   theme(axis.text.x = element_text(size = 7)) +
   facet_wrap(~Survey_Name_Season, scales= "free", ncol = 4))
 
-ggsave(sbt_time_survey_facet_1_20, path = here::here("figures"), filename = "temp_time_survey_facet_1_20.jpg", height = 12, width =9)
+ggsave(sbt_time_survey_facet_1_20, path = here::here("figures"), filename = "sbt_time_survey_facet_1_20.jpg", height = 12, width =9)
 
 (sbt_time_survey_facet_21_34 <- ggplot(data = dissimilarities_temp_fishing_area.jaccard[survey_unit %in% all_surveys[21:34] & year > 1979]) +
   labs(y = "Mean bottom temperature (˚C)",  x = "Year") +
@@ -1020,7 +1020,7 @@ model_avg_values
 model_avg_values
 
 #extract coefficients using linear algebra
-interaction_avg_model_coef <- data.table(lm_interaction_coefficients_se(mod_name = model_avg_delta4, model_avg = T, temp_fish = T))
+interaction_avg_model_coef <- data.table(lm_interaction_coefficients_se(mod_name = model_avg_delta4, model_avg = T, SBT_fish = T))
 
 #add survey names
 interaction_avg_model_coef[,survey_unit := factor(c(all_surveys[!all_surveys %in% c("ROCKALL", "GSL-S")],all_surveys[!all_surveys %in% c("ROCKALL", "GSL-S")]))]
