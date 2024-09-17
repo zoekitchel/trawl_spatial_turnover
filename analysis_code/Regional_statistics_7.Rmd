@@ -2,7 +2,7 @@
 title: "Regional statistics and trends in dissimilarity by region"
 output: html_notebook
 author: Zoë J. Kitchel
-date: May 29, 2024
+date: September 16, 2024
 ---
 
 Script 7 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
@@ -11,7 +11,6 @@ Script 7 for Kitchel et al. 2024 in prep taxonomic diversity manuscript.
 library(data.table)
 library(ggplot2)
 library(sf)
-#library(rgeos)
 library(concaveman)
 library(raster)
 library(stringr)
@@ -645,11 +644,15 @@ dates_regions[, season := mapply(function(date, survey_unit) {
 #save
 saveRDS(dates_regions, here::here("output","dates_regions.rds"))
 
-#reduce to survey and avg julian
-julian_region <- unique(dates_regions[,.(survey_unit, avg_julian, season)])
+#Identify primary season per survey
+seasons_regions <- dates_regions[ , .(season_freq = .N), 
+  by = .(survey_unit, season, avg_julian)
+  ][, season_rank := frank(-season_freq, ties.method = 'min'), 
+    keyby = survey_unit
+    ][season_rank ==1,][,.(survey_unit,season, avg_julian)]
 
-#merge with region stats and coefficeitns in that data table
-region_stats <- julian_region[region_stats, on = "survey_unit"]
+#merge with region stats and coefficients in that data table
+region_stats <- seasons_regions[region_stats, on = "survey_unit"]
 ```
 
 
@@ -659,11 +662,11 @@ region_stats.format <- copy(region_stats)
 
 region_stats.format <- region_stats[color_link, on = "survey_unit", nomatch = F]
 
-region_stats.format[,`Mean annual CPUE (num in 1000s/km^2)`:=round(mean_annual_cpue/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Mean annual tow density (tows/km^2)` := signif(mean_haul_density,2)][,`SD annual tow density (tows/km^2)` := signif(SD_haul_density,2)][,`Latitude range (˚)`:= round(lat_range,0)][,`Longitude range (˚)`:=round(lon_range,0)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,0)][,`Depth range (m)`:= round(depth_range,0)][,`Mid-latitude (˚N)`:= round(mid_lat,0)][,`Mean bottom temperature (˚C)`:= round(mean_temp,1)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year][,`Mean Julian day`:= round(avg_julian,0)]
+region_stats.format[,`Mean annual CPUE (num in 1000s/km^2)`:=round(mean_annual_cpue/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Mean annual tow density (tows/km^2)` := signif(mean_haul_density,2)][,`SD annual tow density (tows/km^2)` := signif(SD_haul_density,2)][,`Latitude range (˚)`:= round(lat_range,0)][,`Longitude range (˚)`:=round(lon_range,0)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,0)][,`Depth range (m)`:= round(depth_range,0)][,`Mid-latitude (˚N)`:= round(mid_lat,0)][,`Mean bottom temperature (˚C)`:= round(mean_temp,1)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year][,`Mean Julian day`:= round(avg_julian,0)][,`Primary season`:= season]
 
 setorder(region_stats.format, survey_unit)
 
-region_stats.format <- region_stats.format[,.(Survey_Name_Season, `First year`,`Last year`,`Mean Julian day`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`,`Number of species across all years`,`Mean annual CPUE (num in 1000s/km^2)`,`Mean annual tow count`,`Mean annual tow density (tows/km^2)`,`SD annual tow density (tows/km^2)`, `Mean annual fisheries landings (1000s of tonnes)`)]
+region_stats.format <- region_stats.format[,.(Survey_Name_Season, `First year`,`Last year`,`Mean Julian day`,`Primary season`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`,`Number of species across all years`,`Mean annual CPUE (num in 1000s/km^2)`,`Mean annual tow count`,`Mean annual tow density (tows/km^2)`,`SD annual tow density (tows/km^2)`, `Mean annual fisheries landings (1000s of tonnes)`)]
 
 
 View(region_stats.format)
@@ -718,7 +721,7 @@ julian_vs_coef <- ggplot() +
         geom_point(data = region_stats, aes(x = avg_julian , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, linewidth = 0.5) +
-  geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = T, size = 0.5, linetype = "dashed") +
+  geom_smooth(data = region_stats, aes(x = avg_julian, y = jaccard_coef), method = "lm", color = "black", se = T, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Average Julian day of survey") +
   theme_classic() +
@@ -735,13 +738,17 @@ summary(lm(jaccard_coef~avg_julian, data = region_stats)) #significant (lower di
 
 ```
 ####Season of survey and trend
-```{r median day of survey}
+```{r primary season of survey}
+
+#reorder season factor
+region_stats[,season := factor(season, levels = c("Winter","Spring","Summer","Fall"))]
 
 season_vs_coef <- ggplot() +
    # geom_errorbar(data = region_stats, aes(x = season, y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
         geom_boxplot(data = region_stats, aes(x = season , y = jaccard_coef)) +
-    scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "β-diversity trend") +
   geom_hline(yintercept = 0, linewidth = 0.5) +
+  scale_x_discrete(labels = c(paste0("Winter\nn = ",nrow(region_stats[season == "Winter"])),paste0("Spring\nn = ",nrow(region_stats[season == "Spring"])),
+    paste0("Summer\nn = ",nrow(region_stats[season == "Summer"])),paste0("Fall\nn = ",nrow(region_stats[season == "Fall"])))) +
   #geom_smooth(data = region_stats, aes(x = spp_num, y = jaccard_coef), method = "lm", color = "black", se = F, size = 0.5, linetype = "dashed") +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
   xlab("Primary season of survey") +

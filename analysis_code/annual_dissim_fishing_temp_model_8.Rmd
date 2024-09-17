@@ -591,7 +591,8 @@ model_avg.wide[,Rank := "Model avg"]
 best_model_sbt_jaccard_table_formatted <- rbind(model_coef_se_AIC, model_avg.wide, fill = T)
 
 #get rid of interaction coefficients
-best_model_sbt_jaccard_table_formatted.r <- best_model_sbt_jaccard_table_formatted[,.(Rank,`(Intercept)`,area_km.scaledacrossall,
+best_model_sbt_jaccard_table_formatted.r <- best_model_sbt_jaccard_table_formatted[,.(Rank,`(Intercept)`,
+                                                                                      area_km.scaledacrossall,
                                 depth_annual_avg.scaledacrossall,
                                 depth_annual_range.scaledacrossall,
                                 haul_id_count_annual.scaledacrossall,

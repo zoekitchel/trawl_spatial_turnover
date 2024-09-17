@@ -231,9 +231,7 @@ lm_interaction_coefficients_se <- function(mod_name, model_avg = F, SST_fish = F
                        se = se_estimates,
                        t_value = t_scores,
                        p_value = p_values)
-  }
-  
-  if(model_avg == T){
+  }else{
     output <- data.frame(term = term,
                          estimate = estimates,
                          se = se_estimates,
