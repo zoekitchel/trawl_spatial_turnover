@@ -121,17 +121,17 @@ Also, build a simple linear model with an interaction (instead of random slope a
 **THIS IS HOW WE CLASSIFY SURVEYS as of fall 2023 (update from before, where we classified surveys from LMER)**
 (Especially good because lmer didn't converge)
 
-```{r linear model with interaction based on Jaccard dissimilarity}
+```{r linear mixed effect model with interaction based on Jaccard dissimilarity}
 
-jaccard_total_lm <- lm(annual_dissimilarity_value ~ year * survey_unit,data = jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary"])
+jaccard_total_lme_survey <- lme(annual_dissimilarity_value ~ year:survey_unit + year, random =  ~ 1 | survey_unit,data = jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary"])
 
 #alternative, what if we use GLS (allows us to include temporal autocorrelation term)
-jaccard_total_gls <- gls(annual_dissimilarity_value ~ year * survey_unit,correlation = corAR1(form=~year | survey_unit),data = jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary"])
+jaccard_total_lme_surveyyear <- update(jaccard_total_lme_survey, correlation = corAR1(form = ~year))
 
 #compare these two models
-AICc(jaccard_total_lm, jaccard_total_gls)
+AICc(jaccard_total_lme_survey, jaccard_total_lme_surveyyear)
 
-AICc(jaccard_total_gls)-AICc(jaccard_total_lm) #615.1913
+AICc(jaccard_total_lme_survey)-AICc(jaccard_total_lme_surveyyear) #99
 
 #Use linear algebra to calculate coefficients and standard errors
 jaccard_total_coefs.r <- data.table(lm_interaction_coefficients_se(jaccard_total_lm))
