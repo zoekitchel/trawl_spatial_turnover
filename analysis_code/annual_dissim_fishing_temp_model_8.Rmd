@@ -514,11 +514,11 @@ fwrite(global_mod_sbt_table, here::here("output","global_mod_sbt_table.csv"))
 
 ```
 
-Best performing global model includes minimum temperature (centered and scaled) (Still the case as of October 4, 2024)
+Best performing global model includes mean temperature (centered and scaled) and no random effect for year (Still the case as of October 11, 2024)
 
-Now, look at different combinations of all predictors (min temp) using dredge
+Now, look at different combinations of all predictors (mean temp) using dredge
 
-Global model: global_mod_min_temp
+Global model: global_mod_mean_temp
 
 ```{r}
 options(na.action = "na.fail") #  prevent fitting sub-models to different datasets
@@ -526,7 +526,7 @@ dd <- dredge(global_mod_mean_temp_lmer_survey)
 dd.dt <- data.table(dd)
 View(dd)
 
-#only models less than 4 delta AICc (2 models)
+#only models less than 2 delta AICc (2 models)
 dd.dt.2 <- dd.dt[delta <= 2,]
 
 colnames(dd.dt.2)
@@ -604,18 +604,13 @@ best_model_sbt_jaccard_table_formatted <- rbind(model_coef_se_AIC, model_avg.wid
 best_model_sbt_jaccard_table_formatted.r <- best_model_sbt_jaccard_table_formatted[,.(Rank,`(Intercept)`,
                                                                                       area_km.scaledacrossall,
                                 depth_annual_avg.scaledacrossall,
-                                depth_annual_range.scaledacrossall,
-                                haul_id_count_annual.scaledacrossall,
-                                latitude_annual_avg.scaledacrossall,
                                 latitude_annual_range.scaledacrossall,
                                 spp_count_annual.scaledacrossall,
-                                summed_tonnes_scaled_byreg,
                                 season,
-                                yearly_min_bypoint_avg.scaledacrossall,
                                 `summed_tonnes_scaled_byreg:survey_unit`,
-                                `survey_unit:yearly_min_bypoint_avg.scaledacrossall`,
-                                `R squared conditional`,
+                                `survey_unit:yearly_mean_bypoint_avg.scaledacrossall`,
                                 `R squared marginal`,
+                                `R squared conditional`,
                                 delta,
                                 weight
                                 )]
@@ -634,18 +629,13 @@ colnames(best_model_sbt_jaccard_table_formatted.r) <- c(
 "Intercept",                                     
 "Area",       #scaled across all                    
 "Average depth",                  
-"Depth range",                
-"Number of tows",     
-"Average latitude",               
-"Latitude range",             
-"Species count",                  
-"Relative catch", #scaled within region    
-"Season",
-"Survey",                                       
-"Average minimum temperature",            
-"Survey * relative catch",            
-"Survey * avg min temperature",
-"R squared",
+"Latitude range",                
+"Species count",     
+"Season",               
+"Survey * relative catch",  
+"Survey * avg mean temperature",
+"R squared marginal",
+"R squared conditional",
 paste0("\u0394"," AICc"),                                             
 paste0("\u03C9"))
 
