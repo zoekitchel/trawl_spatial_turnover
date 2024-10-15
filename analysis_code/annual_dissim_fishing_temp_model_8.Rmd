@@ -30,7 +30,7 @@ Pull in
 - temp (if not already loaded)
 
 
-
+Add survey area to dissimilarities data table
 ```{r}
 #physical area by year
 region_area_byyear <- fread(here::here("output","region_area_byyear.csv"))
@@ -41,11 +41,11 @@ dissimilarities_temp_fishing <- fread(here::here("output","dissimilarities_temp_
 #combine
 dissimilarities_temp_fishing_area <- dissimilarities_temp_fishing[region_area_byyear, on = c("survey_unit","year")]
 
-#only jaccard for these analyses
+#only occurrence-based jaccard for these analyses
 dissimilarities_temp_fishing_area.jaccard <- dissimilarities_temp_fishing_area[dissimilarity_metric == "jaccard_dissimilarity_index_binary",]
 ```
 
-Add in season
+Add in season/Julian day to dissimilarities data table
 ```{r}
 #load up julian days
 dates_regions <- readRDS(here::here("output","dates_regions.rds"))
@@ -71,7 +71,7 @@ Pull in palette and name helper
 source(here::here("analysis_code","color_links.R"))
 ```
 
-Pull in observed trend values
+Pull in observed dissimilarity trend values
 ```{r}
 jaccard_total_coefs.r <- fread(here::here("output","jaccard_total_coefs.r.csv"))
 ```
@@ -284,7 +284,7 @@ ggplot(data = result) +
 
 ```
 
-Dissimilarity by season of sampling
+Plot dissimilarity by season of sampling
 ```{r}
 dissimilarities_temp_fishing_area.jaccard[,season := factor(season, levels = c("Spring","Summer","Fall","Winter"))]
 
@@ -296,6 +296,8 @@ ggplot(dissimilarities_temp_fishing_area.jaccard) +
 
 
 ###Set up dredge to identify best performing models
+
+First, make data table of model covariates
 ```{r}
 
 options(na.action = "na.fail")
@@ -322,39 +324,26 @@ dissimilarity_covariates_dredge.dt <- color_link[dissimilarity_covariates_dredge
   #No clear SAU match for Rockall Plateau
 dissimilarity_covariates_dredge.dt <- dissimilarity_covariates_dredge.dt[complete.cases(dissimilarity_covariates_dredge.dt)]
 
-
+#Scale and center variables that are not yet scaled and centered
 dissimilarity_covariates_dredge.dt[, yearly_mean_bypoint_avg.scaledacrossall := scale(yearly_mean_bypoint_avg)][, yearly_mean_bypoint_SD.scaledacrossall := scale(yearly_mean_bypoint_SD)][, yearly_min_bypoint_avg.scaledacrossall := scale(yearly_min_bypoint_avg)][, yearly_max_bypoint_avg.scaledacrossall := scale(yearly_max_bypoint_avg)][, yearly_seas_bypoint_avg.scaledacrossall := scale(yearly_seas_bypoint_avg)][,haul_id_count_annual.scaledacrossall := scale(haul_id_count_annual)][,spp_count_annual.scaledacrossall := scale(spp_count_annual)][,depth_annual_avg.scaledacrossall := scale(depth_annual_avg)][,depth_annual_range.scaledacrossall := scale(depth_annual_range)] [,latitude_annual_avg.scaledacrossall := scale(latitude_annual_avg)][,latitude_annual_range.scaledacrossall := scale(latitude_annual_range)][,area_km.scaledacrossall := scale(area_km)]
 
 
 ```
 
-###Full model
-~ temp + survey_unit + fishing + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls + season + AR for year
+####Global model contenders
+~ temp * survey_unit + fishing * survey_unit + area + latitude range + latitude average + depth range + depth average + spp count + # of hauls + season + AR for year (optional, will see if this performs better or worse with AR1)
 
-For temperature, we will look at:
+For temperature, we will compare performance of:
 -mean (scaled across all regions)
 -max  (scaled across all regions)
 -min (scaled across all regions)
 -seas  (scaled across all regions)
--SD
+-SD (scaled across all regions)
 
 Comparing temp variables AND the presence/absence of a temporal autocorrelation term
 ```{r fit global mod}
 
-global_mod_mean_temp_gls <- gls(annual_dissimilarity_value ~ 
-                             survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
-                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
-                             area_km.scaledacrossall + #area
-                             latitude_annual_range.scaledacrossall + #latitude range
-                             latitude_annual_avg.scaledacrossall + #latitude avg
-                             depth_annual_range.scaledacrossall + #depth range
-                             depth_annual_avg.scaledacrossall + #depth avg
-                             spp_count_annual.scaledacrossall + #spp #
-                             haul_id_count_annual.scaledacrossall +
-                            season,
-                           correlation = corAR1(form=~year | survey_unit),
-                             data = dissimilarity_covariates_dredge.dt)
-
+#mean temperature
 global_mod_mean_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -368,6 +357,21 @@ global_mod_mean_temp_lm <- lm(annual_dissimilarity_value ~
                              season,
                              data = dissimilarity_covariates_dredge.dt)
 
+#with temporal autocorrelation
+global_mod_mean_temp_gls <- gls(annual_dissimilarity_value ~ 
+                             survey_unit*yearly_mean_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
+                             survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
+                             area_km.scaledacrossall + #area
+                             latitude_annual_range.scaledacrossall + #latitude range
+                             latitude_annual_avg.scaledacrossall + #latitude avg
+                             depth_annual_range.scaledacrossall + #depth range
+                             depth_annual_avg.scaledacrossall + #depth avg
+                             spp_count_annual.scaledacrossall + #spp #
+                             haul_id_count_annual.scaledacrossall +
+                            season,
+                           correlation = corAR1(form=~year | survey_unit),
+                             data = dissimilarity_covariates_dredge.dt)
+#maximum temperature
 global_mod_max_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_max_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -381,6 +385,7 @@ global_mod_max_temp_lm <- lm(annual_dissimilarity_value ~
                             season,
                              data = dissimilarity_covariates_dredge.dt)
 
+#with temporal autocorrelation
 global_mod_max_temp_gls <-gls(annual_dissimilarity_value ~ 
                              survey_unit*yearly_max_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -394,7 +399,7 @@ global_mod_max_temp_gls <-gls(annual_dissimilarity_value ~
                             season,
                             correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
-
+#minimum temperature
 global_mod_min_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_min_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -410,6 +415,7 @@ global_mod_min_temp_lm <- lm(annual_dissimilarity_value ~
 
 dissimilarity_covariates_dredge.dt[, survey_unit := factor(survey_unit, levels = sort(all_surveys))]
 
+#with temporal autocorrelation
 global_mod_min_temp_gls <-gls(annual_dissimilarity_value ~ 
                              survey_unit*yearly_min_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -424,6 +430,7 @@ global_mod_min_temp_gls <-gls(annual_dissimilarity_value ~
                             correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
+#temperature seasonality
 global_mod_seas_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_seas_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -437,6 +444,7 @@ global_mod_seas_temp_lm <- lm(annual_dissimilarity_value ~
                              season,
                              data = dissimilarity_covariates_dredge.dt)
 
+#with temporal autocorrelation
 global_mod_seas_temp_gls <- gls(annual_dissimilarity_value ~ 
                              survey_unit*yearly_seas_bypoint_avg.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -451,6 +459,7 @@ global_mod_seas_temp_gls <- gls(annual_dissimilarity_value ~
                              correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
+#standard deviation
 global_mod_SD_temp_lm <- lm(annual_dissimilarity_value ~ 
                              survey_unit*yearly_mean_bypoint_SD.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -464,6 +473,7 @@ global_mod_SD_temp_lm <- lm(annual_dissimilarity_value ~
                            season,
                              data = dissimilarity_covariates_dredge.dt)
 
+#with temporal autocorrelation
 global_mod_SD_temp_gls <- gls(annual_dissimilarity_value ~ 
                              survey_unit*yearly_mean_bypoint_SD.scaledacrossall + #temp and survey unit (possible interaction)
                              survey_unit*summed_tonnes_scaled_byreg + #fishing effort and survey unit (possible interaction)
@@ -478,6 +488,7 @@ global_mod_SD_temp_gls <- gls(annual_dissimilarity_value ~
                               correlation = corAR1(form=~year | survey_unit),
                              data = dissimilarity_covariates_dredge.dt)
 
+#Compare AICcs
 View(AICc(global_mod_mean_temp_lm, global_mod_max_temp_lm, global_mod_min_temp_lm, global_mod_seas_temp_lm, global_mod_SD_temp_lm,
           global_mod_mean_temp_gls, global_mod_max_temp_gls, global_mod_min_temp_gls, global_mod_seas_temp_gls, global_mod_SD_temp_gls))
 
@@ -507,7 +518,7 @@ fwrite(global_mod_sbt_table, here::here("output","global_mod_sbt_table.csv"))
 
 ```
 
-Best performing global model includes minimum temperature (centered and scaled) (Still the case as of July 17, 2024)
+####Best performing global model includes minimum temperature (centered and scaled) (Still the case as of July 17, 2024)
 
 Now, look at different combinations of all predictors (min temp) using dredge
 
@@ -519,7 +530,7 @@ dd <- dredge(global_mod_min_temp_lm)
 dd.dt <- data.table(dd)
 View(dd)
 
-#only models less than 4 delta AICc (2 models)
+#only models less than 2 delta AICc (2 models)
 dd.dt.2 <- dd.dt[delta <= 2,]
 
 colnames(dd.dt.2)
@@ -648,7 +659,7 @@ fwrite(best_model_sbt_jaccard_table_formatted.r,here::here("output","best_model_
 
 
 
-Predict dissimilarity across years using averaged model (model_avg_delta4)
+###Predict dissimilarity across years using averaged model (model_avg_delta4)
 ```{r}
 dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_dredge.dt)
 
@@ -1015,10 +1026,8 @@ ggsave(jaccard_fishing_sbt_model_observed_predicted_merge, path = here::here("fi
 
 ```
 
-Let's visualize model coefficients with temperature and fishing (similar to figure 2)
-model_avg_values
+###Let's visualize model coefficients with temperature and fishing (similar to figure 2)
 ```{r}
-model_avg_values
 
 #extract coefficients using linear algebra
 interaction_avg_model_coef <- data.table(lm_interaction_coefficients_se(mod_name = model_avg_delta4, model_avg = T, SBT_fish = T))
@@ -1119,6 +1128,13 @@ ggsave(model_coef_summary_sbt_jaccard, path = here::here("figures"),filename = "
 
 
 ```
+
+
+
+
+
+
+
 
 #IF WE ACTUALLY USE THIS, NEED TO UPDATE
 ##Show intercepts by region and season
