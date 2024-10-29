@@ -1131,8 +1131,94 @@ ggsave(model_coef_summary_sbt_jaccard, path = here::here("figures"),filename = "
 
 
 
+###Investigating what's going on with Aleutian Islands
+```{r}
 
 
+#DISSIMILARITY VS TEMPERATURE
+ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+  geom_point(aes(x = yearly_min_bypoint_avg, y = annual_dissimilarity_value)) +
+  theme_classic()
+
+#If we ignore two coldest years, we have roughly points at (2.07,0.76) and (2.2, 0.69), slope = -1.8, which matches what we get (also note large confidence bounds)
+
+#So, the question is, what is leading the model to ignore these two years? What explains this variation in the coldest years?
+
+
+#DISSIMILARITY
+ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+  geom_point(aes(x = area_km, y = annual_dissimilarity_value)) +
+  theme_classic()
+
+#Very large sampling area and very low sampling areas are both lowest values
+
+
+      #TEMPERATURE
+      ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+        geom_point(aes(x = area_km, y = yearly_min_bypoint_avg)) +
+        theme_classic()
+      
+      #Very large sampling area coincides with lowest temperatures
+      
+
+#DISSIMILARITY
+ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+  geom_point(aes(x = spp_count_annual, y = annual_dissimilarity_value)) +
+  theme_classic()
+
+#Annual dissimilarity value increases with richness
+
+    #TEMPERATURE
+    ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+      geom_point(aes(x = spp_count_annual, y = yearly_min_bypoint_avg)) +
+      theme_classic()
+    
+    #Lowest temperature observation coincides with lowest richness
+
+#DISSIMILARITY
+ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+  geom_point(aes(x = haul_id_count_annual, y = annual_dissimilarity_value)) +
+  theme_classic()
+
+#Low number of hauls led to very low annual dissimilarity values
+
+    #TEMPERATURE
+    ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+      geom_point(aes(x = haul_id_count_annual, y = yearly_min_bypoint_avg)) +
+      theme_classic()
+    
+    #Lowest temperature matched with lowest number of samples
+
+#DISSIMILARITY
+ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+  geom_point(aes(x = depth_annual_avg, y = annual_dissimilarity_value)) +
+  theme_classic()
+
+#Some deep trawls have very low annual dissimilarity, while other deep trawls have high annual dissimilarity
+
+      #TEMPERATURE
+      ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
+        geom_point(aes(x = depth_annual_avg, y = yearly_min_bypoint_avg)) +
+        theme_classic()
+      
+      #Deepest trawls happened on cold days
+```
+What leads to variance being explained by variables OTHER than temperature in coldest years
+So, in summary
+- Very large sampling area and very small sampling areas are both linked to years of low dissimilarity
+- *Very large sampling area* coincides with lowest temperatures
+- Annual dissimilarity value increases with richness
+- *Lowest temperature observation coincides with lowest richness*
+- Low number of hauls led to very low annual dissimilarity values
+- Lowest temperature matched with *lowest number of samples*
+- Some deep trawls have very low annual dissimilarity, while other deep trawls have high annual dissimilarity
+- *Deepest trawls happened on cold days*
+
+For the Aleutian islands, the coldest years were also:
+- the years of largest sampling area
+- the years of lowest richness
+- the years of lowest sampling effort (# tows)
+- the years of deepest sampling
 
 
 
