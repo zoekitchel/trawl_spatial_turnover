@@ -319,7 +319,7 @@ SODA_data_temp_avgs_full[,year := year_for_avg]
 
 #pull in surface temp data
 OISST_data_temp_avgs_full <- readRDS(here::here("data","Temperature","OISST_data_temp_avgs_full.rds"))
-#don't feel confident about OISST temp before 1980 right now, start then
+#also start in 1980 for comparison
 
 OISST_data_temp_avgs_full <- OISST_data_temp_avgs_full[year_for_avg >= 1980,]
 
