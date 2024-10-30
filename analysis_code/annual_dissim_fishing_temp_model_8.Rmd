@@ -657,28 +657,45 @@ paste0("\u03C9"))
 fwrite(best_model_sbt_jaccard_table_formatted.r,here::here("output","best_model_sbt_jaccard_table_formatted.csv"))
 ```
 
-
-
 ###Predict dissimilarity across years using averaged model (model_avg_delta4)
 ```{r}
 dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_dredge.dt)
 
   #allowing temp and fishing to vary (aka no changes)
   dissimilarity_covariates_dredge.dt_predictions[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]] #full allows us to switch back to mixed effect models
-  
-  
+
+  #What's the R^2 value?
+  r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions, annual_dissimilarity_value ~ pred_dissim))
+  #R2 = 0.9507659
   
   #constant temp in regions (aka take mean of temperature values within survey units so they are the same value within each year for a survey)
   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg <- copy(dissimilarity_covariates_dredge.dt)
   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
+  dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]]
+  
+    #What's the R^2 value?
+  r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg, annual_dissimilarity_value ~ pred_dissim))
+  #R2 = 0.94 (only fishing!!)
 
   #constant fishing in regions (aka take mean of fishing values within survey units so they are the same value within each year for a survey)
   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)]
+  
+    dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]]
+  
+    #What's the R^2 value?
+  r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg, annual_dissimilarity_value ~ pred_dissim))
+  #R2 = 0.94 (only temperature!!)
 
 #and then with consistent temp and fishing in regions (aka take mean of both min temp and fishing)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
+
+    dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,pred_dissim := predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[1]]][,pred_se := predict(model_avg_delta4, se.fit = T, full = F)[[2]]]
+  
+    #What's the R^2 value?
+  r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg, annual_dissimilarity_value ~ pred_dissim))
+  #R2 = 0.93 (only other variables!!! not temp or fishing)
 
 
 #allowing temp and fishing to vary within regs (normal)
@@ -692,30 +709,7 @@ dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summe
                                                                         predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[1]]][,pred_se :=
                                                                                                                                                                                                               predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg)[[2]]]
 
-  
-  
-#allowing only temperature to vary within regions (with mean fishing pressure)
-     
-   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg[,pred_dissim :=
-                                                                           predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[1]]][,pred_se := 
-                                                                                                                                                                                                                                  predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg)[[2]]]
-   
-#and then with consistent temp and fishing across regions (mean of both fishing and temp)
-dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
-dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg),.(survey_unit)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall),.(survey_unit)]
 
-dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,pred_dissim := 
-                                                                         predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[1]]][,pred_se :=
-                                                                                                                                                                                                                 predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg)[[2]]]
-
-
-#and then with consistent temp and fishing across regions (mean of both fishing and temp)
-dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing <- copy(dissimilarity_covariates_dredge.dt)
-dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,summed_tonnes_scaled_byreg:=mean(summed_tonnes_scaled_byreg)][,yearly_min_bypoint_avg.scaledacrossall:=mean(yearly_min_bypoint_avg.scaledacrossall)]
-
-dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing[,pred_dissim := 
-                                                                         predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[1]]][,pred_se :=
-                                                                                                                                                                                                                 predict(model_avg_delta4, se.fit = T, full = F, newdata = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing)[[2]]]
 
 #FOR COLOR TO MATCH
 #sort color link by survey name season
