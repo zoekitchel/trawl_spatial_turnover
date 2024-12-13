@@ -234,6 +234,11 @@ jaccard_relative_abundance_total_coefs.r[,survey_unit := sort(unique(jaccard_ind
 
 
 ```{r total jaccard}
+#lmer_year
+lmer_year <- sort(unique(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary"]$year))
+
+#lmer_year_adj
+lmer_year_adj <- sort(unique(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary"]$year_adj))
 
 #predict average lmer
 lmer_jaccard_total_predictions <- data.table(year = lmer_year, year_adj = lmer_year_adj)
@@ -470,7 +475,117 @@ points_wavylines_jaccard_total_year_reduced_gam_colorbytrend
 
 ggsave(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend, path = here::here("figures"), filename ="points_wavylines_jaccard_total_year_reduced_gam_colorbytrend.jpg", height = 6, width = 11, unit = "in")
 
+#Same, but no GAM
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_notrend <- ggplot() +
+  #points by trend
+  geom_point(data = jaccard_index_allyears[dissimilarity_metric =="jaccard_dissimilarity_index_binary"], cols = "year_adj",
+             aes(x = year,
+                 y = annual_dissimilarity_value,
+                 fill = survey_unit), alpha = 0.4, size = 1, shape = 21, color = "white") +
+  #squiggly lines by survey unit based GAM and colored by trend
+    geom_line(data = year_survey_unit_expand_jaccard.dt, cols = "year_adj",
+             aes(x = year,
+                 y = jaccard_glm_mod_fit,
+                 color = survey_unit), alpha = 0.6) +
+  #confidence intervals for individual GAM
+  geom_ribbon(data = year_survey_unit_expand_jaccard.dt, cols = "year_adj", 
+              aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE, fill =  survey_unit), alpha=0.1) + #add standard error
+  #set color by survey
+    scale_color_manual(values = trend_colors_jaccard.dt$trend_color, name = "Survey Unit") +
+  scale_fill_manual(values =trend_colors_jaccard.dt$trend_color, guide = "none") +
+  theme_classic() +
+  lims(x = c(min(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year]),max(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year]))
+       ) +
+  xlab("Year\n") +
+ylab("β-diversity\n(Jaccard dissimilarity)") +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_notrend
+
+ggsave(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_notrend, path = here::here("figures"), filename ="points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_notrend.jpg", height = 6, width = 11, unit = "in")
+
 ```
+##Split out individual example regions for presentation
+Iceland "#1E88E5", West Coast South Island, & West Atlantic
+```{r}
+#Iceland
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_ICELAND <- ggplot() +
+  geom_point(data = jaccard_index_allyears[dissimilarity_metric =="jaccard_dissimilarity_index_binary" & survey_unit == "ICE-GFS"], cols = "year_adj",
+             aes(x = year,
+                 y = annual_dissimilarity_value), fill = "#1E88E5",alpha = 0.4, size = 1, shape = 21, color = "white") +
+  #squiggly lines by survey unit based GAM and colored by trend
+    geom_line(data = year_survey_unit_expand_jaccard.dt[survey_unit == "ICE-GFS"], cols = "year_adj",
+             aes(x = year,
+                 y = jaccard_glm_mod_fit), color = "#1E88E5", alpha = 0.6) +
+  #confidence intervals for individual GAM
+  geom_ribbon(data = year_survey_unit_expand_jaccard.dt[survey_unit == "ICE-GFS"], cols = "year_adj", 
+              aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE), alpha=0.1, fill = "#1E88E5") + #add standard error
+  theme_classic() +
+  lims(x = c(min(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year]),max(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year])), y = c(0.4,0.9)
+       ) +
+  xlab("Year\n") +
+ylab("β-diversity\n(Jaccard dissimilarity)") +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_ICELAND
+
+ggsave(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_ICELAND, path = here::here("figures"), filename ="points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_ICELAND.jpg", height = 6, width = 11, unit = "in")
+
+#WCSI-NZ
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_WCSINZ <- ggplot() +
+  geom_point(data = jaccard_index_allyears[dissimilarity_metric =="jaccard_dissimilarity_index_binary" & survey_unit %in% c("ICE-GFS", "NZ-WCSI")], cols = "year_adj",
+             aes(x = year,
+                 y = annual_dissimilarity_value, fill = survey_unit),alpha = 0.4, size = 1, shape = 21, color = "white") +
+  #squiggly lines by survey unit based GAM and colored by trend
+    geom_line(data = year_survey_unit_expand_jaccard.dt[survey_unit %in% c("ICE-GFS", "NZ-WCSI")], cols = "year_adj",
+             aes(x = year,
+                 y = jaccard_glm_mod_fit, color = survey_unit),  alpha = 0.6) +
+  #confidence intervals for individual GAM
+  geom_ribbon(data = year_survey_unit_expand_jaccard.dt[survey_unit %in% c("ICE-GFS", "NZ-WCSI")], cols = "year_adj", 
+              aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE, fill = survey_unit), alpha=0.1) + #add standard error
+    #set color by survey
+    scale_color_manual(values = c("#1E88E5","#D81C60"), name = "Survey Unit") +
+  scale_fill_manual(values =c("#1E88E5","#D81C60"), guide = "none") +
+  #theme
+  theme_classic() +
+  lims(x = c(min(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year]),max(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year])), y = c(0.4,0.9)
+       ) +
+  xlab("Year\n") +
+ylab("β-diversity\n(Jaccard dissimilarity)") +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_WCSINZ
+
+ggsave(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_WCSINZ, path = here::here("figures"), filename ="points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_WCSINZ.jpg", height = 6, width = 11, unit = "in")
+
+#Plus SEUS
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_SEUS <- ggplot() +
+  geom_point(data = jaccard_index_allyears[dissimilarity_metric =="jaccard_dissimilarity_index_binary" & survey_unit %in% c("ICE-GFS", "NZ-WCSI", "SEUS-summer")], cols = "year_adj",
+             aes(x = year,
+                 y = annual_dissimilarity_value, fill = survey_unit),alpha = 0.4, size = 1, shape = 21, color = "white") +
+  #squiggly lines by survey unit based GAM and colored by trend
+    geom_line(data = year_survey_unit_expand_jaccard.dt[survey_unit %in% c("ICE-GFS", "NZ-WCSI", "SEUS-summer")], cols = "year_adj",
+             aes(x = year,
+                 y = jaccard_glm_mod_fit, color = survey_unit),  alpha = 0.6) +
+  #confidence intervals for individual GAM
+  geom_ribbon(data = year_survey_unit_expand_jaccard.dt[survey_unit %in% c("ICE-GFS", "NZ-WCSI", "SEUS-summer")], cols = "year_adj", 
+              aes(x = year, ymin=jaccard_glm_mod_fit-jaccard_glm_mod_fit_SE, ymax=jaccard_glm_mod_fit+jaccard_glm_mod_fit_SE, fill = survey_unit), alpha=0.1) + #add standard error
+    #set color by survey
+    scale_color_manual(values = c("#1E88E5","#D81C60","#FFC109"), name = "Survey Unit") +
+  scale_fill_manual(values =c("#1E88E5","#D81C60","#FFC109"), guide = "none") +
+  #theme
+  theme_classic() +
+  lims(x = c(min(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year]),max(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",year])), y = c(0.4,0.9)
+       ) +
+  xlab("Year\n") +
+ylab("β-diversity\n(Jaccard dissimilarity)") +
+  theme(legend.position = "null", axis.text = element_text(size = 15), axis.title = element_text(size = 15))
+
+points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_SEUS
+
+ggsave(points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_SEUS, path = here::here("figures"), filename ="points_wavylines_jaccard_total_year_reduced_gam_colorbytrend_SEUS.jpg", height = 6, width = 11, unit = "in")
+```
+
 
 ###Merge Jaccard dissim versus Year plot with GAMS and Region vs. coefficient plot for LMs
 
