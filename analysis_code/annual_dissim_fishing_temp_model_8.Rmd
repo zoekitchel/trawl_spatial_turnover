@@ -1118,7 +1118,9 @@ theme_classic()
 
 model_coef_summary_sbt_jaccard <- cowplot::plot_grid(sbt_fishing_avg_model_coef+theme(legend.position = "null", axis.title.x = element_blank()),all_avg_model_coef+theme(legend.position = "null"), ncol = 1, labels = c("  a.                                                      b.","        c."), label_y = 0.99, rel_heights = c(3,1))
 
+#Figure 3
 ggsave(model_coef_summary_sbt_jaccard, path = here::here("figures"),filename = "model_coef_summary_sbt_jaccard.jpg", height = 6.5, width = 8, unit = "in")
+ggsave(model_coef_summary_sbt_jaccard, path = here::here("figures"),filename = "Fig3.tiff", height = 6.5, width = 8, unit = "in", dpi = 300, compression = "lzw")
 
 
 ```

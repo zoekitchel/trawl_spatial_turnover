@@ -367,5 +367,6 @@ merge_nmds_map <- ggdraw(xlim = c(0,10), ylim = c(0,20)) +
 
 
 ggsave(merge_nmds_map, path = here::here("figures"), filename = "merge_nmds_map.jpg", height = 8, width = 7, unit = "in")
+ggsave(merge_nmds_map, path = here::here("figures"), filename = "Fig1.tiff", height = 8, width = 7, unit = "in", dpi = 300,compression = "lzw")
 
 ```

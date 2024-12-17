@@ -608,6 +608,8 @@ jaccard_total_GAM_LM_merge_legend_colorbytrend <- ggdraw(xlim = c(0, 40.5), ylim
   geom_text(aes(x =20, y = 20.7), label = ("b."), size =8, fontface = "bold")
 
 ggsave(jaccard_total_GAM_LM_merge_legend_colorbytrend, path = here::here("figures"), filename = "jaccard_total_GAM_LM_merge_legend_colorbytrend.png", height = 8, width = 14, units = "in")
+ggsave(jaccard_total_GAM_LM_merge_legend_colorbytrend, path = here::here("figures"), filename = "Fig2.tiff", height = 8, width = 14, units = "in", dpi = 300,compression = "lzw")
+
 ```
 
 
