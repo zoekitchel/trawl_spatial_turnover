@@ -1,4 +1,4 @@
-# Marine fish communities cycle between homogenized and differentiated states through time
+# Marine communities have not systematically lost biotic uniqueness in recent decades
 
 Currently in review at PLOS Climate.
 
