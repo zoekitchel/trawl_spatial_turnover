@@ -1,4 +1,4 @@
-# Marine communities have not systematically lost biotic uniqueness in recent decades
+# Marine communities do not follow the paradigm of increasing similarity through time
 
 Currently in review at PLOS Climate.
 
