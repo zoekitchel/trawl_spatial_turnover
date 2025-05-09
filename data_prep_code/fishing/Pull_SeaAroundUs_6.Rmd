@@ -59,16 +59,19 @@ levels(as.factor(SAU_full.r[,common_name])) #looks good
 ```
 
 2. Limit to landings (exclude discards)
+As of May 7 2025, we want full catch, and therefore do NOT exclude discards.
 
 ```{r cleaning SAU data no discards}
 #what catch types
-levels(as.factor(SAU_full.r[,catch_type]))
+#levels(as.factor(SAU_full.r[,catch_type]))
 
 #
-SAU_full.landings <- SAU_full.r[catch_type == "Landings"]
+#SAU_full.landings <- SAU_full.r[catch_type == "Landings"]
 
 #check if it worked
-levels(as.factor(SAU_full.r[,common_name])) #looks good
+#levels(as.factor(SAU_full.r[,common_name])) #looks good
+
+SAU_full.catch <- SAU_full.r
 
 ```
 
@@ -76,16 +79,16 @@ levels(as.factor(SAU_full.r[,common_name])) #looks good
 
 ```{r cleaning SAU data fish have to be IDed}
 #what functional groups are in this dataset
-levels(as.factor(SAU_full.landings[,scientific_name]))
+levels(as.factor(SAU_full.catch[,scientific_name]))
 
 #delete any observations not ID'd
-SAU_full.landings.ided <- SAU_full.landings[scientific_name != "Marine fishes not identified"]
+SAU_full.catch.ided <- SAU_full.catch[scientific_name != "Marine fishes not identified"]
 
 
 ```
 4. Sum observations
 ```{r}
-SAU_summed_tonnes <- SAU_full.landings.ided[,summed_tonnes := sum(tonnes, na.rm = T),.(year, area_name, area_type, survey_unit)] #key to include survey_unit because a few SAU data sets are in here multiple times
+SAU_summed_tonnes <- SAU_full.catch.ided[,summed_tonnes := sum(tonnes, na.rm = T),.(year, area_name, area_type, survey_unit)] #key to include survey_unit because a few SAU data sets are in here multiple times
 
 #unique values
 SAU_summed_tonnes.u <- unique(SAU_summed_tonnes[,.(year, survey_unit, summed_tonnes)])
@@ -100,7 +103,7 @@ FishGlob_clean.singleseason <- readRDS(here::here("data","cleaned","FishGlob_cle
 #unique years and surveys between 1979 and 2018 (offset by one as a predictor)
 year_survey_match <- unique(FishGlob_clean.singleseason[year > 1978 & year < 2020, .(survey_unit, year)])
 
-#limit landings data
+#limit catch data
 SAU_summed_tonnes.r <- SAU_summed_tonnes.u[year_survey_match, on = c("survey_unit","year")]
 ```
 

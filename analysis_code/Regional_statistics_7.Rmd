@@ -118,7 +118,7 @@ Define sum and mean functions to handle NAs appropriately
 
 my_sum <- function(x){
   if(all(is.na(x))){
-    return(NA)
+    return(is.numeric(NA))
   }
   else{
     return(sum(x, na.rm = TRUE))
@@ -129,7 +129,7 @@ my_sum <- function(x){
 
 my_mean <- function(x){
   if(all(is.na(x))){
-    return(NA)
+    return(is.numeric(NA))
   }
   else{
     return(mean(x, na.rm = TRUE))
@@ -141,7 +141,7 @@ my_mean <- function(x){
 
 Regional characteristics
 
-```{r calculating regional characteristics}
+```{r calculating regional characteristics, message=FALS, warnings=FALSE }
 
 #make depth numeric
 FishGlob_clean.singleseason[,depth := as.numeric(depth)]
@@ -159,19 +159,24 @@ FishGlob_clean.singleseason[,haul_id_count_annual := uniqueN(haul_id),.(year, su
 FishGlob_clean.singleseason[,spp_count_annual := uniqueN(accepted_name),.(year, survey_unit)]
 
 #add column for avg depth per year
-FishGlob_clean.singleseason[,depth_annual_avg := my_mean(depth),.(year, survey_unit)]
+FishGlob_clean.singleseason[,depth_annual_avg := my_mean(as.numeric(depth)),.(year, survey_unit)]
 
 #add column for avg latitude per year
-FishGlob_clean.singleseason[,latitude_annual_avg := my_mean(latitude),.(year, survey_unit)]
+FishGlob_clean.singleseason[,latitude_annual_avg := my_mean(as.numeric(latitude)),.(year, survey_unit)]
 
 #add column for latitude range per year
 FishGlob_clean.singleseason[,latitude_annual_range := max(latitude, na.rm =T)-min(latitude, na.rm =T),.(year, survey_unit)]
 
 #add column for depth range per year
-FishGlob_clean.singleseason[,depth_annual_range := max(depth, na.rm =T)-min(depth, na.rm =T),.(year, survey_unit)]
+FishGlob_clean.singleseason[,depth_annual_range := max(as.numeric(depth), na.rm =T)-min(as.numeric(depth), na.rm =T),.(year, survey_unit)]
 
-#add column for average abundance CPUE per tow for those that have abundance data
-FishGlob_clean.singleseason[,num_cpue_annual := ifelse(survey_unit %in% abun_subset, my_sum(num_cpue),NA), .(year, survey_unit)]
+#for some reason this step is causing issues turning a numeric column into logical, so we're going to manually implement this by merging DT...ugh
+num_cpue_annual_byreg<- FishGlob_clean.singleseason[survey_unit %in% abun_subset, .(num_cpue_annual = 
+ my_sum(num_cpue)), 
+  by = .(year, survey_unit)]
+
+#Merge back
+FishGlob_clean.singleseason <- num_cpue_annual_byreg[FishGlob_clean.singleseason, on = c("year","survey_unit")]
 
 
 #unique rows
@@ -186,7 +191,7 @@ fwrite(FishGlob_richness_year_survey, file = here::here("output","FishGlob_richn
 ```
 
 Calculate coefficients from lm for trend in species richness within a region over time
-```{r}
+```{r, message=FALS, warnings=FALSE }
 #plot year vs richness for each reg
 ggplot(data = FishGlob_richness_year_survey) +
   geom_point(aes(x = year, y = spp_count_annual), size = 2) +
@@ -350,13 +355,17 @@ dissimilarities_SSTtemp_fishing <- SAU_summed_tonnes.r[jaccard_index_allyears.SS
 Merge with temp and fishing
 ```{r merge with avg temp and fishing values}
 
-dissimilarities_temp_fishing[,mean_reg_temp_allyears := my_mean(yearly_mean_bypoint_avg),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(summed_tonnes),.(survey_unit)]
-dissimilarities_SSTtemp_fishing[,mean_reg_temp_allyears := mean(yearly_mean_bypoint_avg),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(summed_tonnes),.(survey_unit)]
+dissimilarities_temp_fishing[,mean_reg_temp_allyears := my_mean(as.numeric(yearly_mean_bypoint_avg)),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(as.numeric(summed_tonnes)),.(survey_unit)]
+dissimilarities_SSTtemp_fishing[,mean_reg_temp_allyears := mean(as.numeric(yearly_mean_bypoint_avg)),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(as.numeric(summed_tonnes)),.(survey_unit)]
 
 #merge dissimilarities with spp counts
 
 dissimilarities_temp_fishing <- dissimilarities_temp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]
 dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]
+
+#Reduce to 1982-2019
+dissimilarities_temp_fishing <- dissimilarities_temp_fishing[year >= 1982 & year <= 2019]
+dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[year >= 1982 & year <= 2019]
 
 fwrite(dissimilarities_temp_fishing, here::here("output","dissimilarities_temp_fishing.csv"))
 
@@ -414,7 +423,7 @@ Calculate stats of all regions
 #survey_unit
 region_stats <- as.data.table(matrix(nrow = length(all_survey_units)))
 
-region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_haul_id_count_annual := as.numeric()][,mean_haul_density := as.numeric()][,SD_haul_density := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mean_annual_cpue := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_landings := as.numeric(V1)][,jaccard_coef := as.numeric()][,jaccard_coef_upr := as.numeric()][,jaccard_coef_lwr := as.numeric()][,Trend_jaccard := as.character()][,jaccard_abun_coef := as.numeric()][,jaccard_abun_coef_upr := as.numeric()][,jaccard_abun_coef_lwr := as.numeric()][,Trend_jaccard_abun := as.character()]
+region_stats[,survey_unit := as.character(V1)][, survey := as.character(V1)][, spp_num := as.numeric(V1)][,mean_haul_id_count_annual := as.numeric()][,mean_haul_density := as.numeric()][,SD_haul_density := as.numeric()][, study_period := as.numeric(V1)][,first_year:= as.numeric()][,last_year := as.numeric()][, years_sampled := as.numeric(V1)][, lat_range := as.numeric(V1)][, mean_annual_cpue := as.numeric(V1)][, mid_lat := as.numeric(V1)][, lon_range := as.numeric(V1)][, area_km := as.numeric(V1)][, depth_range := as.numeric(V1)][,  mid_depth := as.numeric(V1)][, mean_temp := as.numeric(V1)][, mean_catch := as.numeric(V1)][,jaccard_coef := as.numeric()][,jaccard_coef_upr := as.numeric()][,jaccard_coef_lwr := as.numeric()][,Trend_jaccard := as.character()][,jaccard_abun_coef := as.numeric()][,jaccard_abun_coef_upr := as.numeric()][,jaccard_abun_coef_lwr := as.numeric()][,Trend_jaccard_abun := as.character()]
 
   region_stats[,V1:=NULL]
 
@@ -443,8 +452,8 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"survey_unit"] <- paste0(all_survey_units[i])
                   region_stats[i,"survey"] <- word(all_survey_units[i],1, sep = "_")
                   region_stats[i,"spp_num"] <- length(unique(reduced_FishGlob_clean.singleseasoned.10year[,accepted_name]))
-                  region_stats[i,"mean_haul_id_count_annual"] <- my_mean(reduced_FishGlob_clean.singleseasoned.10year[,haul_id_count_annual])
-                  region_stats[i,"mean_haul_density"] <- my_mean(reduced_FishGlob_clean.singleseasoned.10year[,haul_id_count_annual]/
+                  region_stats[i,"mean_haul_id_count_annual"] <- my_mean(as.numeric(reduced_FishGlob_clean.singleseasoned.10year[,haul_id_count_annual]))
+                  region_stats[i,"mean_haul_density"] <- my_mean(as.numeric(reduced_FishGlob_clean.singleseasoned.10year[,haul_id_count_annual])/
                                                                    (area/(1000^2))) #per km^2
                   region_stats[i,"SD_haul_density"] <- sd(reduced_FishGlob_clean.singleseasoned.10year[,haul_id_count_annual]/
                                                                    (area/(1000^2)))
@@ -453,14 +462,14 @@ for (i in 1:length(all_survey_units)) {
                   region_stats[i,"study_period"] <- max(reduced_FishGlob_clean.singleseasoned.10year$year)-min(reduced_FishGlob_clean.singleseasoned.10year$year)+1
                   region_stats[i,"years_sampled"] <- length(unique(reduced_FishGlob_clean.singleseasoned.10year$year))
                   region_stats[i,"lat_range"] <- max(lat_lon$latitude)-min(lat_lon$latitude)
-                  region_stats[i,"mid_lat"] <- my_mean(lat_lon$latitude)
-                  region_stats[i, "mean_annual_cpue"] <- my_mean(reduced_FishGlob_clean.singleseasoned.10year$num_cpue_annual)
+                  region_stats[i,"mid_lat"] <- my_mean(as.numeric(lat_lon$latitude))
+                  region_stats[i, "mean_annual_cpue"] <- my_mean(as.numeric(reduced_FishGlob_clean.singleseasoned.10year$num_cpue_annual))
                   region_stats[i,"lon_range"] <- max(lat_lon$long_shift)-min(lat_lon$long_shift)
                   region_stats[i,"area_km"] <- area/(1000^2)
                   region_stats[i,"depth_range"] <- max(reduced_FishGlob_clean.singleseasoned.10year$depth, na.rm = T)-min(reduced_FishGlob_clean.singleseasoned.10year$depth, na.rm = T)
-                  region_stats[i,"mid_depth"] <- my_mean(reduced_FishGlob_clean.singleseasoned.10year$depth)
+                  region_stats[i,"mid_depth"] <- my_mean(as.numeric(reduced_FishGlob_clean.singleseasoned.10year$depth))
                   region_stats[i,"mean_temp"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_temp_allyears]
-                  region_stats[i,"mean_landings"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_fishing_allyears]
+                  region_stats[i,"mean_catch"] <- year_survey_unit_characteristics[survey_unit == all_survey_units[i],mean_reg_fishing_allyears]
                   region_stats[i,"jaccard_coef"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],estimate]
                   region_stats[i,"jaccard_coef_lwr"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],lwr]
                   region_stats[i,"jaccard_coef_upr"] <- trend_coefs_jaccard[survey_unit == all_survey_units[i],upr]
@@ -496,60 +505,60 @@ plot(conc)
 plot(conc_nooverlap)
 ```
 
-Calculate annual area of sampling (This takes a while)
+Calculate annual area of sampling (This takes a while which is why most is hashed out)
 
 ```{r calculate annual area of sampling}
 
-#set up empty data table with year and region
-region_area_byyear <- data.table(survey_unit = as.character(),year = as.numeric(), area_km = as.numeric())
-
-
-for (i in 1:length(all_survey_units)) {
-  reduced_FishGlob_clean.singleseasoned.10year <- FishGlob_clean.singleseason[survey_unit == all_survey_units[i]]
-  
-  #then, year
-  survey_years <- unique(reduced_FishGlob_clean.singleseasoned.10year$year)
-  
-  #data table to fill
-  
-      #single table
-    region_area_byyear_single <- as.data.table(matrix(nrow = length(survey_years)))
-    region_area_byyear_single[,survey_unit := all_survey_units[i]][,year := as.integer(V1)][,area_km := as.numeric(V1)][,V1 := NULL]
-    
-    
-  for (j in 1:length(survey_years)) {
-    #single year
-    FishGlob_1year <- reduced_FishGlob_clean.singleseasoned.10year[year == survey_years[j],]
-    
-        #fix those that cross dateline
-    FishGlob_1year[,long_range := max(longitude)-min(longitude)]
-    FishGlob_1year[,long_shift := ifelse(long_range >300 & longitude > 0, longitude - 360, longitude)]
-    
-        ####unique lat lon
-    lat_lon <- unique(FishGlob_1year[,.(latitude, long_shift)])
-    
-    pts <- st_as_sf(lat_lon, coords=c('long_shift','latitude'), crs=4326 )
-    
-    conc <- concaveman(pts, 1,2)
-    
-    #delete areas that overlap with land
-    conc_nooverlap <- ms_erase(conc,world[1])
-    
-    sf_use_s2(FALSE) #helps with spherical geometry
-    area <- st_area(conc_nooverlap) #m2
-    
-    #compile into region_Stats table    
-                  region_area_byyear_single[j,"year"] <- as.numeric(survey_years[j])
-                  region_area_byyear_single[j,"area_km"] <- as.numeric(area/(1000^2))
-
-                  paste0(all_survey_units[i],", ", "year ", j, " out of ",length(survey_years))
-  }
-  #merge across surveys
-  region_area_byyear <- rbind(region_area_byyear, region_area_byyear_single)
-                  }
-
-  
-fwrite(region_area_byyear, file = here::here("output","region_area_byyear.csv"))
+##set up empty data table with year and region
+# region_area_byyear <- data.table(survey_unit = as.character(),year = as.numeric(), area_km = as.numeric())
+# 
+# 
+# for (i in 1:length(all_survey_units)) {
+#   reduced_FishGlob_clean.singleseasoned.10year <- FishGlob_clean.singleseason[survey_unit == all_survey_units[i]]
+#   
+#   #then, year
+#   survey_years <- unique(reduced_FishGlob_clean.singleseasoned.10year$year)
+#   
+#   #data table to fill
+#   
+#       #single table
+#     region_area_byyear_single <- as.data.table(matrix(nrow = length(survey_years)))
+#     region_area_byyear_single[,survey_unit := all_survey_units[i]][,year := as.integer(V1)][,area_km := as.numeric(V1)][,V1 := NULL]
+#     
+#     
+#   for (j in 1:length(survey_years)) {
+#     #single year
+#     FishGlob_1year <- reduced_FishGlob_clean.singleseasoned.10year[year == survey_years[j],]
+#     
+#         #fix those that cross dateline
+#     FishGlob_1year[,long_range := max(longitude)-min(longitude)]
+#     FishGlob_1year[,long_shift := ifelse(long_range >300 & longitude > 0, longitude - 360, longitude)]
+#     
+#         ####unique lat lon
+#     lat_lon <- unique(FishGlob_1year[,.(latitude, long_shift)])
+#     
+#     pts <- st_as_sf(lat_lon, coords=c('long_shift','latitude'), crs=4326 )
+#     
+#     conc <- concaveman(pts, 1,2)
+#     
+#     #delete areas that overlap with land
+#     conc_nooverlap <- ms_erase(conc,world[1])
+#     
+#     sf_use_s2(FALSE) #helps with spherical geometry
+#     area <- st_area(conc_nooverlap) #m2
+#     
+#     #compile into region_Stats table    
+#                   region_area_byyear_single[j,"year"] <- as.numeric(survey_years[j])
+#                   region_area_byyear_single[j,"area_km"] <- as.numeric(area/(1000^2))
+# 
+#                   paste0(all_survey_units[i],", ", "year ", j, " out of ",length(survey_years))
+#   }
+#   #merge across surveys
+#   region_area_byyear <- rbind(region_area_byyear, region_area_byyear_single)
+#                   }
+# 
+#   
+# fwrite(region_area_byyear, file = here::here("output","region_area_byyear.csv"))
 
 #or, read in
 region_area_byyear <- fread(file = here::here("output","region_area_byyear.csv"))
@@ -662,11 +671,11 @@ region_stats.format <- copy(region_stats)
 
 region_stats.format <- region_stats[color_link, on = "survey_unit", nomatch = F]
 
-region_stats.format[,`Mean annual CPUE (num in 1000s/km^2)`:=round(mean_annual_cpue/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Mean annual tow density (tows/km^2)` := signif(mean_haul_density,2)][,`SD annual tow density (tows/km^2)` := signif(SD_haul_density,2)][,`Latitude range (˚)`:= round(lat_range,0)][,`Longitude range (˚)`:=round(lon_range,0)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,0)][,`Depth range (m)`:= round(depth_range,0)][,`Mid-latitude (˚N)`:= round(mid_lat,0)][,`Mean bottom temperature (˚C)`:= round(mean_temp,1)][,`Mean annual fisheries landings (1000s of tonnes)`:= round(mean_landings/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year][,`Mean Julian day`:= round(avg_julian,0)][,`Primary season`:= season]
+region_stats.format[,`Mean annual CPUE (num in 1000s/km^2)`:=round(mean_annual_cpue/1000,0)][,`Mean annual tow count` := round(mean_haul_id_count_annual)][,`Mean annual tow density (tows/km^2)` := signif(mean_haul_density,2)][,`SD annual tow density (tows/km^2)` := signif(SD_haul_density,2)][,`Latitude range (˚)`:= round(lat_range,0)][,`Longitude range (˚)`:=round(lon_range,0)][,`Area (1000s of kms)`:=round(area_km/1000,0)][,`Mid-depth (m)`:= round(mid_depth,0)][,`Depth range (m)`:= round(depth_range,0)][,`Mid-latitude (˚N)`:= round(mid_lat,0)][,`Mean bottom temperature (˚C)`:= round(mean_temp,1)][,`Mean annual fisheries catch (1000s of tonnes)`:= round(mean_catch/1000,0)][,`Number of species across all years`:= spp_num][,`Survey length (years)`:=study_period][,`Total years sampled`:=years_sampled][,`First year`:=first_year][,`Last year`:=last_year][,`Mean Julian day`:= round(avg_julian,0)][,`Primary season`:= season]
 
 setorder(region_stats.format, survey_unit)
 
-region_stats.format <- region_stats.format[,.(Survey_Name_Season, `First year`,`Last year`,`Mean Julian day`,`Primary season`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`,`Number of species across all years`,`Mean annual CPUE (num in 1000s/km^2)`,`Mean annual tow count`,`Mean annual tow density (tows/km^2)`,`SD annual tow density (tows/km^2)`, `Mean annual fisheries landings (1000s of tonnes)`)]
+region_stats.format <- region_stats.format[,.(Survey_Name_Season, `First year`,`Last year`,`Mean Julian day`,`Primary season`, `Survey length (years)`, `Total years sampled`, `Latitude range (˚)`, `Longitude range (˚)`, `Mid-latitude (˚N)`,`Depth range (m)`, `Mid-depth (m)`, `Area (1000s of kms)`, `Mean bottom temperature (˚C)`,`Number of species across all years`,`Mean annual CPUE (num in 1000s/km^2)`,`Mean annual tow count`,`Mean annual tow density (tows/km^2)`,`SD annual tow density (tows/km^2)`, `Mean annual fisheries catch (1000s of tonnes)`)]
 
 
 View(region_stats.format)
@@ -1056,23 +1065,23 @@ summary(lm(jaccard_coef~mean_temp, data = region_stats)) #SIGNIFICANT
 saveRDS(mean_temp_vs_coef, here::here("figures","jaccard_coef_vs_survey_characteristics","mean_temp_vs_coef.rds"))
 ```
 
-```{r mean_landings}
-mean_landings_vs_coef <- ggplot() +
-    geom_errorbar(data = region_stats, aes(x = (mean_landings/1000), y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
-        geom_point(data = region_stats, aes(x = (mean_landings/1000) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
+```{r mean_catch}
+mean_catch_vs_coef <- ggplot() +
+    geom_errorbar(data = region_stats, aes(x = (mean_catch/1000), y = jaccard_coef, ymin = jaccard_coef_lwr, ymax = jaccard_coef_upr, color = Trend_jaccard), alpha = 0.8, linewidth = 0.3) + #add confidence intervals
+        geom_point(data = region_stats, aes(x = (mean_catch/1000) , y = jaccard_coef, color = Trend_jaccard), stat = 'identity', size = 1) +
     scale_color_manual(values = c("#D81C60", "#FFC109",  "#1E88E5"), name = "Dissimilarity trend") +
   geom_hline(yintercept = 0, size = 0.5) +
   ylab("β-diversity trend") + #balanced BC dissimiliarity
-  xlab("Mean landings (1000s of tonnes)") + #average annual landings
+  xlab("Mean catch (1000s of tonnes)") + #average annual catch
   theme_classic()
 
-mean_landings_vs_coef
+mean_catch_vs_coef
 
-ggsave(mean_landings_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "mean_landings_vs_coef.jpg", height =3, width = 5, unit = "in")
+ggsave(mean_catch_vs_coef, path = here::here("figures","jaccard_coef_vs_survey_characteristics"), filename = "mean_catch_vs_coef.jpg", height =3, width = 5, unit = "in")
 
 #linear model
-summary(lm(abs(jaccard_coef)~mean_landings, data = region_stats[survey_unit != "ROCKALL"])) #not significant
-summary(lm(jaccard_coef~mean_landings, data = region_stats[survey_unit != "ROCKALL"])) #nearly significant (0.07)
+summary(lm(abs(jaccard_coef)~mean_catch, data = region_stats[survey_unit != "ROCKALL"])) #not significant
+summary(lm(jaccard_coef~mean_catch, data = region_stats[survey_unit != "ROCKALL"])) #nearly significant (0.07)
 ```
 
 #Avg number of tows per year
@@ -1103,7 +1112,7 @@ all_vs_coef_plots <- plot_grid(
 years_sampled_vs_coef + theme(legend.position = "null"),
 study_period_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
                              axis.text.y = element_blank()),
-mean_landings_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
+mean_catch_vs_coef + theme(legend.position = "null", axis.title.y=element_blank(),
                               axis.text.y = element_blank()),
 mid_depth_vs_coef + theme(legend.position = "null"),
 depth_range_vs_coef  + theme(legend.position = "null", axis.title.y=element_blank(),

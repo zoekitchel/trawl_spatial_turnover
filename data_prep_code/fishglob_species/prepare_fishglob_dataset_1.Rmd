@@ -3294,22 +3294,21 @@ FishGlob.10year.spp_manualclean <- FishGlob.10year.spp_manualclean[!is.infinite(
 
 #Define function to correctly take means across duplicates (mean(NA,NA,NA) = NA, while mean(1,NA,NA) = 1, which is not the default for na.rm parameter)
 
-my_mean<- function(x){
-  if(all(is.na(x))){
-    return(NA)
-  }
-  else{
+my_mean <- function(x) {
+  if (all(is.na(x))) {
+    return(as.numeric(NA))  # use NA_real_ for numeric output consistency
+  } else {
     return(mean(x, na.rm = TRUE))
   }
 }
 
-FishGlob.10year.spp_manualclean[,num := my_mean(num),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
-FishGlob.10year.spp_manualclean[,wgt := my_mean(wgt),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
-FishGlob.10year.spp_manualclean[,num_cpue := my_mean(num_cpue),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
-FishGlob.10year.spp_manualclean[,num_h := my_mean(num_h),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
-FishGlob.10year.spp_manualclean[,wgt_cpue := my_mean(wgt_cpue),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
-FishGlob.10year.spp_manualclean[,wgt_h := my_mean(wgt_h),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
-FishGlob.10year.spp_manualclean[,depth := my_mean(depth),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)] #also, depth needs to be converted from character to numeric
+FishGlob.10year.spp_manualclean[,num := my_mean(as.numeric(num)),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,wgt := my_mean(as.numeric(wgt)),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,num_cpue := my_mean(as.numeric(num_cpue)),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,num_h := my_mean(as.numeric(num_h)),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,wgt_cpue := my_mean(as.numeric(wgt_cpue)),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,wgt_h := my_mean(as.numeric(wgt_h)),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)]
+FishGlob.10year.spp_manualclean[,depth := my_mean(as.numeric(depth)),.(survey_unit, year, month, day, verbatim_name, accepted_name, latitude, longitude)] #also, depth needs to be converted from character to numeric
 
 
 #columns to keep
