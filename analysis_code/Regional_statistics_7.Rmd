@@ -118,7 +118,7 @@ Define sum and mean functions to handle NAs appropriately
 
 my_sum <- function(x){
   if(all(is.na(x))){
-    return(is.numeric(NA))
+    return(as.numeric(NA))
   }
   else{
     return(sum(x, na.rm = TRUE))
@@ -129,7 +129,7 @@ my_sum <- function(x){
 
 my_mean <- function(x){
   if(all(is.na(x))){
-    return(is.numeric(NA))
+    return(as.numeric(NA))
   }
   else{
     return(mean(x, na.rm = TRUE))
@@ -159,7 +159,11 @@ FishGlob_clean.singleseason[,haul_id_count_annual := uniqueN(haul_id),.(year, su
 FishGlob_clean.singleseason[,spp_count_annual := uniqueN(accepted_name),.(year, survey_unit)]
 
 #add column for avg depth per year
-FishGlob_clean.singleseason[,depth_annual_avg := my_mean(as.numeric(depth)),.(year, survey_unit)]
+FishGlob_clean.singleseason[,depth_annual_avg := my_mean(depth),.(year, survey_unit)]
+
+#add column for depth range per year
+FishGlob_clean.singleseason[,depth_annual_range := ifelse(!is.na(depth), max(depth, na.rm =T)-min(depth, na.rm =T),
+                                                    as.numeric(NA)),.(year, survey_unit)]
 
 #add column for avg latitude per year
 FishGlob_clean.singleseason[,latitude_annual_avg := my_mean(as.numeric(latitude)),.(year, survey_unit)]
@@ -167,8 +171,6 @@ FishGlob_clean.singleseason[,latitude_annual_avg := my_mean(as.numeric(latitude)
 #add column for latitude range per year
 FishGlob_clean.singleseason[,latitude_annual_range := max(latitude, na.rm =T)-min(latitude, na.rm =T),.(year, survey_unit)]
 
-#add column for depth range per year
-FishGlob_clean.singleseason[,depth_annual_range := max(as.numeric(depth), na.rm =T)-min(as.numeric(depth), na.rm =T),.(year, survey_unit)]
 
 #for some reason this step is causing issues turning a numeric column into logical, so we're going to manually implement this by merging DT...ugh
 num_cpue_annual_byreg<- FishGlob_clean.singleseason[survey_unit %in% abun_subset, .(num_cpue_annual = 
@@ -356,16 +358,12 @@ Merge with temp and fishing
 ```{r merge with avg temp and fishing values}
 
 dissimilarities_temp_fishing[,mean_reg_temp_allyears := my_mean(as.numeric(yearly_mean_bypoint_avg)),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(as.numeric(summed_tonnes)),.(survey_unit)]
-dissimilarities_SSTtemp_fishing[,mean_reg_temp_allyears := mean(as.numeric(yearly_mean_bypoint_avg)),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(as.numeric(summed_tonnes)),.(survey_unit)]
+dissimilarities_SSTtemp_fishing[,mean_reg_temp_allyears := my_mean(as.numeric(yearly_mean_bypoint_avg)),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(as.numeric(summed_tonnes)),.(survey_unit)]
 
 #merge dissimilarities with spp counts
 
 dissimilarities_temp_fishing <- dissimilarities_temp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]
 dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]
-
-#Reduce to 1982-2019
-dissimilarities_temp_fishing <- dissimilarities_temp_fishing[year >= 1982 & year <= 2019]
-dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[year >= 1982 & year <= 2019]
 
 fwrite(dissimilarities_temp_fishing, here::here("output","dissimilarities_temp_fishing.csv"))
 
