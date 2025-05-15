@@ -748,7 +748,7 @@ predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_co
   theme_classic() +
   ggtitle("Average model predictions with mean\nsurvey temperature and fishing pressure")
 
-#average temp and fishing across all regions
+#average temp and fishing across all regions (#BROKEN NOT SURE WHAT'S HAPPENING HERE)
 predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing) +
   geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +

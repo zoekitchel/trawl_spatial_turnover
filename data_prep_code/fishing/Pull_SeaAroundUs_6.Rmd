@@ -6,7 +6,7 @@ output: html_notebook
 Pull together sea around us data from the web by closest EEZ
 
 Script 6 for Kitchel et al. 2023 in prep taxonomic diversity manuscript.
-
+ 
 
 ```{r setup}
 library(data.table)
@@ -100,12 +100,19 @@ SAU_summed_tonnes.u <- unique(SAU_summed_tonnes[,.(year, survey_unit, summed_ton
 #load cleaned fishglob data
 FishGlob_clean.singleseason <- readRDS(here::here("data","cleaned","FishGlob_clean.singleseason.rds"))
 
-#unique years and surveys between 1979 and 2018 (offset by one as a predictor)
+#unique years and surveys between 1979 and 2018
 year_survey_match <- unique(FishGlob_clean.singleseason[year > 1978 & year < 2020, .(survey_unit, year)])
 
+#offset by one as a predictor
+year_survey_match[,catch_predict_year := year-1]
+
+#adjust years for SAU_summed_tonnes.u
+setnames(SAU_summed_tonnes.u, "year", "catch_predict_year")
+
 #limit catch data
-SAU_summed_tonnes.r <- SAU_summed_tonnes.u[year_survey_match, on = c("survey_unit","year")]
+SAU_summed_tonnes.r <- SAU_summed_tonnes.u[year_survey_match, on = c("survey_unit","catch_predict_year")]
 ```
+
 
 6. Now, we will sum tonnes across each year for each region
 Moving forward, will use year *before* as the predictor
@@ -114,7 +121,7 @@ SAU_summed_tonnes_full <- SAU_summed_tonnes.r[, summed_tonnes_scaled_byreg := sc
       , summed_tonnes_scaled := scale(summed_tonnes)] #scale across all values (ie high relative to all regions)
 
 #reduce to unique values we need
-SAU_summed_tonnes.r <- unique(SAU_summed_tonnes_full[,.(year, survey_unit, summed_tonnes, summed_tonnes_scaled, summed_tonnes_scaled_byreg)])
+SAU_summed_tonnes.r <- unique(SAU_summed_tonnes_full[,.(year, catch_predict_year, survey_unit, summed_tonnes, summed_tonnes_scaled, summed_tonnes_scaled_byreg)])
 
 
 #plot to visualize

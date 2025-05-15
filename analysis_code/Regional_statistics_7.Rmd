@@ -162,8 +162,14 @@ FishGlob_clean.singleseason[,spp_count_annual := uniqueN(accepted_name),.(year, 
 FishGlob_clean.singleseason[,depth_annual_avg := my_mean(depth),.(year, survey_unit)]
 
 #add column for depth range per year
-FishGlob_clean.singleseason[,depth_annual_range := ifelse(!is.na(depth), max(depth, na.rm =T)-min(depth, na.rm =T),
-                                                    as.numeric(NA)),.(year, survey_unit)]
+FishGlob_clean.singleseason[, depth_annual_range := 
+  if (all(is.na(depth))) {
+    NA_real_
+  } else {
+    max(depth, na.rm = TRUE) - min(depth, na.rm = TRUE)
+  }, 
+  by = .(year, survey_unit)
+]
 
 #add column for avg latitude per year
 FishGlob_clean.singleseason[,latitude_annual_avg := my_mean(as.numeric(latitude)),.(year, survey_unit)]
