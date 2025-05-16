@@ -11,6 +11,8 @@ library(MuMIn)
 library(ggplot2)
 library(cowplot)
 library(lme4)
+library(stringr)
+library(nlme)
 
 #pull in function to calculate model estimates and standard errors
 source(here::here("analysis_code","extract_coefficients_function.R"))
@@ -930,7 +932,7 @@ interaction_avg_model_coef <- data.table(lm_interaction_coefficients_se(mod_name
 interaction_avg_model_coef[,survey_unit := factor(all_surveys[!all_surveys %in% c("ROCKALL", "GSL-S")])]
 
 #add predictor names
-interaction_avg_model_coef[,predictor := "Relative fishing catch"]
+interaction_avg_model_coef[,predictor := "Maximum temperature"]
 
 #link for full survey name
 interaction_avg_model_coef <- color_link[interaction_avg_model_coef, on = "survey_unit"]
@@ -965,16 +967,16 @@ theme_classic()
 ```
 Plot all other coefficients in averaged model
 ```{r}
-model_avg_values.nonfishortemp <- model_avg_values[c(2,6,70:75),]
+model_avg_values.nonfishortemp <- model_avg_values[c(2:4,8,72,73,105,106),]
 
 #mark significance
 model_avg_values.nonfishortemp[,Significant := ifelse((coef-se > 0 & coef+se > 0) | (coef-se < 0 & coef+se < 0),T,F)]
 
 #more helpful names for variables
-model_avg_values.nonfishortemp[,Variable := c("Depth","Species count","Number of tows","Area","Latitude range","Depth range","Latitude","Temperature")]
+model_avg_values.nonfishortemp[,Variable := c("Area","Depth","Latitude","Species count","Relative fishing catch","Latitude range","Number of tows","Depth range")]
 
 #make factor with order
-model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Temperature","Area","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
+model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Relative fishing catch","Area","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
 
 
 #plot

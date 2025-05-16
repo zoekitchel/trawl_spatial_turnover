@@ -321,6 +321,7 @@ ggsave(beta_gamma_raw_plot_wlegend, path = here::here("figures"), filename = "be
 ```
 
 
+
 Pull in and format temp and fishing 
 ```{r}
 SODA_data_temp_avgs_full <- readRDS(here::here("data","Temperature","SODA_data_temp_avgs_full.rds"))
@@ -363,10 +364,11 @@ dissimilarities_SSTtemp_fishing <- SAU_summed_tonnes.r[jaccard_index_allyears.SS
 Merge with temp and fishing
 ```{r merge with avg temp and fishing values}
 
+#Mean temperature and fishing catch across all years
 dissimilarities_temp_fishing[,mean_reg_temp_allyears := my_mean(as.numeric(yearly_mean_bypoint_avg)),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(as.numeric(summed_tonnes)),.(survey_unit)]
 dissimilarities_SSTtemp_fishing[,mean_reg_temp_allyears := my_mean(as.numeric(yearly_mean_bypoint_avg)),.(survey_unit)][,mean_reg_fishing_allyears := my_mean(as.numeric(summed_tonnes)),.(survey_unit)]
 
-#merge dissimilarities with spp counts
+#Merge dissimilarities with spp counts
 
 dissimilarities_temp_fishing <- dissimilarities_temp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]
 dissimilarities_SSTtemp_fishing <- dissimilarities_SSTtemp_fishing[FishGlob_richness_year_survey, on = c("year","survey_unit","year_adj","latitude_annual_avg","latitude_annual_range", "depth_annual_avg","depth_annual_range","num_cpue_annual", "haul_id_count_annual", "spp_count_annual")]

@@ -73,53 +73,12 @@ lm_interaction_coefficients_se <- function(mod_name, model_avg = F, SST_fish = F
                 byrow = TRUE)
   }
   
-  if(model_avg == T & SST_fish == T){
-    coefs.r <- coef(mod_name)[c(7,39:69)]
-    
-    cov_mat <- vcov(mod_name)[c(7,39:69),c(7,39:69)] #get covariance matrix
-    
-    D <- matrix(c(#fishing
-                  1,rep(0,0),rep(0,31),
-                  1,rep(0,0),1,rep(0,30),
-                  1,rep(0,1),1,rep(0,29),
-                  1,rep(0,2),1,rep(0,28),
-                  1,rep(0,3),1,rep(0,27),
-                  1,rep(0,4),1,rep(0,26),
-                  1,rep(0,5),1,rep(0,25),
-                  1,rep(0,6),1,rep(0,24),
-                  1,rep(0,7),1,rep(0,23),
-                  1,rep(0,8),1,rep(0,22),
-                  1,rep(0,9),1,rep(0,21),
-                  1,rep(0,10),1,rep(0,20),
-                  1,rep(0,11),1,rep(0,19),
-                  1,rep(0,12),1,rep(0,18),
-                  1,rep(0,13),1,rep(0,17),
-                  1,rep(0,14),1,rep(0,16),
-                  1,rep(0,15),1,rep(0,15),
-                  1,rep(0,16),1,rep(0,14),
-                  1,rep(0,17),1,rep(0,13),
-                  1,rep(0,18),1,rep(0,12),
-                  1,rep(0,19),1,rep(0,11),
-                  1,rep(0,20),1,rep(0,10),
-                  1,rep(0,21),1,rep(0,9),
-                  1,rep(0,22),1,rep(0,8),
-                  1,rep(0,23),1,rep(0,7),
-                  1,rep(0,24),1,rep(0,6),
-                  1,rep(0,25),1,rep(0,5),
-                  1,rep(0,26),1,rep(0,4),
-                  1,rep(0,27),1,rep(0,3),
-                  1,rep(0,28),1,rep(0,2),
-                  1,rep(0,29),1,rep(0,1),
-                  1,rep(0,30),1,rep(0,0)),
-                  ncol = length(coefs.r),
-                  byrow = TRUE)
-    
-  }
+ #Bottom temperature
   
   if(model_avg == T & SBT_fish == T){
-    coefs.r <- coef(mod_name)[c(7,39:101)]
+    coefs.r <- coef(mod_name)[c(9,41:103)]
     
-    cov_mat <- vcov(mod_name)[c(7,39:101),c(7,39:101)] #get covariance matrix
+    cov_mat <- vcov(mod_name)[c(9,41:103),c(9,41:103)] #get covariance matrix
     
     D <- matrix(c(#fishing
       1,0,0,rep(0,61),
@@ -192,6 +151,50 @@ lm_interaction_coefficients_se <- function(mod_name, model_avg = F, SST_fish = F
     
   }
   
+  #Surface temperature
+  if(model_avg == T & SST_fish == T){
+    coefs.r <- coef(mod_name)[c(40:71)]
+    
+    cov_mat <- vcov(mod_name)[c(40:71),c(40:71)] #get covariance matrix
+    
+    D <- matrix(c(
+      1, 0, 0, rep(0, 29),
+      1, 1, 0, rep(0, 29),
+      1, 0, 1, rep(0, 29),
+      1, rep(0, 2), 1, rep(0, 28),
+      1, rep(0, 3), 1, rep(0, 27),
+      1, rep(0, 4), 1, rep(0, 26),
+      1, rep(0, 5), 1, rep(0, 25),
+      1, rep(0, 6), 1, rep(0, 24),
+      1, rep(0, 7), 1, rep(0, 23),
+      1, rep(0, 8), 1, rep(0, 22),
+      1, rep(0, 9), 1, rep(0, 21),
+      1, rep(0,10), 1, rep(0, 20),
+      1, rep(0,11), 1, rep(0, 19),
+      1, rep(0,12), 1, rep(0, 18),
+      1, rep(0,13), 1, rep(0, 17),
+      1, rep(0,14), 1, rep(0, 16),
+      1, rep(0,15), 1, rep(0, 15),
+      1, rep(0,16), 1, rep(0, 14),
+      1, rep(0,17), 1, rep(0, 13),
+      1, rep(0,18), 1, rep(0, 12),
+      1, rep(0,19), 1, rep(0, 11),
+      1, rep(0,20), 1, rep(0, 10),
+      1, rep(0,21), 1, rep(0, 9),
+      1, rep(0,22), 1, rep(0, 8),
+      1, rep(0,23), 1, rep(0, 7),
+      1, rep(0,24), 1, rep(0, 6),
+      1, rep(0,25), 1, rep(0, 5),
+      1, rep(0,26), 1, rep(0, 4),
+      1, rep(0,27), 1, rep(0, 3),
+      1, rep(0,28), 1, rep(0, 2),
+      1, rep(0,29), 1, rep(0, 1),
+      1, rep(0,30), 1),
+      ncol = 32, byrow = TRUE)
+    
+    
+    
+  }
   
   stopifnot(coef_table_length %in% c(48,68) | model_avg == T)
   

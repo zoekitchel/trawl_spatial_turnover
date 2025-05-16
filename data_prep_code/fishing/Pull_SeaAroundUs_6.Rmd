@@ -104,7 +104,7 @@ FishGlob_clean.singleseason <- readRDS(here::here("data","cleaned","FishGlob_cle
 year_survey_match <- unique(FishGlob_clean.singleseason[year > 1978 & year < 2020, .(survey_unit, year)])
 
 #offset by one as a predictor
-year_survey_match[,catch_predict_year := year-1]
+year_survey_match[,catch_predict_year := year-1] #year will refer to TOW year, catch_predict_year will refer to catch year (SAU)
 
 #adjust years for SAU_summed_tonnes.u
 setnames(SAU_summed_tonnes.u, "year", "catch_predict_year")
@@ -136,6 +136,9 @@ ggplot(SAU_summed_tonnes.r) +
 
 #save
 saveRDS(SAU_summed_tonnes.r, here::here("data","sea_around_us","SAU_summed_tonnes.rds"))
+
+#year = fishglob tow year
+#catch_predict_year = catch from SAU from year before
 
 
 #hist for all reg

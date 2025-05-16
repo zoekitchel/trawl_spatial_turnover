@@ -666,7 +666,7 @@ dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_
 
   #What's the R^2 value?
   r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions, annual_dissimilarity_value ~ pred_dissim))
-  #R2 = 0.9507659
+  #R2 = 0.9458501
   
   #constant temp in regions (aka take mean of temperature values within survey units so they are the same value within each year for a survey)
   dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg <- copy(dissimilarity_covariates_dredge.dt)
@@ -675,7 +675,7 @@ dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_
   
     #What's the R^2 value?
   r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions_consistenttempinreg, annual_dissimilarity_value ~ pred_dissim))
-  #R2 = 0.94 (only fishing!!)
+  #R2 = 0.9370433 (only fishing!!)
 
   #constant fishing in regions (aka take mean of fishing values within survey units so they are the same value within each year for a survey)
   dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
@@ -685,7 +685,7 @@ dissimilarity_covariates_dredge.dt_predictions <- copy(dissimilarity_covariates_
   
     #What's the R^2 value?
   r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions_consistentfishinginreg, annual_dissimilarity_value ~ pred_dissim))
-  #R2 = 0.94 (only temperature!!)
+  #R2 = 0.935642 (only temperature!!)
 
 #and then with consistent temp and fishing in regions (aka take mean of both min temp and fishing)
 dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg <- copy(dissimilarity_covariates_dredge.dt)
@@ -695,7 +695,7 @@ dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg[,summe
   
     #What's the R^2 value?
   r.squaredGLMM(lm(data = dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg, annual_dissimilarity_value ~ pred_dissim))
-  #R2 = 0.93 (only other variables!!! not temp or fishing)
+  #R2 = 0.9288549 (only other variables!!! not temp or fishing)
 
 
 #allowing temp and fishing to vary within regs (normal)
@@ -722,51 +722,51 @@ color_link_alpha <- color_link_alpha[survey_unit %in% unique(dissimilarity_covar
 color_alpha_order <- color_link_alpha[,hex]
 label_alpha_order <- color_link_alpha[,Survey_Name_Season]
   
-
-#maintain temp and fishing
-#plot
-predicted_values_temp_fishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions) +
-  geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
-  geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
-  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
-  scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
-  scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
-  labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
-  ylim(0,1.5) +
-  theme_classic() +
-  ggtitle("Average model predictions")
-
-#average temp and fishing for each region
-predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg) +
-  geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
-  geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
-  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
-  scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
-  scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
-  labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
-  ylim(0,1.5) +
-  theme_classic() +
-  ggtitle("Average model predictions with mean\nsurvey temperature and fishing pressure")
-
-#average temp and fishing across all regions (#BROKEN NOT SURE WHAT'S HAPPENING HERE)
-predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing) +
-  geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
-  geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
-  geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.1) +
-  scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
-  scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
-  labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
-  ylim(0,1.5) +
-  theme_classic() +
-  ggtitle("Average model predictions with mean\novereall temperature and fishing pressure")
-
-#merge plots
-predicted_values_sbt_jaccard_fishing_merge <- cowplot::plot_grid(predicted_values_temp_fishing,
-                                                 predicted_values_temp_fishing_meantempfishinginsurvey,
-                                                 predicted_values_temp_fishing_meantempfishing,
-                                                 ncol = 1)
-
-ggsave(predicted_values_sbt_jaccard_fishing_merge, path = here::here("figures"), filename = "predicted_values_sbt_jaccard_fishing_merge.jpg", height = 30, width = 14)
+# 
+# #maintain temp and fishing
+# #plot
+# predicted_values_temp_fishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions) +
+#   geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
+#   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
+#   geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
+#   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+#   scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+#   labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+#   ylim(0,1.5) +
+#   theme_classic() +
+#   ggtitle("Average model predictions")
+# 
+# #average temp and fishing for each region
+# predicted_values_temp_fishing_meantempfishinginsurvey <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishinginreg) +
+#   geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
+#   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
+#   geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.3) +
+#   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+#   scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+#   labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+#   ylim(0,1.5) +
+#   theme_classic() +
+#   ggtitle("Average model predictions with mean\nsurvey temperature and fishing pressure")
+# 
+# #average temp and fishing across all regions (#BROKEN NOT SURE WHAT'S HAPPENING HERE)
+# predicted_values_temp_fishing_meantempfishing <- ggplot(dissimilarity_covariates_dredge.dt_predictions_consistenttempfishing) +
+#   geom_point(aes(x = year, y = annual_dissimilarity_value, color = survey_unit)) +
+#   geom_line(aes(x = year, y = pred_dissim, color = survey_unit)) +
+#   geom_ribbon(aes(x = year, ymin = pred_dissim-pred_se, ymax = pred_dissim+pred_se, fill = survey_unit), alpha = 0.1) +
+#   scale_color_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+#   scale_fill_manual(values = color_alpha_order, labels = label_alpha_order, name = "Survey") +
+#   labs(x = "Year",y = "Average annual total\nBray Curtis dissimilarity") +
+#   ylim(0,1.5) +
+#   theme_classic() +
+#   ggtitle("Average model predictions with mean\novereall temperature and fishing pressure")
+# 
+# #merge plots
+# predicted_values_sbt_jaccard_fishing_merge <- cowplot::plot_grid(predicted_values_temp_fishing,
+#                                                  predicted_values_temp_fishing_meantempfishinginsurvey,
+#                                                  predicted_values_temp_fishing_meantempfishing,
+#                                                  ncol = 1)
+# 
+# ggsave(predicted_values_sbt_jaccard_fishing_merge, path = here::here("figures"), filename = "predicted_values_sbt_jaccard_fishing_merge.jpg", height = 30, width = 14)
 ```
 
 Take dissimilarity values from random normal distribution for each year for each region, and then calculate slope (1000 times). Do this for:
@@ -1069,13 +1069,13 @@ theme_classic()
 
 Plot all other coefficients in averaged model
 ```{r}
-model_avg_values.nonfishortemp <- model_avg_values[c(2,6,102:106),]
+model_avg_values.nonfishortemp <- model_avg_values[c(2,3,4,8,104,105,106),]
 
 #mark significance
 model_avg_values.nonfishortemp[,Significant := ifelse((coef-se > 0 & coef+se > 0) | (coef-se < 0 & coef+se < 0),T,F)]
 
 #more helpful names for variables
-model_avg_values.nonfishortemp[,Variable := c("Area","Species count","Depth","Number of tows","Latitude","Depth range","Latitude range")]
+model_avg_values.nonfishortemp[,Variable := c("Area","Depth","Latitude","Species count","Number of tows","Latitude range","Depth range")]
 
 #make factor with order
 model_avg_values.nonfishortemp[,Variable := factor(Variable, levels = c("Area","Species count","Number of tows","Depth","Depth range","Latitude","Latitude range"))]
