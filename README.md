@@ -4,14 +4,14 @@ Currently in press at PLOS Climate.
 
 *Zoë J. Kitchel, Aurore A. Maureaud, Alexa Fredston, Nancy Shackell, Bastien Mérigot, James T. Thorson, Laurène Pécuchet, Juliano Palacios-Abrantes, Maria L.D. Palomares, Antonio Esteban Acón, Mark Belchier, Gioacchino Bono, Pierluigi Carbonara, Martin A. Collins, Luis A. Cubillos, Tracey P. Fairweather, Maria Cristina Follesa, Cristina Garciá Ruiz, Maria Teresa Farriols Garau, Germana Garofalo, Igor Isajlović, Johannes N. Kathena, Mariano Koen-Alonso, Porzia Maiorano, Chiara Manfredi, Jurgen Mifsud, Richard L. O’Driscoll, Mario Sbrana, Jón Sólmundsson, Maria Teresa Spedicato, Fabrice Stephenson, Karl-Michael Werner, Daniela V. Yepsen, Walter Zupa, Malin L. Pinsky*
 
-Please contact [Z.J. Kitchel](https://www.zoekitchel.com/) with questions about this project. The results are partially reproducible from the scripts and data files that can be shared are either in this GitHub repository or (if they are too large) will be hosted on [OSF](https://osf.io/) (as described below). 
+Please contact [Z.J. Kitchel](https://www.zoekitchel.com/) with questions about this project. The results are reproducible for the regions with publically available data. The publically available bottom trawl datasets are available for download from the linked [GitHub repository](https://github.com/AquaAuma/FishGlob_data/tree/main/outputs/Compiled_data) associated with [Maureaud et al. 2024](https://doi.org/10.1038/s41597-023-02866-w) and a release available for download on Zenodo (https://zenodo.org/records/10218308).
 
 ## Where do data come from?
 
 We used of a number of datasets that are already publicly available and/or published with this project, in addition to some regional datasets that may be available upon request from data providers. These are fully described and cited in the manuscript, but we also list them here for ease of download, access, and attribution. 
 
-* Publicly available trawl data from [FISHGLOB](https://github.com/AquaAuma/FishGlob_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. The raw data files from FISHGLOB are too big to host on GitHub but they will be available on [OSF](https://osf.io/). FISHGLOB has observations for 55 surveys, and 42 of these were appropriate for use in our biodiversity x time analyses.
-* Some regions are unable to share trawl data publically. Data may be available on request from data provider. See Table S1 for contact information.
+* Publicly available trawl data from [FISHGLOB]([https://github.com/AquaAuma/FishGlob_data](https://github.com/AquaAuma/FishGlob_data/tree/main/outputs/Compiled_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. FISHGLOB has observations for 55 surveys, and 34 of these were used in this project.
+* Some regions are unable to share trawl data publically. Data may be available on request from data provider. See Table S1 in the supplementary materials for contact information.
 * Sea bottom temperature data from [SODA 3.3.2](http://www.soda.umd.edu/), an ocean reanalysis data product by the University of Maryland available beginning in 1980. 
 * Sea surface temperature data from [OISST](https://www.ncei.noaa.gov/products/optimum-interpolation-sst), a historical satellite temperature record from the U.S. National Oceanic and Atmospheric Administration beginning in 1982.
 * Historical fishing pressure estimates from [Sea Around Us](https://www.seaaroundus.org/).
@@ -22,6 +22,8 @@ We used of a number of datasets that are already publicly available and/or publi
 The repository is organized as follows:
 
 * `data` contains raw datasets obtained from other sources (described above).
+      * Note: Norway (Barents Sea; Nor-BTS) required a data update in September 2023. Norway data can be found in `data` > `Norway_Sep2023` > `NOR-BTS_clean.RData`.
+      * Queen Charlotte Sound (DFO-QCS) required a data update in September 2023. Therefore, QCS is excluded from `FISHGLOB_public_v1.5_clean.csv`, and QCS data can be found in `data` > `DFO-QCS_Sep2023` > `QCS_clean.RData`
 * `data_prep_code` contains Rmd scripts to access (when possible) and prepare trawl, temperature, and fishing datasets.
 * `analysis_code` contains Rmd scripts to run all dissimilarity analyses.
 * `figure_code` contains Rmd scripts to make figures not made in other scripts.
@@ -33,14 +35,11 @@ The repository is organized as follows:
 
 The following files are too big to host on GitHub and are available on [OSF](https://osf.io/) only:
 
-- The raw publicly available FISHGLOB data (a slightly earlier version of the dataset described in [Maureaud et al. 2023](https://doi.org/10.31219/osf.io/2bcjw)), `FISHGLOB_public_v1.5_clean.csv`. This should be downloaded from [OSF](https://osf.io/) and moved to `raw-data` to reproduce analyses for public surveys only.
-- Norway (Barents Sea; Nor-BTS) required a data update in September 2023. Therefore, Norway is excluded from `FISHGLOB_public_v1.5_clean.csv`, and Norway data can be found in `data` > `Norway_Sep2023` > `NOR-BTS_clean.RData`. This file can be merged (with care) with `FISHGLOB_public_v1.5_clean.csv`.
-- Queen Charlotte Sound (DFO-QCS) required a data update in September 2023. Therefore, QCS is excluded from `FISHGLOB_public_v1.5_clean.csv`, and QCS data can be found in `data` > `DFO-QCS_Sep2023` > `QCS_clean.RData`
-- Greenland (GRL) required a data update in September 2023. Therefore, QCS is excluded from `FISHGLOB_public_v1.5_clean.csv`. Greenland is only available by request, and therefore raw data is not included in this repository.
+- The raw publicly available FISHGLOB data (see link above to data download).
 
-We did not host the raw SODA and OISST data on OSF because the source files are very large. The SODA sea bottom temperature data were downloaded from [http://www.soda.umd.edu/](http://www.soda.umd.edu/) (accessed May 28, 2023). The NOAA OISST data were downloaded from https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/ (accessed May 19, 2023). 
+- We did not host the raw SODA and OISST data on OSF because the source files are very large. The SODA sea bottom temperature data were downloaded from [http://www.soda.umd.edu/](http://www.soda.umd.edu/) (accessed May 28, 2023). The NOAA OISST data were downloaded from https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/ (accessed May 19, 2023). 
 
-We respect that trawl survey data for some regions are not currently publically available. Therefore, we cannot share survey data for South Georgia,the Mediterranean, South Africa, Chile, Namibia, Newfoundland, Greenland, Iceland, or New Zealand. This repository includes scripts that will prepare and process these data, but does not include raw data files for these regions. Table S1 lists data providers/corresponding authors for each region.
+- We respect that trawl survey data for some regions are not currently publically available. Therefore, we cannot share survey data for South Georgia,the Mediterranean, South Africa, Chile, Namibia, Newfoundland, Greenland, Iceland, or New Zealand. This repository includes scripts that will prepare and process these data, but does not include raw data files for these regions. Table S1 lists data providers/corresponding authors for each region.
 
 ## In what order should things be run?
 
@@ -150,5 +149,4 @@ Supplemental Tables
 
 
 ## Notes
-* Upon publication, package versions used in this analysis will be captured by `renv` and listed [in the lockfile](....renv.lock). Here is [a summary of how renv works](https://rstudio.github.io/renv/articles/renv.html). 
 * Most of these analyses were run on a personal computer using R 4.2.1, and should be easy to reproduce for public data. The exception is the temperature extraction and averaging, as these require averaging of extremely large source files. Therefore, we recommend users to start with averaged temperature files, `SODA_data_temp_avgs_full.rds` & `OISST_data_temp_avgs_full.rds`.
