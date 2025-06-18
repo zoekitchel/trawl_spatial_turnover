@@ -1,6 +1,6 @@
 # Marine communities do not follow the paradigm of increasing similarity through time
 
-Currently in review at PLOS Climate.
+Currently in press at PLOS Climate.
 
 *Zoë J. Kitchel, Aurore A. Maureaud, Alexa Fredston, Nancy Shackell, Bastien Mérigot, James T. Thorson, Laurène Pécuchet, Juliano Palacios-Abrantes, Maria L.D. Palomares, Antonio Esteban Acón, Mark Belchier, Gioacchino Bono, Pierluigi Carbonara, Martin A. Collins, Luis A. Cubillos, Tracey P. Fairweather, Maria Cristina Follesa, Cristina Garciá Ruiz, Maria Teresa Farriols Garau, Germana Garofalo, Igor Isajlović, Johannes N. Kathena, Mariano Koen-Alonso, Porzia Maiorano, Chiara Manfredi, Jurgen Mifsud, Richard L. O’Driscoll, Mario Sbrana, Jón Sólmundsson, Maria Teresa Spedicato, Fabrice Stephenson, Karl-Michael Werner, Daniela V. Yepsen, Walter Zupa, Malin L. Pinsky*
 
