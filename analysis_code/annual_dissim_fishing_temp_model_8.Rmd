@@ -586,6 +586,59 @@ model_coef_se_AIC <- dd.dt.2.formatted[model_coef_se_fill.w, on = "Rank"]
 #model average all models with delta < 4 (8 models)
 model_avg_delta4 <-model.avg(dd, subset = delta < 4, fit = T) #NB: The ‘subset’ (or ‘conditional’) average only   averages over the models where the parameter appears. An alternative, the ‘full’ average assumes that a variable is included in every model, but in some models the corresponding coefficient (and its respective variance) is set to zero. Unlike the ‘subset average’, it does not have a tendency of biasing the value away from zero. The ‘full’ average is a type of shrinkage estimator, and for variables with a weak relationship to the response it is smaller than ‘subset’ estimators., fit = T fits the component models again
 
+model_avg_notemp <- subset(model_set, !("summed_tonnes_scaled_byreg" %in% attr(terms(model.set), "term.labels")))
+  
+#Calculate marginal R^2 values
+
+# 5. Filter model set to exclude the variable of interest
+model_set_minus_fishing <- subset(dd, !grepl("summed_tonnes_scaled_byreg", formula))
+
+# Get all models from dredge output
+all_models <- get.models(dd, subset = TRUE)
+
+# Filter out ones that contain the term
+models_minus_fishing <- Filter(function(m) {
+  !any(grepl("summed_tonnes_scaled_byreg", attr(terms(m), "term.labels")))
+}, all_models)
+
+model_selection_minus_fishing <- model.sel(models_minus_fishing)
+
+#Calculate R^2 no fishing
+nofishing_summary <- summary(get.models(model_selection_minus_fishing, subset = 1)[[1]]) #0.93
+r2_nofishing <- signif(nofishing_summary$r.squared)
+r2_nofishing 
+
+# Filter out ones that contain the term
+models_minus_temperature <- Filter(function(m) {
+  !any(grepl("yearly_min_bypoint_avg.scaledacrossall", attr(terms(m), "term.labels")))
+}, all_models)
+
+model_selection_minus_temperature <- model.sel(models_minus_temperature)
+
+#Calculate R^2 no temperature
+notemperature_summary <- summary(get.models(model_selection_minus_temperature, subset = 1)[[1]]) #0.94
+r2_temperature <- signif(notemperature_summary$r.squared)
+r2_temperature
+
+#Exclude both
+models_minus_temp_and_fishing <- Filter(function(m) {
+  terms <- attr(terms(m), "term.labels")
+  # Return TRUE if neither fishing nor temp (or interactions involving them) are in terms
+  !any(grepl("summed_tonnes_scaled_byreg", terms)) &&
+    !any(grepl("yearly_min_bypoint_avg.scaledacrossall", terms))
+}, all_models)
+
+
+model_selection_minus_temp_and_fishing <- model.sel(models_minus_temp_and_fishing)
+
+#Calculate R^2 no fishing
+notemp_nofishing_summary <- summary(get.models(model_selection_minus_temp_and_fishing, subset = 1)[[1]]) #0.93
+r2_temp_and_fishing_exclude <- signif(notemp_nofishing_summary$r.squared)
+r2_temp_and_fishing_exclude
+
+
+
+#add SE
 model_avg_values <- as.data.table(coefTable(model_avg_delta4,fill = T)) # with SE
 coef_names <- names(coef(model.avg(dd, subset = delta < 4)))
 model_avg_values[,coef_name:=coef_names][,coef:=Estimate][,Estimate:=NULL][,df:=NULL][,se:= `Std. Error`][,`Std. Error` := NULL]
@@ -927,7 +980,7 @@ for (i in 1:1000){
   
   predicted_dissim_trends_rnormruns_constanttempfishing <- rbind(predicted_dissim_trends_rnormruns_constanttempfishing, model_coefs_reduced_predictions_singlerun_constanttempfishing[,.(survey_unit, estimate)])
   
-  print(i)
+ # print(i)
 }
   
 #reduce to mean and standard deviation
@@ -1063,7 +1116,7 @@ scale_x_discrete(limits = rev) +
 coord_flip() +
 theme_classic()
   
-
+interaction_avg_model_coef
 
 ```
 
@@ -1136,10 +1189,12 @@ ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +
   geom_point(aes(x = yearly_min_bypoint_avg, y = annual_dissimilarity_value)) +
   theme_classic()
 
-#If we ignore two coldest years, we have roughly points at (2.07,0.76) and (2.2, 0.69), slope = -1.8, which matches what we get (also note large confidence bounds)
+#If we ignore two coldest years, we have roughly points at (2.07,0.76) and (2.2, 0.69), slope = -0.5, which matches what we get (also note large confidence bounds)
 
 #So, the question is, what is leading the model to ignore these two years? What explains this variation in the coldest years?
 
+#Just run model for AI
+summary(lm(data = dissimilarity_covariates_dredge.dt[survey_unit == "AI"], annual_dissimilarity_value ~ yearly_min_bypoint_avg))
 
 #DISSIMILARITY
 ggplot(dissimilarity_covariates_dredge.dt[survey_unit == "AI"]) +

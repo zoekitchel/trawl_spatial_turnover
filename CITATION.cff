@@ -1,0 +1,26 @@
+cff-version: 1.0.0
+message: "If you use this code, please cite the following paper."
+authors:
+- family-names: "Kitchel et al."
+  given-names: "Zoë Kitchel"
+  orcid: "https://orcid.org/0000-0002-1588-3470"
+title: "GitHubRepo: Marine communities do not follow the paradigm of increasing similarity through time"
+version: 2.0.4
+doi: TBD
+date-released: 2025-07-08
+url: "https://github.com/zoekitchel/trawl_spatial_turnover"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Kitchel et al."
+    given-names: "Zoë Kitchel"
+    orcid: "https://orcid.org/0000-0002-1588-3470"
+  doi: "10.0000/00000"
+  journal: "PLOS Climate"
+  month: 9
+  start: 1 # First page number
+  end: 10 # Last page number
+  title: "Marine communities do not follow the paradigm of increasing similarity through time"
+  issue: 1
+  volume: 1
+  year: 2025

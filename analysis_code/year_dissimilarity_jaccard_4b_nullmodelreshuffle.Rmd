@@ -72,6 +72,7 @@ I need to:
 - run lmer
 - pull mean and CI for each region
 ```{r}
+set.seed(23)
 #surveys
 all_survey_units <- color_link$survey_unit
 years <- sort(unique(jaccard_index_allyears[dissimilarity_metric == "jaccard_dissimilarity_index_binary",]$year))
