@@ -4,14 +4,14 @@ Currently in press at PLOS Climate.
 
 *Zoë J. Kitchel, Aurore A. Maureaud, Alexa Fredston, Nancy Shackell, Bastien Mérigot, James T. Thorson, Laurène Pécuchet, Juliano Palacios-Abrantes, Maria L.D. Palomares, Antonio Esteban Acón, Mark Belchier, Gioacchino Bono, Pierluigi Carbonara, Martin A. Collins, Luis A. Cubillos, Tracey P. Fairweather, Maria Cristina Follesa, Cristina Garciá Ruiz, Maria Teresa Farriols Garau, Germana Garofalo, Igor Isajlović, Johannes N. Kathena, Mariano Koen-Alonso, Porzia Maiorano, Chiara Manfredi, Jurgen Mifsud, Richard L. O’Driscoll, Mario Sbrana, Jón Sólmundsson, Maria Teresa Spedicato, Fabrice Stephenson, Karl-Michael Werner, Daniela V. Yepsen, Walter Zupa, Malin L. Pinsky*
 
-Please contact [Z.J. Kitchel](https://www.zoekitchel.com/) with questions about this project. The results are reproducible for the regions with publically available data. The publically available bottom trawl datasets are available for download from the linked [GitHub repository](https://github.com/AquaAuma/FishGlob_data/tree/main/outputs/Compiled_data) associated with [Maureaud et al. 2024](https://doi.org/10.1038/s41597-023-02866-w) and a release available for download on Zenodo (https://zenodo.org/records/10218308).
+Please contact [Z.J. Kitchel](https://www.zoekitchel.com/) with questions about this project. The results are reproducible for the regions with publicly available data. The publicly available bottom trawl datasets are available for download from the linked [GitHub repository](https://github.com/AquaAuma/FishGlob_data/tree/main/outputs/Compiled_data) associated with [Maureaud et al. 2024](https://doi.org/10.1038/s41597-023-02866-w) and a release available for download on Zenodo (https://zenodo.org/records/10218308).
 
 ## Where do data come from?
 
 We used of a number of datasets that are already publicly available and/or published with this project, in addition to some regional datasets that may be available upon request from data providers. These are fully described and cited in the manuscript, but we also list them here for ease of download, access, and attribution. 
 
-* Publicly available trawl data from [FISHGLOB]([https://github.com/AquaAuma/FishGlob_data](https://github.com/AquaAuma/FishGlob_data/tree/main/outputs/Compiled_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. FISHGLOB has observations for 55 surveys, and 34 of these were used in this project.
-* Some regions are unable to share trawl data publically. Data may be available on request from data provider. See Table S1 in the supplementary materials for contact information.
+* Publicly available trawl data from [FISHGLOB](https://github.com/AquaAuma/FishGlob_data/tree/main/outputs/Compiled_data), a project to harmonize publicly available trawl survey records from federal agencies around the globe. FISHGLOB has observations for 55 surveys, and 34 of these were used in this project.
+* Some regions are unable to share trawl data publicly. Data may be available on request from data provider. See Table S1 in the supplementary materials for contact information.
 * Sea bottom temperature data from [SODA 3.3.2](http://www.soda.umd.edu/), an ocean reanalysis data product by the University of Maryland available beginning in 1980. 
 * Sea surface temperature data from [OISST](https://www.ncei.noaa.gov/products/optimum-interpolation-sst), a historical satellite temperature record from the U.S. National Oceanic and Atmospheric Administration beginning in 1982.
 * Historical fishing pressure estimates from [Sea Around Us](https://www.seaaroundus.org/).
@@ -39,7 +39,7 @@ The following files are not hosted on GitHub:
 
 - We do not host raw SODA and OISST data because the source files are very large. The SODA sea bottom temperature data were downloaded from [http://www.soda.umd.edu/](http://www.soda.umd.edu/) (accessed May 28, 2023). The NOAA OISST data were downloaded from https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/ (accessed May 19, 2023). 
 
-- We respect that trawl survey data for some regions are not currently publically available. Therefore, we cannot share survey data for South Georgia,the Mediterranean, South Africa, Chile, Namibia, Newfoundland, Greenland, Iceland, or New Zealand. This repository includes scripts that will prepare and process these data, but does not include raw data files for these regions. Table A in S1 Text lists data providers/corresponding authors for each region.
+- We respect that trawl survey data for some regions are not currently publicly available. Therefore, we cannot share survey data for South Georgia,the Mediterranean, South Africa, Chile, Namibia, Newfoundland, Greenland, Iceland, or New Zealand. This repository includes scripts that will prepare and process these data, but does not include raw data files for these regions. Table A in S1 Text lists data providers/corresponding authors for each region.
 
 ## In what order should things be run?
 
