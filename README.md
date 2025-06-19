@@ -23,7 +23,7 @@ The repository is organized as follows:
 
 * `data` contains raw datasets obtained from other sources (described above).
       * Note: Norway (Barents Sea; Nor-BTS) required a data update in September 2023. Norway data can be found in `data` > `Norway_Sep2023` > `NOR-BTS_clean.RData`.
-      * Queen Charlotte Sound (DFO-QCS) required a data update in September 2023. Therefore, QCS is excluded from `FISHGLOB_public_v1.5_clean.csv`, and QCS data can be found in `data` > `DFO-QCS_Sep2023` > `QCS_clean.RData`
+      * Note: Queen Charlotte Sound (DFO-QCS) required a data update in September 2023. Therefore, QCS is excluded from `FISHGLOB_public_v1.5_clean.csv`, and QCS data can be found in `data` > `DFO-QCS_Sep2023` > `QCS_clean.RData`
 * `data_prep_code` contains Rmd scripts to access (when possible) and prepare trawl, temperature, and fishing datasets.
 * `analysis_code` contains Rmd scripts to run all dissimilarity analyses.
 * `figure_code` contains Rmd scripts to make figures not made in other scripts.
@@ -33,13 +33,13 @@ The repository is organized as follows:
 
 ## What's not in the repository? 
 
-The following files are too big to host on GitHub and are available on [OSF](https://osf.io/) only:
+The following files are not hosted on GitHub:
 
 - The raw publicly available FISHGLOB data (see link above to data download).
 
-- We did not host the raw SODA and OISST data on OSF because the source files are very large. The SODA sea bottom temperature data were downloaded from [http://www.soda.umd.edu/](http://www.soda.umd.edu/) (accessed May 28, 2023). The NOAA OISST data were downloaded from https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/ (accessed May 19, 2023). 
+- We do not host raw SODA and OISST data because the source files are very large. The SODA sea bottom temperature data were downloaded from [http://www.soda.umd.edu/](http://www.soda.umd.edu/) (accessed May 28, 2023). The NOAA OISST data were downloaded from https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/ (accessed May 19, 2023). 
 
-- We respect that trawl survey data for some regions are not currently publically available. Therefore, we cannot share survey data for South Georgia,the Mediterranean, South Africa, Chile, Namibia, Newfoundland, Greenland, Iceland, or New Zealand. This repository includes scripts that will prepare and process these data, but does not include raw data files for these regions. Table S1 lists data providers/corresponding authors for each region.
+- We respect that trawl survey data for some regions are not currently publically available. Therefore, we cannot share survey data for South Georgia,the Mediterranean, South Africa, Chile, Namibia, Newfoundland, Greenland, Iceland, or New Zealand. This repository includes scripts that will prepare and process these data, but does not include raw data files for these regions. Table A in S1 Text lists data providers/corresponding authors for each region.
 
 ## In what order should things be run?
 
@@ -115,37 +115,35 @@ Main text:
 
 Supplemental Figures:
 
-- Figure S1: Conceptual figure made manually.
-- Figure S2: `data_prep_code` > `standardize_temp_space_2.Rmd`
-- Figure S3: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
-- Figure S4: `analysis_code` > `year_dissimilarity_BC_total_models_4b_nullmodelreshuffle.Rmd`
-- Figure S3: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
-- Figure S4: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
-- Figure S5: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd` with manual edit (legend) in `figures` > `Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_comparison_legend.pptx`
-- Figure S6: `analysis_code` > `year_dissimilarity_jaccard_4c_15perc_excl.Rmd` & `year_dissimilarity_jaccard_4d_onethird_excl.Rmd` with manual edit (legend) in `figures` > `Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_sensitivity_legend.pptx`
-- Figure S7: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
-- Figure S8: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
-- Figure S9: `analysis_code` > `Regional_statistics_7.Rmd`
-- Figure S10: `analysis_code` > `Regional_statistics_7.Rmd`
-- Figure S11: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
-- Figure S12: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
-- Figure S13: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
-- Figure S14: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
-- Figure S15: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
-- Figure S16: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Figure A: Conceptual figure made manually.
+- Figure B: `data_prep_code` > `standardize_temp_space_2.Rmd`
+- Figure C: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Figure D: `analysis_code` > `year_dissimilarity_BC_total_models_4b_nullmodelreshuffle.Rmd`
+- Figure E: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd` with manual edit (legend) in `figures` > `Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_comparison_legend.pptx`
+- Figure F: `analysis_code` > `year_dissimilarity_jaccard_4c_15perc_excl.Rmd` & `year_dissimilarity_jaccard_4d_onethird_excl.Rmd` with manual edit (legend) in `figures` > `Dissimilarity_Coef_errorbar_reduced_colorbytrend_LINEAR_MODEL_sensitivity_legend.pptx`
+- Figure G: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Figure H: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Figure I: `analysis_code` > `Regional_statistics_7.Rmd`
+- Figure J: `analysis_code` > `Regional_statistics_7.Rmd`
+- Figure K: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Figure L: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Figure M: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Figure N: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Figure O: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Figure P: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
 
 Supplemental Tables
 
-- Table S1: `data_providers_allsurveys.xlsx`, and see Maureaud et al. 2021 Global Change Biology
-- Table S2: `analysis_code` > `Regional_statistics_7.Rmd`
-- Table S3: `data_prep_code` > `standardize_temp_space_2.Rmd`
-- Table S4: Manually constructed.
-- Table S5: Manually constructed.
-- Table S6: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
-- Table S7: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
-- Table S8: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
-- Table S9: `analysis_code` > `annual_dissim_fishing_temp_model_8b_oisst.Rmd`
-- Table S10: `analysis_code` > `annual_dissim_fishing_temp_model_8b_oisst.Rmd`
+- Table A: `data_providers_allsurveys.xlsx`, and see Maureaud et al. 2021 Global Change Biology
+- Table B: `analysis_code` > `Regional_statistics_7.Rmd`
+- Table C: `data_prep_code` > `standardize_temp_space_2.Rmd`
+- Table D: Manually constructed.
+- Table E: Manually constructed.
+- Table F: `analysis_code` > `year_dissimilarity_BC_total_models_4a.Rmd`
+- Table G: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Table H: `analysis_code` > `annual_dissim_fishing_temp_model_8.Rmd`
+- Table I: `analysis_code` > `annual_dissim_fishing_temp_model_8b_oisst.Rmd`
+- Table J: `analysis_code` > `annual_dissim_fishing_temp_model_8b_oisst.Rmd`
 
 
 ## Notes
